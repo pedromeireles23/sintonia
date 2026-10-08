@@ -8,7 +8,7 @@ No ambiente do usuário, os comandos de terminal dos assistentes devem começar 
 
 ## Solução e validação
 
-A solução contém Core, Infrastructure, Desktop, testes xUnit do núcleo e um executável de verificação WPF. O último exige uma sessão Windows com acesso à interface gráfica; não é executado por `dotnet test`.
+A solução contém Core, Infrastructure, Desktop, testes xUnit do núcleo e de processos, um diagnóstico limitado e um executável de verificação WPF. O último exige uma sessão Windows com acesso à interface gráfica; não é executado por `dotnet test`. Os testes de processos usam `Sintonia.ProcessFixture`, sem chamadas a modelos.
 
 Validação:
 

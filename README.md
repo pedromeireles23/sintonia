@@ -62,9 +62,15 @@ Verificação da janela real no Windows (abre, percorre o fluxo e fecha a janela
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build
 ```
 
-As capturas desse teste ficam em `artifacts/ui-smoke`, fora do versionamento.
+As capturas desse teste ficam em `artifacts/ui-smoke`, fora do versionamento. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere também a abertura/encerramento do executável normal.
 
-Os pré-requisitos de Codex e Claude serão diagnosticados numa próxima etapa. Encontrar um executável não confirma autenticação, assinatura ou quota disponível.
+O diagnóstico inicial de instalações já pode ser executado, separado da janela:
+
+```powershell
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build
+```
+
+Consulta somente versão/ajuda, com prazos e saída limitada. Encontrar um executável não confirma autenticação, assinatura, quota disponível ou integração real. Consulte [as verificações e limites do M1](docs/PROVIDER_PROBES.md).
 
 ## Referência e autoria
 

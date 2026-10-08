@@ -17,7 +17,9 @@ Aceite: a janela abre no Windows; as funções podem ser atribuídas aos dois pr
 
 ## M1 — Prova das duas integrações
 
-- [ ] Detectar executáveis e versões sem acessar credenciais.
+Estado: preparação parcial. Detecção/ajuda verificadas, sem inferência. Evidências e próximo passo em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
+
+- [x] Detectar executáveis e versões sem acessar credenciais.
 - [ ] Validar handshake, eventos e interrupção do Codex App Server por stdio.
 - [ ] Validar Claude CLI: saída estruturada, nova sessão e retomada explícita.
 - [ ] Comparar skills, plugins e MCPs esperados com capacidades disponíveis.

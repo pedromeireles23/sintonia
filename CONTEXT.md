@@ -36,10 +36,11 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 - Não há persistência, abertura de projetos reais, retomada nativa, integração Git ou provas reais dos provedores nesta entrega. Fechar a janela cancela a simulação; reabrir reinicia os exemplos.
 - Uma demonstração anterior em Electron validou o conceito de funções, fila e revisão. Ela permanece fora deste repositório e não deve ser confundida com o produto em .NET.
 - SDK .NET 10.0.200 encontrado no ambiente inicial. Git, Codex CLI e Claude Code também estão disponíveis; autenticação e quotas dos provedores não foram verificadas.
+- Preparação do M1: diagnóstico .NET limitado a versão/ajuda detectou Codex CLI `0.162.0-alpha.2` e Claude Code `2.1.277`, consultando executáveis nativos sem interpretar wrappers de shell. 11 testes de Infrastructure aprovados (28 testes xUnit no total), inclusive streams simultâneos, timeout/filho e cancelamento. Detalhes e fontes em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
 
 ## Próxima entrega concreta
 
-Preparar o **M1**: detectar executáveis/versões e conferir interfaces instaladas com operações limitadas e sem inferência. Em seguida, implementar transportes e fazer uma prova pequena de cada provedor, com permissões verificadas, antes de ampliar o painel. Encontrar os CLIs não comprova autenticação, quota ou execução real.
+Continuar o **M1** pelo handshake stdio do Codex sem turno e por contratos/parsing testados com fixtures. Depois, fazer uma prova real pequena de cada provedor com permissões, negativas, retomada e interrupção verificadas, antes de conectar à janela. A detecção e ajuda já funcionam; autenticação, quota, extensões e inferência continuam não verificadas. Não ampliar o painel simulado para adiar essa prova.
 
 ## Critério da primeira versão útil
 

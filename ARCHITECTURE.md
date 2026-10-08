@@ -4,17 +4,21 @@
 
 C# com .NET 10, interface WPF em MVVM e SQLite para o histórico real. A primeira versão é local e focada no Windows.
 
-Estrutura atual (M0):
+Estrutura atual (M0 e preparação do M1):
 
 ```text
 Sintonia.sln
 src/
   Sintonia.Core/           Modelos, estados, dependências e contratos
-  Sintonia.Infrastructure/ Processos, provedores, Git e persistência
+  Sintonia.Infrastructure/ Adaptadores simulados e diagnósticos de processos
   Sintonia.Desktop/        WPF, ViewModels, navegação e composição
 tests/
   Sintonia.Core.Tests/     Regras do núcleo
   Sintonia.Desktop.SmokeTests/  Fluxo real WPF com provedores simulados
+  Sintonia.Infrastructure.Tests/  Detecção e ciclo de vida de processos
+  Sintonia.ProcessFixture/  Processo auxiliar, sem modelos
+tools/
+  Sintonia.Diagnostics/   Consulta limitada de versão e ajuda
 docs/
 ```
 
@@ -60,7 +64,7 @@ flowchart TD
 
 ## Integrações
 
-`IProviderAdapter` representa detecção, início/retomada, eventos, interrupção e permissões. Só declarar suporte a uma capacidade depois de verificar o comportamento real. Nem todos os provedores têm os mesmos métodos.
+A evolução planejada de `IProviderAdapter` inclui início/retomada, eventos, interrupção e permissões. No M0, só execução simulada está implementada. `ProviderInstallationProbe` consulta detecção/ajuda separadamente e não declara suporte à execução real. Só declarar suporte a uma capacidade depois de verificar o comportamento real. Nem todos os provedores têm os mesmos métodos.
 
 - Codex: investigar App Server por stdio; gerar ou validar contratos contra a versão instalada. Considerar `exec --json` para lote quando adequado.
 - Claude: investigar CLI com saída estruturada, session ID e retomada; definir host de permissões quando necessário. Um SDK por API é uma alternativa futura, com autenticação e termos próprios.
