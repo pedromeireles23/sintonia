@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using Sintonia.Core;
@@ -20,23 +21,16 @@ public sealed class ClaudeConversationProvider(ExecutableLaunch? executable = nu
         deadline.CancelAfter(TimeSpan.FromMinutes(5));
         var token = deadline.Token;
         var id = request.NativeSessionId ?? Guid.NewGuid().ToString();
-        var arguments = new List<string> { "--print", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-            "--permission-mode", request.Access == ConversationAccess.ReadOnly ? "plan" : "manual", "--permission-prompts", "none",
+        var arguments = new List<string> { "--print", "--input-format", "stream-json", "--output-format", "stream-json",
+            "--verbose", "--include-partial-messages", "--permission-prompt-tool", "stdio",
+            "--permission-mode", request.Access == ConversationAccess.ReadOnly ? "plan" : "manual", "--permission-prompts", "host",
             request.NativeSessionId is null ? "--session-id" : "--resume", id };
         if (!string.IsNullOrWhiteSpace(request.Instructions)) arguments.AddRange(["--append-system-prompt", request.Instructions]);
         if (!string.IsNullOrWhiteSpace(request.Model)) arguments.AddRange(["--model", request.Model]);
-        var parser = new ClaudeStreamParser(id, progress);
-        await using var process = new ProviderProcess(Launch, arguments, request.WorkingDirectory, line =>
-        {
-            parser.Accept(line);
-            return ValueTask.CompletedTask;
-        });
+        await using var session = new ClaudeStdioSession(Launch, arguments, request, id, progress, token);
         try
         {
-            await process.WriteLineAsync(request.Prompt, token).ConfigureAwait(false);
-            process.CloseInput();
-            await process.Completion.WaitAsync(token).ConfigureAwait(false);
-            return parser.GetResult(process.ExitCode);
+            return await session.SendAsync(token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -67,7 +61,7 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
 {
     private string _model = "";
     private JsonElement? _result;
-    private readonly HashSet<string> _denials = [];
+    private readonly ConcurrentDictionary<string, byte> _denials = new();
     private readonly StringBuilder _fallback = new();
     public void Accept(string line)
     {
@@ -128,11 +122,11 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
         var text = result.TryGetProperty("result", out var body) ? body.GetString() : _fallback.ToString();
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(_model)) throw new ProviderException("Claude terminou sem resposta ou modelo identificado.");
         if (text.Length > 256_000) text = text[..256_000] + "\n[Resposta truncada pelo limite local]";
-        return new(sessionId, _model, text, _denials.Count == 0 ? ConversationOutcome.Completed : ConversationOutcome.Blocked, _denials.ToArray());
+        return new(sessionId, _model, text, _denials.IsEmpty ? ConversationOutcome.Completed : ConversationOutcome.Blocked, _denials.Keys.ToArray());
     }
 
-    private void RecordDenial(string tool)
+    internal void RecordDenial(string tool)
     {
-        if (_denials.Add(tool)) progress.Report(new(ConversationEventKind.PermissionDenied, "Permissão recusada: " + tool));
+        if (_denials.TryAdd(tool, 0)) progress.Report(new(ConversationEventKind.PermissionDenied, "Permissão recusada: " + tool));
     }
 }

@@ -51,3 +51,13 @@ Projetos e sessões devem manter contexto separado. O chat organiza vínculos co
 Data: 08/10/2026. Estado: adotada; execução real a validar no M1.
 
 Usar os CLIs locais com seus logins por assinatura. Não configurar API keys nem fazer fallback automático para cobrança de API. O adaptador deve conferir o modo declarado antes de uma tarefa real sem extrair credenciais, mantendo autenticação nos mecanismos dos provedores. Login declarado não comprova quota ou acesso a um modelo.
+
+## 009 — Host Claude pelo protocolo de controle stdio
+
+Data: 08/10/2026. Estado: implementada, com Write validada na instalação local.
+
+Usar entrada e saída stream-json e o canal stdio do CLI, sem adicionar runtime Node/Python ou servidor MCP de autorização. Inicializar o canal antes do prompt, responder a can_use_tool por ID e devolver os parâmetros exibidos. O Sintonia não aplica sugestões de regras permanentes. As decisões esperam o usuário fora da leitura de stdout; cancelamento também retira a prévia da central.
+
+Preservar configuração/extensões/hooks, plan para leitura e manual para escrita. O host decide somente pedidos que chegam a ele, pois regras/hooks podem resolver chamadas antes. Recusas locais bloqueiam a execução mesmo se omitidas no resultado. Sem suporte específico, AskUserQuestion/ExitPlanMode são recusadas. O escopo cobre um turno limitado, sem acompanhamento de trabalho autônomo após o resultado terminal.
+
+Contrato conferido contra a [referência do CLI](https://code.claude.com/docs/en/cli-reference) e o [protocolo do SDK oficial](https://github.com/anthropics/claude-agent-sdk-python/blob/main/src/claude_agent_sdk/_internal/query.py). Implementação C# própria; comportamento real provado no Claude Code `2.1.277`, sem assumir compatibilidade de qualquer versão futura.

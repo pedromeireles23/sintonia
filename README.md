@@ -23,7 +23,7 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 **Central real de projetos disponível; M2 em andamento.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico SQLite sobrevive à reabertura. Leitura permite duas IAs simultâneas, uma por provedor; conversas com escrita trabalham sozinhas no projeto até existir integração por worktrees.
 
-Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. O Claude ainda não tem host de autorização interativa: pedidos que exigirem resposta são recusados, respeitando regras/hooks existentes. A função **Chefe do projeto** propõe tarefas pelo chat; distribuição automática e integração Git estão pendentes.
+Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** propõe tarefas pelo chat; distribuição automática e integração Git estão pendentes.
 
 ![Sintonia — central com respostas reais dos dois provedores em pasta de teste](docs/images/sintonia-central.png)
 
@@ -56,7 +56,9 @@ rtk proxy dotnet run --project src/Sintonia.Desktop --no-build
 
 O aplicativo não depende do RTK. Em outro ambiente, os comandos podem começar diretamente com `dotnet`.
 
-Na central, clique em **Adicionar projeto**, escolha a pasta, IA e modelo e envie um pedido. **Nova conversa** permite escolher outra IA/modelo; a lista à direita abre o histórico e retoma a sessão ao enviar novamente. **Função e permissões** configura instruções e acesso de leitura/escrita. Codex oferece autorizações por ação no painel. **Cancelar** interrompe a conversa selecionada.
+Na central, clique em **Adicionar projeto**, escolha a pasta, IA e modelo e envie um pedido. **Nova conversa** permite escolher outra IA/modelo; a lista à direita abre o histórico e retoma a sessão ao enviar novamente. **Função e permissões** configura instruções e acesso de leitura/escrita. Quando Codex ou Claude pedirem autorização, confira a pasta e a prévia e escolha **Permitir esta ação** ou **Recusar**. As regras e os hooks dos provedores também podem permitir ou recusar ferramentas. **Cancelar** interrompe a conversa selecionada e suas decisões pendentes.
+
+O host Claude aprova somente os parâmetros exibidos, sem criar regras permanentes. Em leitura, solicitações ao host são recusadas. Prévias incompletas ou acima de 64 mil caracteres e interações que exigem respostas especiais (`AskUserQuestion`/`ExitPlanMode`) também são recusadas. O fluxo atual cobre um turno até seu resultado terminal; trabalho autônomo em background após esse resultado ainda não tem acompanhamento.
 
 O histórico fica em `%LOCALAPPDATA%/Sintonia/workspace.db`. Execuções sem resultado terminal são marcadas como interrompidas ao reabrir; nenhum pedido é reenviado automaticamente.
 
@@ -76,6 +78,8 @@ rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build
 ```
 
 Consulta somente versão/ajuda, com prazos e saída limitada. Encontrar um executável não confirma autenticação, assinatura, quota disponível ou integração real. Consulte [as verificações e limites do M1](docs/PROVIDER_PROBES.md).
+
+A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- permissions Claude` consome quota da assinatura: faz no máximo dois turnos em pasta exclusiva de `artifacts/provider-probes`, recusa uma escrita e permite outra com caminho/conteúdo conferidos. Não deve rodar em CI/loop.
 
 ## Referência e autoria
 

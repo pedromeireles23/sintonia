@@ -134,6 +134,146 @@ public sealed class ConversationProviderTests
             .SendAsync(Request(), new EventCollector(), timeout.Token));
     }
 
+    [Theory]
+    [InlineData("claude-host-write", "Write", "ação.txt")]
+    [InlineData("claude-host-edit", "Edit", "antes")]
+    [InlineData("claude-host-command", "Bash", "$(não executar)")]
+    [InlineData("claude-host-mcp", "mcp__example__action", "ação externa de teste")]
+    public async Task ClaudeApprovalShowsCompleteInputAndPreservesOnlyThisAction(string scenario, string tool, string preview)
+    {
+        ConversationPermission? shown = null;
+        var request = Request() with
+        {
+            Access = ConversationAccess.WorkspaceWrite,
+            PermissionHandler = (permission, _) => { shown = permission; return Task.FromResult(true); }
+        };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await new ClaudeConversationProvider(Fixture(scenario)).SendAsync(request, new EventCollector(), timeout.Token);
+        Assert.Equal(ConversationOutcome.Completed, result.Outcome);
+        Assert.Equal(ProviderKind.Claude, shown?.Provider);
+        Assert.Equal(tool, shown?.Kind);
+        Assert.Equal(request.WorkingDirectory, shown?.WorkingDirectory);
+        Assert.Contains(preview, shown!.Description);
+        if (tool == "Edit") Assert.Contains("depois", shown.Description);
+    }
+
+    [Theory]
+    [InlineData("claude-host-no-preview")]
+    [InlineData("claude-host-large")]
+    [InlineData("claude-host-question")]
+    [InlineData("claude-host-unknown")]
+    public async Task ClaudeRefusesIncompleteOversizedOrUnsupportedRequestsWithoutApproval(string scenario)
+    {
+        var called = false;
+        var request = Request() with { Access = ConversationAccess.WorkspaceWrite,
+            PermissionHandler = (_, _) => { called = true; return Task.FromResult(true); } };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await new ClaudeConversationProvider(Fixture(scenario)).SendAsync(request, new EventCollector(), timeout.Token);
+        Assert.False(called);
+        Assert.Equal(ConversationOutcome.Blocked, result.Outcome);
+    }
+
+    [Theory]
+    [InlineData(ConversationAccess.ReadOnly, true, true)]
+    [InlineData(ConversationAccess.WorkspaceWrite, false, true)]
+    [InlineData(ConversationAccess.WorkspaceWrite, true, false)]
+    public async Task ClaudeDenialDoesNotDependOnProviderRepeatingItInFinalResult(ConversationAccess access, bool withHost, bool approve)
+    {
+        var calls = 0;
+        var request = Request() with { Access = access, PermissionHandler = withHost
+            ? (_, _) => { calls++; return Task.FromResult(approve); } : null };
+        var events = new EventCollector();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await new ClaudeConversationProvider(Fixture("claude-host-write")).SendAsync(request, events, timeout.Token);
+        Assert.Equal(access == ConversationAccess.WorkspaceWrite && withHost ? 1 : 0, calls);
+        Assert.Equal(ConversationOutcome.Blocked, result.Outcome);
+        Assert.Equal("Write", Assert.Single(result.PermissionDenials));
+        Assert.Single(events.Events, e => e.Kind == ConversationEventKind.PermissionDenied);
+    }
+
+    [Fact]
+    public async Task ClaudeHostFailureRefusesAction()
+    {
+        var request = Request() with { Access = ConversationAccess.WorkspaceWrite,
+            PermissionHandler = (_, _) => throw new InvalidOperationException("Falha da interface") };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await new ClaudeConversationProvider(Fixture("claude-host-write")).SendAsync(request, new EventCollector(), timeout.Token);
+        Assert.Equal(ConversationOutcome.Blocked, result.Outcome);
+    }
+
+    [Fact]
+    public async Task ClaudeKeepsReadingEventsWhileHostWaitsForDecision()
+    {
+        var streamed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var events = new EventCollector(e => { if (e.Text == "Evento durante autorização") streamed.TrySetResult(true); });
+        var request = Request() with { Access = ConversationAccess.WorkspaceWrite,
+            PermissionHandler = async (_, token) => { await streamed.Task.WaitAsync(token); return true; } };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await new ClaudeConversationProvider(Fixture("claude-host-write")).SendAsync(request, events, timeout.Token);
+        Assert.Equal(ConversationOutcome.Completed, result.Outcome);
+    }
+
+    [Theory]
+    [InlineData("claude-host-cancel", false)]
+    [InlineData("claude-host-exit", true)]
+    public async Task ClaudeWithdrawsPendingHostDecisionOnCancellationOrExit(string scenario, bool exits)
+    {
+        var asked = false;
+        var cancelled = false;
+        var request = Request() with { Access = ConversationAccess.WorkspaceWrite, PermissionHandler = async (_, token) =>
+        {
+            asked = true;
+            try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
+            catch (OperationCanceledException) { cancelled = true; throw; }
+            return true;
+        } };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var task = new ClaudeConversationProvider(Fixture(scenario)).SendAsync(request, new EventCollector(), timeout.Token);
+        if (exits) await Assert.ThrowsAsync<ProviderException>(() => task);
+        else Assert.Equal(ConversationOutcome.Completed, (await task).Outcome);
+        Assert.True(asked);
+        Assert.True(cancelled);
+    }
+
+    [Fact]
+    public async Task ClaudeUserCancellationStopsPendingDecisionEvenIfHostIgnoresToken()
+    {
+        var answer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var request = Request() with { Access = ConversationAccess.WorkspaceWrite,
+            PermissionHandler = (_, _) => { stop.CancelAfter(50); return answer.Task; } };
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new ClaudeConversationProvider(Fixture("claude-host-write"))
+            .SendAsync(request, new EventCollector(), stop.Token));
+        answer.TrySetResult(true);
+    }
+
+    [Theory]
+    [InlineData("claude-init-failed")]
+    [InlineData("claude-host-duplicate")]
+    [InlineData("claude-host-premature-result")]
+    public async Task ClaudeRejectsFailedInitializationAndInvalidPermissionLifecycle(string scenario)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var request = Request() with { Access = ConversationAccess.WorkspaceWrite,
+            PermissionHandler = async (_, token) => { await Task.Delay(Timeout.InfiniteTimeSpan, token); return true; } };
+        await Assert.ThrowsAsync<ProviderException>(() => new ClaudeConversationProvider(Fixture(scenario))
+            .SendAsync(request, new EventCollector(), timeout.Token));
+    }
+
+    [Fact]
+    public async Task ClaudeApprovalDoesNotAuthorizeNextAction()
+    {
+        var calls = 0;
+        var request = Request() with { Access = ConversationAccess.WorkspaceWrite,
+            PermissionHandler = (_, _) => Task.FromResult(++calls == 1) };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var result = await new ClaudeConversationProvider(Fixture("claude-host-two"))
+            .SendAsync(request, new EventCollector(), timeout.Token);
+        Assert.Equal(2, calls);
+        Assert.Equal(ConversationOutcome.Blocked, result.Outcome);
+        Assert.Equal("Write", Assert.Single(result.PermissionDenials));
+    }
+
     [Fact]
     public void ParserIgnoresNewFieldsButRequiresSessionAndTerminalSuccess()
     {

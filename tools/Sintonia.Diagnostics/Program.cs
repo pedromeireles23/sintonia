@@ -8,6 +8,11 @@ using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["permissions", "Claude"])
+    {
+        await ClaudePermissionProbe.RunAsync(cancellation.Token);
+        return 0;
+    }
     if (args is ["sandbox", var mode] && mode is "readOnly" or "workspaceWrite")
     {
         var launch = ExecutableLocator.Find(ProviderKind.Codex)!;
@@ -90,7 +95,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>

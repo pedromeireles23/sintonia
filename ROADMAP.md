@@ -17,13 +17,13 @@ Aceite: a janela abre no Windows; as funções podem ser atribuídas aos dois pr
 
 ## M1 — Prova das duas integrações
 
-Estado: integração real de leitura/retomada/interrupção comprovada nos dois provedores. Autorização interativa do Claude ainda pendente. Evidências em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
+Estado: integração real de leitura/retomada/interrupção comprovada nos dois provedores; host Claude com recusa/autorização real de escrita comprovadas. Comparação completa de extensões e negativas reais de outras ferramentas ainda pendentes. Evidências em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
 
 - [x] Detectar executáveis e versões sem acessar credenciais.
 - [x] Validar handshake, eventos e interrupção do Codex App Server por stdio.
 - [x] Validar Claude CLI: saída estruturada, nova sessão e retomada explícita.
 - [ ] Comparar skills, plugins e MCPs esperados com capacidades disponíveis.
-- [ ] Validar o fluxo de permissões e negativas de cada provedor.
+- [ ] Validar o fluxo de permissões e negativas de cada provedor (Codex: negativa real de sandbox; Claude: recusa/autorização real de Write; demais ferramentas ainda parciais).
 - [x] Testar caminhos com espaços, acentos, prompts extensos e encerramento de processos filhos.
 - [x] Registrar versões e comportamentos efetivamente testados.
 
@@ -31,7 +31,7 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 ## M2 — Primeiro produto utilizável
 
-Estado: central real utilizável para conversas e tarefas individuais. Chefia automatizada, host Claude e revisão de entregas da fila real ainda pendentes.
+Estado: central real utilizável para conversas e tarefas individuais, com autorizações por ação nos dois provedores. Chefia estruturada/automatizada e revisão de entregas da fila real ainda pendentes.
 
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.

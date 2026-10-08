@@ -62,6 +62,27 @@ internal static class WorkspaceSmoke
                 vm.CancelCommand.Execute(null);
                 await Until(() => vm.ActiveCount == 0);
                 Require(cancelled.State == "Cancelada", "Cancelamento não registrado.");
+                vm.Access = vm.AccessOptions.Single(a => a.Value == ConversationAccess.WorkspaceWrite);
+                vm.Prompt = "autorizar"; vm.SendCommand.Execute(null);
+                await Until(() => vm.HasPermission);
+                Require(vm.Permission?.Provider == ProviderKind.Claude && vm.Permission.Description.Contains("depois"), "Prévia Claude não chegou à central.");
+                window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
+                Capture(window, Path.Combine(output, "06-claude-permission-minimum.png"));
+                vm.AllowPermissionCommand.Execute(null);
+                await Until(() => vm.ActiveCount == 0 && !vm.HasPermission);
+                Require(cancelled.State == "Concluída", "Autorização Claude não concluiu.");
+                vm.Prompt = "recusar"; vm.SendCommand.Execute(null);
+                await Until(() => vm.HasPermission);
+                vm.DenyPermissionCommand.Execute(null);
+                await Until(() => vm.ActiveCount == 0 && !vm.HasPermission);
+                Require(cancelled.State == "Bloqueada", "Recusa Claude foi registrada como sucesso.");
+                vm.Prompt = "cancelar-permissão"; vm.SendCommand.Execute(null);
+                await Until(() => vm.HasPermission);
+                vm.CancelCommand.Execute(null);
+                await Until(() => vm.ActiveCount == 0 && !vm.HasPermission);
+                Require(cancelled.State == "Cancelada", "Cancelamento deixou autorização pendente.");
+                vm.Access = vm.AccessOptions.Single(a => a.Value == ConversationAccess.ReadOnly);
+                window.Width = 1320; window.Height = 860; window.UpdateLayout();
                 vm.SelectedConversation = first;
                 Capture(window, Path.Combine(output, "03-history.png"));
                 vm.Prompt = "paralelo"; vm.SendCommand.Execute(null);
@@ -92,7 +113,7 @@ internal static class WorkspaceSmoke
                 Require(listener.Errors.Count == 0, "Erros de binding: " + string.Join("\n", listener.Errors));
                 await restored.StopAsync(); reopened.Close();
                 await Until(() => !reopened.IsVisible);
-                Console.WriteLine("PASS: central WPF, dois projetos, autorização, retomada, cancelamento e reabertura SQLite. Provedores de teste; nenhuma chamada real.");
+                Console.WriteLine("PASS: central WPF, dois projetos, autorização Codex/Claude, recusa, cancelamento de decisão, retomada e reabertura SQLite; zero erros de binding. Provedores de teste; nenhuma chamada real.");
                 exitCode = 0;
             }
             catch (Exception exception) { Console.Error.WriteLine(exception); }
@@ -135,6 +156,11 @@ internal static class WorkspaceSmoke
             {
                 var approved = await request.PermissionHandler(new(kind, "command", "SIMULAÇÃO: leitura de uma amostra. Nenhum comando será executado.", request.WorkingDirectory), cancellationToken);
                 if (!approved) return new(id, "modelo-teste", "Permissão recusada.", ConversationOutcome.Blocked, ["Read"]);
+            }
+            if (kind == ProviderKind.Claude && request.Prompt is "autorizar" or "recusar" or "cancelar-permissão")
+            {
+                var approved = await request.PermissionHandler!(new(kind, "Edit", "SIMULAÇÃO: ação.txt\n-antes\n+depois", request.WorkingDirectory), cancellationToken);
+                if (!approved) return new(id, "modelo-teste", "Permissão recusada.", ConversationOutcome.Blocked, ["Edit"]);
             }
             progress.Report(new(ConversationEventKind.TextDelta, "SIMULAÇÃO: resposta recebida em partes."));
             if (request.Prompt == "cancelar") await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);

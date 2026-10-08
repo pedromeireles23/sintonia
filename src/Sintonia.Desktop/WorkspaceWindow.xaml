@@ -49,7 +49,7 @@
                             <ComboBox Grid.Column="1" ItemsSource="{Binding AccessOptions}" SelectedItem="{Binding Access}" DisplayMemberPath="Name" Padding="7" />
                         </Grid>
                         <TextBox Text="{Binding Instructions, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MaxLength="8000" Height="70" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" Padding="8" />
-                        <TextBlock Text="Chefia propõe tarefas para revisão. Alterações usam as permissões do provedor; solicitações do Claude que precisarem de resposta ainda são recusadas." Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                        <TextBlock Text="Chefia propõe tarefas para revisão. Codex e Claude podem pedir autorização por ação neste painel. Regras e hooks da instalação continuam aplicáveis." Style="{StaticResource Caption}" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
             </Expander>
@@ -99,6 +99,7 @@
             <Border Grid.Row="1" Style="{StaticResource Card}" Background="#FFF4DA" Padding="12" Margin="0,12,0,0" Visibility="{Binding HasPermission, Converter={StaticResource BoolVisibility}}">
                 <StackPanel>
                     <TextBlock Text="Ação aguardando autorização" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Permission.Provider}" FontWeight="SemiBold" Margin="0,6,0,0" />
                     <TextBlock Text="{Binding Permission.WorkingDirectory}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
                     <TextBox Text="{Binding Permission.Description, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="120" VerticalScrollBarVisibility="Auto" Margin="0,8,0,10" />
                     <Button Content="Permitir esta ação" Command="{Binding AllowPermissionCommand}" />
