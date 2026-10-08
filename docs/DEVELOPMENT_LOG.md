@@ -76,3 +76,9 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Prova real finita: dois turnos por assinatura com Claude Code `2.1.277`, modelo `claude-opus-5`. Primeira Write recusada e arquivo ausente; segunda, na mesma sessão, autorizada com caminho/conteúdo conferidos. Ask rules acrescentadas somente ao processo de teste. Evidência local ignorada em artifacts/provider-probes; teste real fora da suíte/CI. Release local atualizado em artifacts/app e abertura/encerramento verificados.
 - Limites: prova real de Write não equivale a validar todas as ferramentas/MCPs. AskUserQuestion/ExitPlanMode ainda sem fluxo próprio; tarefas autônomas em background após o resultado terminal não são acompanhadas. Chefia permanece uma instrução de planejamento.
 - Próximo incremento: proposta de chefia estruturada, validada e editável para revisão; depois tarefas persistentes e distribuição controlada. Integração Git paralela continua no M3.
+
+## 08/10/2026 — Contrato e validação de propostas
+
+- Core com PlanProposal/ProposedTask e formato versionado sintonia-plan. Um único bloco explícito evita converter texto livre ou escolher silenciosamente entre planos. Campos obrigatórios, provedores/acesso, limites e critérios de entrega validados; grafo reutiliza as regras existentes. Escopo aceita caminhos relativos e '.' explícito, sem interpretar comandos ou prometer isolamento de arquivos.
+- Validação: build do Core e 51 testes aprovados, incluindo 34 novos casos de formato, enums/campos ausentes/extras/repetidos, dependências/ciclos, escopo Windows, limites e preservação de texto literal. Nenhum modelo chamado; sem mudança da janela ou do banco neste incremento.
+- Próximo incremento: conectar chefia em leitura ao formato, salvar propostas com origem no histórico e abrir revisão editável/confirmável. Confirmar plano não deve iniciar tarefas ou conceder permissões.

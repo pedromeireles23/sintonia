@@ -107,4 +107,6 @@ Essa central está implementada em `WorkspaceWindow`/`WorkspaceViewModel`, com `
 
 A função de chefe usa uma sessão normal do provedor para produzir uma proposta de tarefas. O aplicativo valida a proposta e aplica as regras; a chefia não ganha um caminho alternativo para alterar permissões, aprovar entregas ou integrar código. Detalhes em [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md).
 
+`PlanProposalFormat` valida a proposta no Core: versão 1, um único bloco sintonia-plan, até 20 tarefas com função, provedor/modelo, acesso recomendado, instruções, escopo, dependências e critérios. Reutiliza `SchedulingPolicy.ValidateGraph`; recusa campos extras/repetidos, enums desconhecidos, dependências inválidas, ciclos e escopo absoluto/com '..'/curingas. A validação é lexical, sem resolver links de diretório e sem constituir sandbox. Nenhuma proposta cria processos ou executa comandos. Edição e persistência entram no próximo incremento.
+
 Um terminal completo, editor de código ou renderização avançada de Markdown pode exigir componentes específicos. Só adicionar quando resolver uma necessidade concreta do usuário.
