@@ -5,7 +5,7 @@ namespace Sintonia.Core;
 
 public enum WorkspaceTaskState { Pending, Running, AwaitingReview, Approved, ChangesRequested, Blocked, Failed, Cancelled, Interrupted }
 public sealed record WorkspaceTask(string Id, string BatchId, ProposedTask Definition, string ConversationId,
-    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null);
+    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null, TaskDelivery? Delivery = null);
 public sealed record WorkspaceTaskBatch(string Id, string ProjectId, string ProposalId, int ProposalRevision,
     PlanProposal Definition, IReadOnlyList<WorkspaceTask> Tasks);
 

@@ -128,7 +128,7 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
             throw new InvalidOperationException("A worktree está fora da pasta gerenciada por esta instalação.");
         CheckPath(_root); CheckPath(worktree.CheckoutDirectory);
     }
-    private static void CheckPath(string path)
+    internal static void CheckPath(string path)
     {
         for (var current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
             if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)

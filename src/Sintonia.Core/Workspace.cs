@@ -29,6 +29,10 @@ public interface IWorkspaceStore
     Task ReviewTaskAsync(string projectId, string taskId, string runId, bool approve, string note);
     Task<TaskWorktree> ReserveTaskWorktreeAsync(string projectId, TaskWorktree worktree);
     Task FinishTaskWorktreeAsync(string taskId, bool ready, string? error);
+    Task<TaskDelivery> SaveTaskDeliveryAsync(string projectId, TaskDelivery delivery);
+    Task<TaskIntegrationReservation> ReserveTaskIntegrationAsync(string projectId, TaskDelivery delivery, TaskIntegrationTarget target);
+    Task<IReadOnlyList<TaskIntegrationReservation>> GetTaskIntegrationsAsync(string projectId);
+    Task ReleaseTaskIntegrationAsync(string reservationId, string? error = null);
     Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync();
     Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
     Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);

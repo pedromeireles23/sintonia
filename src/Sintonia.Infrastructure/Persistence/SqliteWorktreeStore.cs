@@ -31,6 +31,7 @@ public sealed partial class SqliteWorkspaceStore
         project.CommandText = "SELECT directory FROM projects WHERE id=$project"; project.Parameters.AddWithValue("$project", projectId);
         worktree.ValidateDefinition((string)project.ExecuteScalar()!);
         var reserved = worktree with { State = TaskWorktreeState.Preparing, Error = null };
+        EnsureCommonNotReserved(connection, transaction, worktree.CommonGitDirectory);
         if (task.Worktree is { } existing && existing with { State = TaskWorktreeState.Preparing, Error = null } != reserved)
             throw new InvalidOperationException("Preserve o vínculo original da tarefa ao retomar a preparação.");
         try

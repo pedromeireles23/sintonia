@@ -29,7 +29,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 5) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 6) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -57,7 +57,12 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 definition TEXT NOT NULL, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 2), error TEXT,
                 checkout_key TEXT NOT NULL UNIQUE, common_key TEXT NOT NULL);
             CREATE UNIQUE INDEX IF NOT EXISTS one_worktree_preparation ON task_worktrees(common_key) WHERE state=0;
-            PRAGMA user_version=5;
+            CREATE TABLE IF NOT EXISTS task_deliveries(task_id TEXT PRIMARY KEY REFERENCES work_tasks(id),
+                run_id TEXT NOT NULL REFERENCES runs(id), definition TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS task_integrations(id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES task_deliveries(task_id),
+                definition TEXT NOT NULL, common_key TEXT NOT NULL, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 2), error TEXT);
+            CREATE UNIQUE INDEX IF NOT EXISTS one_task_integration ON task_integrations(common_key) WHERE state=0;
+            PRAGMA user_version=6;
             """);
         transaction.Commit();
         return true;
@@ -158,6 +163,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         if (run.State != ChatRunState.Running) throw new ArgumentException("Uma tentativa deve começar em execução.");
         using var transaction = connection.BeginTransaction();
+        EnsureConversationNotReserved(connection, transaction, run.ConversationId, expectedWorktree);
         ReserveTask(connection, transaction, run, taskId, expectedWorktree);
         Execute(connection, transaction, "INSERT INTO runs(id,conversation_id,prompt,state,started_at) VALUES($id,$conversation,$prompt,$state,$started)",
             ("$id", run.Id), ("$conversation", run.ConversationId), ("$prompt", run.Prompt), ("$state", (int)ChatRunState.Running), ("$started", run.StartedAt.ToString("O")));
@@ -204,6 +210,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         Execute(connection, transaction, "UPDATE work_tasks SET state=$state WHERE state=1", ("$state", (int)WorkspaceTaskState.Interrupted));
         Execute(connection, transaction, "UPDATE task_worktrees SET state=2,error=$error WHERE state=0",
             ("$error", "O aplicativo encerrou durante a preparação. Confira a pasta e prepare novamente; nenhum efeito foi repetido."));
+        Execute(connection, transaction, "UPDATE task_integrations SET state=2,error=$error WHERE state=0",
+            ("$error", "O aplicativo encerrou com uma reserva de integração. Confira origem/destino e possíveis efeitos; nenhuma integração foi repetida."));
         transaction.Commit();
         return true;
     });
