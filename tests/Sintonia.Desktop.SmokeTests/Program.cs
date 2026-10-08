@@ -17,6 +17,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--workspace") return WorkspaceSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/workspace-smoke");
+        if (args.FirstOrDefault() == "--workspace-real") return WorkspaceRealSmoke.Run();
         var output = Path.GetFullPath(args.FirstOrDefault() ?? "artifacts/ui-smoke");
         Directory.CreateDirectory(output);
         var errors = new BindingListener();

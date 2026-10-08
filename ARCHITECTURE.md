@@ -28,7 +28,7 @@ No M0, `SchedulingPolicy` decide admissões e valida o grafo; `TaskCoordinator` 
 
 `SimulatedProviderAdapter` produz atrasos canceláveis, eventos e texto de exemplo, sem processos ou arquivos externos. `DemoScenario` fornece as quatro funções e cinco tarefas do exemplo. `ProviderSession` é um identificador demonstrativo por tentativa; retomada e compatibilidade com diretórios reais ainda não existem. A aprovação entrega ao dependente o resumo e o identificador da tentativa aprovada; disponibilidade de arquivos/revisões reais será necessária antes de escrita paralela.
 
-O contrato mínimo `IProviderAdapter` cobre a execução e eventos simulados. Detecção, permissões, eventos nativos e retomada serão acrescentados somente com evidência do M1. Os demais modelos da tabela abaixo são planejados; não há SQLite neste marco.
+O contrato `IProviderAdapter` cobre o fluxo de tarefas do M0. O chat real usa `IConversationProvider`, validado no M1. SQLite e modelos de projetos/conversas já existem; artefatos e integração Git permanecem planejados.
 
 `IConversationProvider` já cobre conversas reais por diretório/modelo/identificador nativo, com eventos e resultado concluído/bloqueado. `ProviderProcess` limita eventos por linha, drena stderr, serializa stdin e encerra a árvore. `JsonRpcClient` correlaciona respostas e processa notificações sem bloquear a leitura. Codex verifica conta ChatGPT e política aplicada antes do turno; Claude verifica `claude.ai`/assinatura e rejeita configuração explícita de API no ambiente. Nenhum adaptador abre arquivos de credenciais. O host pode responder às autorizações do Codex; solicitações sem host são recusadas. O host Claude ainda está pendente.
 
@@ -69,10 +69,10 @@ flowchart TD
 
 ## Integrações
 
-A evolução planejada de `IProviderAdapter` inclui início/retomada, eventos, interrupção e permissões. No M0, só execução simulada está implementada. `ProviderInstallationProbe` consulta detecção/ajuda separadamente e não declara suporte à execução real. Só declarar suporte a uma capacidade depois de verificar o comportamento real. Nem todos os provedores têm os mesmos métodos.
+O M0 mantém adaptadores simulados. `IConversationProvider` implementa início/retomada, eventos, interrupção e permissões da central real. `ProviderInstallationProbe` consulta detecção/ajuda separadamente e não declara suporte à execução real. Só declarar suporte a uma capacidade depois de verificar o comportamento real. Nem todos os provedores têm os mesmos métodos.
 
-- Codex: investigar App Server por stdio; gerar ou validar contratos contra a versão instalada. Considerar `exec --json` para lote quando adequado.
-- Claude: investigar CLI com saída estruturada, session ID e retomada; definir host de permissões quando necessário. Um SDK por API é uma alternativa futura, com autenticação e termos próprios.
+- Codex: App Server por stdio, contratos conferidos contra o schema instalado e autorizações por ação.
+- Claude: CLI com saída estruturada, session ID e retomada; host de permissões ainda pendente. O modo atual recusa prompts sem resposta; preserva regras/hooks existentes.
 - Imagens: adaptador separado, após escolha de provedor.
 
 Usar `System.Diagnostics.Process` com argumentos separados, entrada/saída redirecionada e leitura assíncrona simultânea de stdout e stderr. Resolver wrappers do Windows sem concatenar prompts numa linha de shell. Propagar cancelamento e tratar processos filhos.
@@ -99,7 +99,9 @@ Autenticação permanece nos mecanismos suportados dos provedores. Chaves futura
 
 Português, com projetos, funções, tarefas, sessões e revisão. Modo demonstrativo precisa estar visível. O estado da execução pertence ao serviço, e não ao controle visual. Evitar bloquear a thread da interface com processos, banco ou Git.
 
-Direção ampliada: uma central para várias pastas de projeto, com chat, escolha de provedor/modelo e navegação de sessões. Project e Conversation ainda são modelos planejados. O histórico local deve vincular conversas a ProviderSession, identificador nativo, modelo, função e diretório; trocar de provedor exige sessão compatível e contexto explícito. Abrir a conversa no Sintonia é diferente de abrir/controlar uma janela do aplicativo original; esta segunda capacidade depende de interface verificada.
+Central para várias pastas de projeto, com chat, escolha de provedor/modelo e navegação de sessões. O histórico local vincula conversas ao identificador nativo, modelo, função e diretório; trocar de provedor cria outra conversa. Abrir a conversa no Sintonia é diferente de abrir/controlar uma janela do aplicativo original; esta segunda capacidade depende de interface verificada.
+
+Essa central está implementada em `WorkspaceWindow`/`WorkspaceViewModel`, com `WorkspaceProject`, `WorkspaceConversation`, `ChatRun` e `ChatEvent`. A função e o acesso podem ser ajustados entre turnos; provedor/modelo são definidos ao criar a conversa e o modelo efetivo é preservado. Jobs vivos mantêm seus ViewModels ao navegar. Códigos de acesso, prompts e eventos nunca são transformados pelo host em comandos de shell. O host apresenta autorização Codex via TCS assíncrono; fechar cancela decisões pendentes. O catálogo do provedor é consultado sob prazo. A demonstração usa `MainWindow` separadamente.
 
 A função de chefe usa uma sessão normal do provedor para produzir uma proposta de tarefas. O aplicativo valida a proposta e aplica as regras; a chefia não ganha um caminho alternativo para alterar permissões, aprovar entregas ou integrar código. Detalhes em [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md).
 

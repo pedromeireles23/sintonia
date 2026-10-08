@@ -36,9 +36,9 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 - Documentação inicial preparada: README, contexto, instruções para Codex e Claude, arquitetura, roadmap, contribuição e pesquisa.
 - M0 concluído: solução .NET com Core, Infrastructure, Desktop WPF/MVVM, testes xUnit e verificação executável da janela no Windows.
 - Núcleo com estados, aprovação explícita de dependências, limites global/por provedor, reserva atômica, cancelamento e histórico de tentativas em memória. 17 testes automatizados aprovados.
-- Painel em português com quatro funções de provedor editável, cinco tarefas dependentes, entregas, eventos e sessões. Adaptadores de Codex e Claude são **simulados**: nenhum CLI/modelo é chamado e nenhum arquivo do jogo é alterado.
+- Demonstração M0 em português com quatro funções de provedor editável, cinco tarefas dependentes, entregas, eventos e sessões. Seus adaptadores são **simulados**, sem CLI/modelo ou alterações de arquivos. A central real é uma janela separada e passou a ser a principal.
 - Build sem avisos/erros. Teste da janela nativa percorreu duas execuções simultâneas, cinco aprovações e sessões, sem erros de binding. Capturas revisadas em tamanho normal e mínimo; ações de revisão permanecem acessíveis com rolagem.
-- A janela ainda não tem persistência ou projetos reais. Fechar a demonstração cancela a simulação; reabrir reinicia os exemplos. Os adaptadores reais já existem separadamente, sem conexão à UI neste incremento.
+- A janela principal agora é a central real: múltiplos projetos, chat, escolha de IA/modelo, funções, permissões, atividade, cancelamento e abertura/retomada de conversas. SQLite guarda histórico em `%LOCALAPPDATA%/Sintonia/workspace.db`. Demonstração M0 disponível separadamente e identificada.
 - Uma demonstração anterior em Electron validou o conceito de funções, fila e revisão. Ela permanece fora deste repositório e não deve ser confundida com o produto em .NET.
 - SDK .NET 10.0.200. Login ChatGPT no Codex e `claude.ai`/Pro no Claude conferidos antes dos turnos. Ambos leram uma amostra com soma/marcador, produziram a resposta correta e retomaram a mesma sessão mantendo contexto. Modelos usados: `gpt-6.1-sol` e `claude-opus-5`. Isso comprova acesso naquele momento, sem garantir quota futura.
 - Preparação do M1: diagnóstico .NET limitado a versão/ajuda detectou Codex CLI `0.162.0-alpha.2` e Claude Code `2.1.277`, consultando executáveis nativos sem interpretar wrappers de shell. 11 testes de Infrastructure aprovados (28 testes xUnit no total), inclusive streams simultâneos, timeout/filho e cancelamento. Detalhes e fontes em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
@@ -47,9 +47,9 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 
 ## Próxima entrega concreta
 
-M2 em andamento: `SqliteWorkspaceStore` e `WorkspaceChatService` já preservam projetos, conversas, identificadores nativos, tentativas, checkpoints de texto e eventos. Recuperação marca tentativas interrompidas sem reenvio. Escrita é exclusiva no projeto; leitura admite duas IAs, uma execução por provedor. A UI ainda aguarda conexão.
+M2 em andamento: `SqliteWorkspaceStore` e `WorkspaceChatService` preservam projetos, conversas, identificadores nativos, tentativas, checkpoints de texto e eventos. Recuperação marca tentativas interrompidas sem reenvio. Escrita é exclusiva no projeto; leitura admite duas IAs, uma execução por provedor. Janela WPF conectada e comprovada com um turno real de leitura de cada provedor, resultado correto e histórico salvo. Teste WPF com provedores de teste validou dois projetos, autorização, duas IAs em leitura simultânea, retomada, cancelamento e reabertura, sem erros de binding; 55 testes xUnit passam. Executável Release pronto em `artifacts/app/Sintonia.Desktop.exe` (gerado localmente, sem versionar binários).
 
-Implementar projetos/chat/sessões persistentes do **M2**, conectando os adaptadores comprovados. Conservar a demonstração identificada em acesso separado. Completar o host de permissões do Claude antes de anunciar autorização interativa equivalente à do Codex; regras e hooks dos provedores continuam relevantes.
+Completar o host de permissões do Claude e verificar negativas/autorização real antes de anunciar equivalência. Evoluir chefia de instruções de planejamento para proposta estruturada validada e tarefas distribuídas com revisão; a função de chefe atual só propõe pelo chat. Worktrees/revisão/integração Git continuam pendentes. Não executar escrita paralela no mesmo projeto.
 
 ## Critério da primeira versão útil
 

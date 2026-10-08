@@ -55,7 +55,11 @@ public sealed class JsonRpcClient : IAsyncDisposable
         var root = document.RootElement;
         if (root.TryGetProperty("method", out _))
         {
-            if (root.TryGetProperty("id", out _)) ServerRequest?.Invoke(root.Clone());
+            if (root.TryGetProperty("id", out var requestId))
+            {
+                if (ServerRequest is null) return new ValueTask(RejectAsync(requestId.Clone(), CancellationToken.None));
+                ServerRequest.Invoke(root.Clone());
+            }
             else Notification?.Invoke(root.Clone());
         }
         else if (root.TryGetProperty("id", out var id) && id.TryGetInt64(out var number) && _pending.TryRemove(number, out var pending))

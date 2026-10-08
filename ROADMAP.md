@@ -31,15 +31,17 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 ## M2 — Primeiro produto utilizável
 
-- [ ] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
-- [ ] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
+Estado: central real utilizável para conversas e tarefas individuais. Chefia automatizada, host Claude e revisão de entregas da fila real ainda pendentes.
+
+- [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
+- [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
 - [ ] Atribuir funções com provedor/modelo padrão e instruções adicionais.
-- [ ] Enviar tarefas para sessões novas ou retomadas.
-- [ ] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.
-- [ ] Mostrar mensagens, ferramentas utilizadas e resultados em tempo real.
+- [x] Enviar tarefas para sessões novas ou retomadas.
+- [x] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.
+- [x] Mostrar mensagens, ferramentas utilizadas e resultados em tempo real.
 - [ ] Salvar tarefas, sessões, execuções e eventos em SQLite.
 - [ ] Oferecer revisão, ajuste, cancelamento e diagnóstico de falhas.
-- [ ] Reabrir o aplicativo com histórico preservado e estado reconciliado.
+- [x] Reabrir o aplicativo com histórico preservado e estado reconciliado.
 
 Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo disponível, acompanha uma tarefa real do Claude e outra do Codex e abre/retoma suas sessões no Sintonia, com resultados revisáveis e histórico local. Abertura nos aplicativos originais depende de prova separada, conforme [o escopo do produto](docs/PRODUCT_SCOPE.md).
 

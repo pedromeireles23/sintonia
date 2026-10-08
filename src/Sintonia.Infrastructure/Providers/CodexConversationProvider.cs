@@ -62,6 +62,7 @@ public sealed class CodexConversationProvider(ExecutableLaunch? executable = nul
         await using var rpc = new JsonRpcClient(Launch, request.WorkingDirectory);
         var completed = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         var messages = new ConcurrentQueue<(string Text, bool Final)>();
+        var changePreviews = new ConcurrentDictionary<string, string>();
         var denials = new ConcurrentQueue<string>();
         var responses = new ConcurrentBag<Task>();
         string? threadId = null;
@@ -73,6 +74,15 @@ public sealed class CodexConversationProvider(ExecutableLaunch? executable = nul
                 || thread.GetString() != threadId) return;
             switch (method)
             {
+                case "item/started":
+                    var startedItem = data.GetProperty("item");
+                    if (startedItem.GetProperty("type").GetString() == "fileChange")
+                    {
+                        var preview = string.Join("\n\n", startedItem.GetProperty("changes").EnumerateArray().Select(change =>
+                            change.GetProperty("path").GetString() + "\n" + change.GetProperty("diff").GetString()));
+                        if (preview.Length is > 0 and <= 16000) changePreviews[startedItem.GetProperty("id").GetString()!] = preview;
+                    }
+                    break;
                 case "item/agentMessage/delta":
                     progress.Report(new(ConversationEventKind.TextDelta, Limit(data.GetProperty("delta").GetString()!)));
                     break;
@@ -93,7 +103,7 @@ public sealed class CodexConversationProvider(ExecutableLaunch? executable = nul
                 case "turn/completed": completed.TrySetResult(data.GetProperty("turn").Clone()); break;
             }
         };
-        rpc.ServerRequest += message => responses.Add(AnswerRequestAsync(rpc, message, request, denials, progress, token));
+        rpc.ServerRequest += message => responses.Add(AnswerRequestAsync(rpc, message, request, threadId, changePreviews, denials, progress, token));
         try
         {
             await InitializeAsync(rpc, token).ConfigureAwait(false);
@@ -176,15 +186,19 @@ public sealed class CodexConversationProvider(ExecutableLaunch? executable = nul
             throw new ProviderException("Entre no Codex CLI com ChatGPT. O Sintonia exige login por assinatura e não usa fallback para API.");
     }
 
-    private static async Task AnswerRequestAsync(JsonRpcClient rpc, JsonElement message, ConversationRequest request, ConcurrentQueue<string> denials,
+    private static async Task AnswerRequestAsync(JsonRpcClient rpc, JsonElement message, ConversationRequest request, string? threadId,
+        ConcurrentDictionary<string, string> changePreviews, ConcurrentQueue<string> denials,
         IProgress<ConversationEvent> progress, CancellationToken token)
     {
         var method = message.GetProperty("method").GetString()!;
         var parameters = message.GetProperty("params");
-        if (request.PermissionHandler is not null && method is "item/commandExecution/requestApproval" or "item/fileChange/requestApproval")
+        string? description = null;
+        if (method == "item/commandExecution/requestApproval" && parameters.TryGetProperty("command", out var command)) description = command.GetString();
+        if (method == "item/fileChange/requestApproval" && parameters.TryGetProperty("itemId", out var itemId))
+            changePreviews.TryGetValue(itemId.GetString()!, out description);
+        if (request.PermissionHandler is not null && !string.IsNullOrWhiteSpace(description)
+            && parameters.TryGetProperty("threadId", out var targetThread) && targetThread.GetString() == threadId)
         {
-            var description = parameters.TryGetProperty("command", out var command) ? command.GetString() ?? method
-                : parameters.TryGetProperty("reason", out var reason) ? reason.GetString() ?? method : method;
             var cwd = parameters.TryGetProperty("cwd", out var directory) ? directory.GetString() ?? request.WorkingDirectory : request.WorkingDirectory;
             bool approved;
             try { approved = await request.PermissionHandler(new(ProviderKind.Codex, method, description, cwd), token).ConfigureAwait(false); }

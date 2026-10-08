@@ -34,7 +34,14 @@ internal static class ProtocolFixture
                     Reply(id, new { turn = new { id = turn } });
                     Notify("item/agentMessage/delta", new { threadId = ThreadId, turnId = turn, itemId = "m1", delta = "Resposta " });
                     Notify("item/completed", new { threadId = ThreadId, turnId = turn, item = new { id = "m1", type = "agentMessage", text = "Resposta final.", phase = "final_answer" } });
-                    if (scenario == "rpc-denied")
+                    if (scenario is "rpc-file-preview" or "rpc-file-no-preview")
+                    {
+                        pendingTurn = turn;
+                        if (scenario == "rpc-file-preview") Notify("item/started", new { threadId = ThreadId, turnId = turn,
+                            item = new { id = "file1", type = "fileChange", changes = new[] { new { path = "amostra.txt", diff = "-antes\n+depois" } } } });
+                        Emit(new { id = "permission-1", method = "item/fileChange/requestApproval", @params = new { threadId = ThreadId, turnId = turn, itemId = "file1", reason = "alterar" } });
+                    }
+                    else if (scenario == "rpc-denied")
                     {
                         pendingTurn = turn;
                         Emit(new { id = "permission-1", method = "item/commandExecution/requestApproval", @params = new { threadId = ThreadId, turnId = turn, command = "comando de teste" } });

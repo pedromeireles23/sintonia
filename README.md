@@ -1,8 +1,8 @@
 # Sintonia
 
-Aplicativo desktop para Windows, em C#/.NET, que distribui tarefas entre sessões do Codex e do Claude.
+Aplicativo desktop para Windows, em C#/.NET, que centraliza projetos e conversas do Codex e do Claude.
 
-O usuário abre um projeto, define funções como gameplay, sistemas e revisão, e acompanha as ferramentas trabalhando. Cada função acrescenta instruções e critérios de entrega a uma sessão normal do provedor. O Sintonia organiza tarefas, dependências, resultados e integração das mudanças.
+O usuário abre projetos, escolhe uma IA/modelo e acompanha as ferramentas trabalhando. Cada função acrescenta instruções a uma sessão normal do provedor. Distribuição automática de tarefas, revisão da fila real e integração de mudanças são os próximos incrementos.
 
 ## Objetivos
 
@@ -17,15 +17,17 @@ O usuário abre um projeto, define funções como gameplay, sistemas e revisão,
 
 C# · .NET 10 · WPF · MVVM · SQLite · testes automatizados.
 
-A comunicação com os provedores será feita por adaptadores. A primeira opção para Codex é App Server por entrada/saída padrão; para Claude, CLI com saída estruturada e um mecanismo de permissões validado.
+A comunicação real usa Codex App Server por stdio e Claude Code com stream-json. O login por assinatura dos CLIs é conferido antes dos turnos; não há configuração de API keys nem fallback automático de cobrança.
 
 ## Estado atual
 
-**M0 concluído.** Janela WPF/MVVM em português, funções atribuíveis a Codex e Claude, fila com dependências, revisão, cancelamento e sessões demonstrativas. O núcleo limita a concorrência a duas execuções e uma por provedor; dependentes só executam após aprovação da entrega.
+**Central real de projetos disponível; M2 em andamento.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico SQLite sobrevive à reabertura. Leitura permite duas IAs simultâneas, uma por provedor; conversas com escrita trabalham sozinhas no projeto até existir integração por worktrees.
 
-**Toda execução deste marco é simulada.** Não chama modelos, não inicia os CLIs e não altera arquivos de um jogo. Dados e tentativas ficam em memória; reabrir o aplicativo reinicia a demonstração. Integrações reais, SQLite e worktrees entram nos próximos marcos.
+Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. O Claude ainda não tem host de autorização interativa: pedidos que exigirem resposta são recusados, respeitando regras/hooks existentes. A função **Chefe do projeto** propõe tarefas pelo chat; distribuição automática e integração Git estão pendentes.
 
-![Sintonia M0 — revisão de entregas simuladas](docs/images/sintonia-m0.png)
+![Sintonia — central com respostas reais dos dois provedores em pasta de teste](docs/images/sintonia-central.png)
+
+O botão **Abrir demonstração** abre o M0, com fila/revisão inteiramente simuladas e identificadas; seus exemplos continuam somente em memória.
 
 A demonstração Electron criada durante a pesquisa foi um experimento de fluxo; ela não é a implementação deste repositório. O produto será desenvolvido em C#/.NET.
 
@@ -54,15 +56,18 @@ rtk proxy dotnet run --project src/Sintonia.Desktop --no-build
 
 O aplicativo não depende do RTK. Em outro ambiente, os comandos podem começar diretamente com `dotnet`.
 
-Na janela, escolha os provedores das funções, clique em **Distribuir fila**, selecione uma tarefa e revise a entrega de exemplo. **Aprovar entrega** libera as dependências e distribui as tarefas prontas. **Voltar à fila** conserva o histórico e permite uma nova tentativa; **Cancelar** interrompe uma tarefa na fila ou em execução.
+Na central, clique em **Adicionar projeto**, escolha a pasta, IA e modelo e envie um pedido. **Nova conversa** permite escolher outra IA/modelo; a lista à direita abre o histórico e retoma a sessão ao enviar novamente. **Função e permissões** configura instruções e acesso de leitura/escrita. Codex oferece autorizações por ação no painel. **Cancelar** interrompe a conversa selecionada.
+
+O histórico fica em `%LOCALAPPDATA%/Sintonia/workspace.db`. Execuções sem resultado terminal são marcadas como interrompidas ao reabrir; nenhum pedido é reenviado automaticamente.
 
 Verificação da janela real no Windows (abre, percorre o fluxo e fecha a janela de teste):
 
 ```powershell
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --workspace
 ```
 
-As capturas desse teste ficam em `artifacts/ui-smoke`, fora do versionamento. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere também a abertura/encerramento do executável normal.
+O primeiro teste percorre a demonstração; o segundo verifica a central com processos/provedores de teste, sem consumir modelos. Capturas em `artifacts/ui-smoke` e `artifacts/workspace-smoke`. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere abertura/encerramento do executável normal. A opção `--workspace-real` é prova manual finita, consome quota e não deve rodar em CI/loop.
 
 O diagnóstico inicial de instalações já pode ser executado, separado da janela:
 

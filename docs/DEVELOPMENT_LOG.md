@@ -59,3 +59,11 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Serviço de chat reserva duas vagas/uma por IA; conversa com escrita executa sozinha no projeto até encerrar. Recuperação identifica interrupção sem repetir efeitos automaticamente.
 - Validação: oito novos testes de persistência/serviço com provedores de teste: reabertura, duplicata, separação de projetos, checkpoint/recuperação, atualização indevida, resultado/falha/bloqueio, concorrência e cancelamento. Microsoft.Data.Sqlite 10.0.12 em lockfiles; operações executadas fora da thread WPF.
 - Próximo incremento: central WPF com cadastro de pastas, escolha de modelo/função e abertura/retomada das conversas reais.
+
+## 08/10/2026 — Central WPF conectada aos provedores reais
+
+- Janela principal com cadastro/alternância de projetos, chat, IA/modelo, funções/instruções, leitura/escrita, atividade, sessões por projeto e cancelamento. Abrir conversa retoma o identificador nativo ao enviar; trocar IA exige nova conversa. Catálogo Codex consultado sem inferência; Claude oferece aliases anunciados e entrada de identificador.
+- Histórico em LOCALAPPDATA/Sintonia/workspace.db. Uma instância por sessão Windows protege a reconciliação. Encerrar a janela cancela e aguarda os processos antes de fechar. Demonstração anterior permanece em janela separada, identificada.
+- Permissões Codex podem ser respondidas na central por ação, com comando/diff concreto; solicitações sem prévia suficiente são recusadas. Claude ainda usa recusa de prompts sem host. Chefia atual acrescenta instruções de planejamento, sem distribuição automática.
+- Validação: 55 testes xUnit, build sem avisos/erros, teste WPF com dois projetos/autorização/duas IAs em leitura simultânea/retomada/cancelamento/reabertura e zero erros de binding. Capturas revistas em tamanho normal/mínimo. Executável Release em artifacts/app abriu/encerrou a central. Prova opcional real fez exatamente um turno de leitura por IA na janela e conferiu soma/marcador e SQLite; não integra CI.
+- Próximo incremento: host Claude e propostas de chefia estruturadas/tarefas revisáveis. Integração Git paralela permanece no M3; não anunciar chefia automática como pronta.

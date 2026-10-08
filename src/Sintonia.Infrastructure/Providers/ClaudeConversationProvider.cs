@@ -127,6 +127,7 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
                 ? string.Join("; ", errors.EnumerateArray().Select(e => e.GetString())) : "execução sem conclusão válida."));
         var text = result.TryGetProperty("result", out var body) ? body.GetString() : _fallback.ToString();
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(_model)) throw new ProviderException("Claude terminou sem resposta ou modelo identificado.");
+        if (text.Length > 256_000) text = text[..256_000] + "\n[Resposta truncada pelo limite local]";
         return new(sessionId, _model, text, _denials.Count == 0 ? ConversationOutcome.Completed : ConversationOutcome.Blocked, _denials.ToArray());
     }
 

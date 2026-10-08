@@ -74,6 +74,19 @@ public sealed class ConversationProviderTests
         Assert.Equal(ProviderKind.Codex, shown?.Provider);
     }
 
+    [Theory]
+    [InlineData("rpc-file-preview", true)]
+    [InlineData("rpc-file-no-preview", false)]
+    public async Task CodexFileApprovalRequiresConcreteDiff(string scenario, bool canReview)
+    {
+        ConversationPermission? shown = null;
+        var request = Request() with { PermissionHandler = (permission, _) => { shown = permission; return Task.FromResult(true); } };
+        var result = await new CodexConversationProvider(Fixture(scenario)).SendAsync(request, new EventCollector(), CancellationToken.None);
+        Assert.Equal(canReview ? ConversationOutcome.Completed : ConversationOutcome.Blocked, result.Outcome);
+        if (canReview) Assert.Contains("-antes\n+depois", shown!.Description);
+        else Assert.Null(shown);
+    }
+
     [Fact]
     public async Task CodexCancellationInterruptsActiveTurn()
     {
