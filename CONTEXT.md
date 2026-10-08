@@ -29,15 +29,16 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 
 - Repositório criado pelo usuário, inicialmente vazio, clonado na pasta de trabalho da Área de Trabalho.
 - Documentação inicial preparada: README, contexto, instruções para Codex e Claude, arquitetura, roadmap, contribuição e pesquisa.
-- Código C# ainda não criado nesta etapa de preparação. Nenhum build ou teste .NET do Sintonia foi executado.
+- Solução .NET criada com Core, Infrastructure, Desktop WPF e testes xUnit do Core. A janela ainda é uma base mínima; o painel demonstrativo está em implementação.
+- Núcleo com estados, aprovação explícita de dependências, limites global/por provedor, reserva atômica, cancelamento e histórico de tentativas em memória. 17 testes automatizados aprovados; build inicial da janela verificado.
 - Uma demonstração anterior em Electron validou o conceito de funções, fila e revisão. Ela permanece fora deste repositório e não deve ser confundida com o produto em .NET.
 - SDK .NET 10.0.200 encontrado no ambiente inicial. Git, Codex CLI e Claude Code também estão disponíveis; autenticação e quotas dos provedores não foram verificadas.
 
 ## Próxima entrega concreta
 
-Iniciar o marco **M0** do roadmap:
+Concluir o marco **M0** do roadmap:
 
-1. Criar solução .NET com Core, Infrastructure, Desktop e testes do Core.
+1. Conectar o núcleo a adaptadores simulados, sem chamadas aos CLIs.
 2. Criar a primeira janela WPF em português, com lista de funções e tarefas.
 3. Modelar tarefas e estados, com dependências e uma política simples de concorrência.
 4. Demonstrar distribuição para Codex e Claude com execução explicitamente simulada.

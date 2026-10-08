@@ -4,12 +4,12 @@ Aplicativo Windows em C#/.NET 10 e WPF para coordenar sessões de Codex e Claude
 
 ## M0 — Base .NET e fluxo demonstrativo
 
-Estado: preparação documental concluída; implementação pendente.
+Estado: solução e regras do núcleo validadas; painel demonstrativo em implementação.
 
 - [x] Registrar propósito, arquitetura, contexto e política de commits.
-- [ ] Criar solução e projetos Core, Infrastructure, Desktop e testes.
+- [x] Criar solução e projetos Core, Infrastructure, Desktop e testes.
 - [ ] Criar janela WPF com funções, tarefas e estados.
-- [ ] Implementar regras de dependências e limites de concorrência.
+- [x] Implementar regras de dependências e limites de concorrência.
 - [ ] Demonstrar sessões dos dois provedores com simulação claramente identificada.
 - [ ] Validar build e testes; registrar limitações e publicar o incremento.
 
