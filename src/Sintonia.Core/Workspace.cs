@@ -27,4 +27,8 @@ public interface IWorkspaceStore
     Task<IReadOnlyList<WorkspaceTaskBatch>> GetTaskBatchesAsync(string projectId);
     Task<WorkspaceTaskBatch> EnqueueProposalAsync(string projectId, string proposalId, int revision);
     Task ReviewTaskAsync(string projectId, string taskId, string runId, bool approve, string note);
+    Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync();
+    Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
+    Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);
+    Task DeleteFunctionProfileAsync(string id, int revision);
 }

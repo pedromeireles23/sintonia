@@ -17,6 +17,14 @@ public static class PlanProposalFormat
 {
     public const string ChiefFunctionName = "Chefe do projeto";
     public const int MaxTasks = 20;
+    private const string ChiefPrefix = "\n\nInstruções adicionais do projeto:\n";
+    public static int ChiefAdditionalInstructionsLimit => 8000 - ChiefInstructions.Length - ChiefPrefix.Length;
+    public static string ComposeChiefInstructions(string instructions)
+    {
+        if (instructions.Length > ChiefAdditionalInstructionsLimit)
+            throw new ArgumentException($"Reduza as instruções adicionais do chefe para até {ChiefAdditionalInstructionsLimit} caracteres: o formato do plano também ocupa parte do limite de 8.000.");
+        return ChiefInstructions + ChiefPrefix + instructions;
+    }
     private const string Fence = "```sintonia-plan\n";
     private const int JsonLimit = 128_000;
     private static readonly JsonSerializerOptions Options = new()

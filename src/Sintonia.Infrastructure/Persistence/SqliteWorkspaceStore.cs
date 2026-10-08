@@ -29,7 +29,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 3) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 4) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -50,7 +50,10 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 plan_task_id TEXT NOT NULL, conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id),
                 state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 8), attempts INTEGER NOT NULL CHECK(attempts BETWEEN 0 AND 3),
                 last_run_id TEXT REFERENCES runs(id), review_note TEXT, UNIQUE(batch_id,plan_task_id));
-            PRAGMA user_version=3;
+            CREATE TABLE IF NOT EXISTS function_profiles(id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE,
+                function_name TEXT NOT NULL, provider INTEGER NOT NULL CHECK(provider IN (0,1)), model TEXT,
+                instructions TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision >= 0));
+            PRAGMA user_version=4;
             """);
         transaction.Commit();
         return true;

@@ -46,8 +46,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
         {
             conversation = conversation with { Access = ConversationAccess.ReadOnly };
             permissionHandler = null;
-            instructions = PlanProposalFormat.ChiefInstructions + "\n\nInstruções adicionais do projeto:\n" + instructions;
-            if (instructions.Length > 8000) throw new ArgumentException("Reduza as instruções adicionais do chefe: o formato do plano também ocupa parte do limite de 8.000 caracteres.");
+            instructions = PlanProposalFormat.ComposeChiefInstructions(instructions);
         }
         lock (_gate)
         {
