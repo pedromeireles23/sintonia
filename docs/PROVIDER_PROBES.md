@@ -93,3 +93,14 @@ rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- plan Cla
 ```
 
 O mesmo diagnóstico aceita plan Codex para prova manual futura. Não executar em loops/CI. Próximo incremento: fila real com despacho/revisão explícitos a partir de plano confirmado.
+
+## Fila geral — 08/10/2026
+
+- Diagnóstico queue executado uma vez: dois turnos reais em leitura, um Codex gpt-6.1-sol e um Claude claude-opus-5. O primeiro retornou marcador aleatório/soma 25; o segundo repetiu ambos usando somente o contexto da entrega aprovada recebido pelo serviço. SQLite reaberto preservou primeira tarefa aprovada e segunda aguardando revisão, com uma tentativa cada.
+- Plano inicial fornecido pelo diagnóstico, sem inferência de planejamento. A revisão da primeira resposta foi feita pelo diagnóstico após conferir os critérios, somente na pasta exclusiva de teste. Não representa aprovação automática de entregas em projetos do usuário. Nenhuma ferramenta, modificação de arquivo ou agente adicional foi solicitado aos modelos.
+- Evidência local em artifacts/provider-probes/Fila geral d30cb665-3a0d-4559-919f-cf0e99c78199, ignorada pelo Git. Prazo total de três minutos, no máximo dois turnos; falha encerra a prova sem nova tentativa. Fora da suíte/CI/loops.
+- 126 testes xUnit e WPF com provedores simulados cobrem o restante do ciclo, incluindo autorização de escrita pelo painel, ajustes, cancelamento, histórico e separação de projetos. A prova nativa da fila foi de leitura; as provas reais de permissões dos adaptadores permanecem registradas separadamente acima.
+
+```powershell
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- queue
+```

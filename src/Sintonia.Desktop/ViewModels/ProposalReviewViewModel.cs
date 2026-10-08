@@ -47,6 +47,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
     private ProposedTaskViewModel? _task;
     private string _title = "", _objective = "", _notice = "Carregando propostas…";
     private bool _dirty, _busy;
+    private HashSet<string> _queued = [];
     public ProposalReviewViewModel(IWorkspaceStore store, WorkspaceProject project)
     {
         _store = store; Project = project;
@@ -80,11 +81,13 @@ public sealed class ProposalReviewViewModel : ObservableObject
     public ProposedTaskViewModel? SelectedTask { get => _task; set { Set(ref _task, value); Refresh(); } }
     public string Title { get => _title; set { if (Set(ref _title, value)) MarkChanged(); } }
     public string Objective { get => _objective; set { if (Set(ref _objective, value)) MarkChanged(); } }
-    public string State => IsDirty ? "Alterações aguardando revisão" : _selected?.State == ProposalReviewState.Approved ? "Plano aprovado para execução futura" : "Rascunho aguardando revisão";
+    public string State => IsQueued ? "Plano encaminhado à fila" : IsDirty ? "Alterações aguardando revisão" : _selected?.State == ProposalReviewState.Approved ? "Plano aprovado para execução futura" : "Rascunho aguardando revisão";
     public string Notice { get => _notice; private set => Set(ref _notice, value); }
     public bool IsDirty { get => _dirty; private set { Set(ref _dirty, value); Refresh(); } }
     public bool Busy { get => _busy; private set { Set(ref _busy, value); Refresh(); } }
-    public bool CanEdit => _selected is not null && !Busy;
+    public bool IsQueued => _selected is not null && _queued.Contains(_selected.Id);
+    public bool CanEdit => _selected is not null && !Busy && !IsQueued;
+    public bool CanSelectTask => _selected is not null && !Busy;
     public bool CanChooseProposal => !Busy && !IsDirty;
     public AsyncCommand SaveDraftCommand { get; }
     public AsyncCommand ApproveCommand { get; }
@@ -101,6 +104,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
         try
         {
             var proposals = await _store.GetProposalsAsync(Project.Id);
+            _queued = (await _store.GetTaskBatchesAsync(Project.Id)).Select(b => b.ProposalId).ToHashSet();
             var selectedId = _selected?.Id;
             Proposals.Clear(); foreach (var proposal in proposals) Proposals.Add(proposal);
             _selected = proposals.FirstOrDefault(p => p.Id == selectedId) ?? proposals.FirstOrDefault();
@@ -117,7 +121,8 @@ public sealed class ProposalReviewViewModel : ObservableObject
         Tasks.Clear();
         foreach (var task in proposal.Definition.Tasks) Tasks.Add(new(task, MarkChanged));
         SelectedTask = Tasks.FirstOrDefault(); IsDirty = false;
-        Notice = "Revise responsáveis, escopo e critérios. Confirmar registra o plano; as tarefas aguardam a etapa de execução.";
+        Notice = IsQueued ? "Plano encaminhado e preservado. Acompanhe as entregas na Fila de tarefas; mudanças de planejamento exigem outra proposta."
+            : "Revise responsáveis, escopo e critérios. Confirmar registra o plano; encaminhe pela Fila de tarefas quando estiver pronto.";
     }
     private PlanProposal Definition() => new(1, Title.Trim(), Objective.Trim(), Tasks.Select(t => t.ToDefinition()).ToArray());
     private void Validate()
@@ -138,7 +143,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
             if (index >= 0) Proposals[index] = saved;
             _selected = saved; Notify(nameof(SelectedProposal));
             Load(saved);
-            Notice = state == ProposalReviewState.Approved ? "Plano confirmado e salvo. As tarefas aguardam a etapa de execução." : "Rascunho salvo. Revise e confirme quando estiver pronto.";
+            Notice = state == ProposalReviewState.Approved ? "Plano confirmado e salvo. Abra a Fila de tarefas para encaminhar e iniciar o trabalho." : "Rascunho salvo. Revise e confirme quando estiver pronto.";
         }
         finally { Busy = false; }
     }
@@ -162,7 +167,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
     private void ShowError(Exception exception) => Notice = exception.Message;
     private void Refresh()
     {
-        Notify(nameof(CanEdit)); Notify(nameof(State));
+        Notify(nameof(CanEdit)); Notify(nameof(CanSelectTask)); Notify(nameof(State));
         Notify(nameof(CanChooseProposal));
         SaveDraftCommand?.Refresh(); ApproveCommand?.Refresh(); ReloadCommand?.Refresh(); ValidateCommand?.Refresh();
         RevertCommand?.Refresh(); AddTaskCommand?.Refresh(); RemoveTaskCommand?.Refresh();

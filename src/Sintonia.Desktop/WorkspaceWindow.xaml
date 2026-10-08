@@ -25,6 +25,7 @@
                     <TextBlock Text="Logins por assinatura" Foreground="White" FontWeight="SemiBold" />
                     <TextBlock Text="Codex e Claude Code instalados nesta máquina." Foreground="#A8C6B6" FontSize="12" Margin="0,4,0,18" />
                     <Button Content="Revisar planos" Click="OpenProposals" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ReviewPlans" />
+                    <Button Content="Fila de tarefas" Click="OpenTasks" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="TaskQueue" />
                     <Button Content="Abrir demonstração" Click="OpenDemo" Background="#2D5642" Foreground="White" />
                 </StackPanel>
             </Grid>

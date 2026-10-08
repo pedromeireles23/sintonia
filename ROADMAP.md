@@ -31,7 +31,7 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 ## M2 — Primeiro produto utilizável
 
-Estado: central real utilizável para conversas e tarefas individuais, com autorizações por ação nos dois provedores e propostas de chefia editáveis/confirmáveis. Distribuição das tarefas e revisão de entregas da fila real ainda pendentes.
+Estado: central real utilizável, com autorizações, chefia editável e fila persistente com início explícito, revisão e ajustes das entregas. Perfis reutilizáveis de função ainda pendentes. Escrita serial no mesmo projeto.
 
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
@@ -39,8 +39,8 @@ Estado: central real utilizável para conversas e tarefas individuais, com autor
 - [x] Enviar tarefas para sessões novas ou retomadas.
 - [x] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.
 - [x] Mostrar mensagens, ferramentas utilizadas e resultados em tempo real.
-- [ ] Salvar tarefas, sessões, execuções e eventos em SQLite (conversas, execuções, eventos e propostas prontos; fila de tarefas reais pendente).
-- [ ] Oferecer revisão, ajuste, cancelamento e diagnóstico de falhas.
+- [x] Salvar tarefas, sessões, execuções, propostas e eventos em SQLite.
+- [x] Oferecer revisão, ajuste, cancelamento e diagnóstico de falhas na fila real.
 - [x] Reabrir o aplicativo com histórico preservado e estado reconciliado.
 
 Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo disponível, acompanha uma tarefa real do Claude e outra do Codex e abre/retoma suas sessões no Sintonia, com resultados revisáveis e histórico local. Abertura nos aplicativos originais depende de prova separada, conforme [o escopo do produto](docs/PRODUCT_SCOPE.md).
@@ -62,8 +62,8 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 - [x] Transformar um objetivo em proposta estruturada de tarefas, validada e salva para revisão.
 - [ ] Acompanhar resultados das sessões de trabalho e atualizar o plano pelo chat central.
 - [x] Permitir edição de função, provedor/modelo, escopo, dependências e critérios da proposta pelo usuário.
-- [ ] Implementar limites de tentativas, tempo, concorrência e consumo disponível.
-- [ ] Distinguir término de execução, aprovação da entrega e integração.
+- [ ] Implementar limites configuráveis de tentativas, tempo, concorrência e consumo disponível (três tentativas por tarefa, prazo dos adaptadores e reserva compartilhada já aplicados).
+- [ ] Distinguir término de execução, aprovação da entrega e integração (término/aprovação separados; integração Git pendente).
 
 Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sessões das duas ferramentas, com plano revisável, dependências e limites controlados pelo aplicativo. Chefia não substitui permissões ou aprovação das entregas.
 

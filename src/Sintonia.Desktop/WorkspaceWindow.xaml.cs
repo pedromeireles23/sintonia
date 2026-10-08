@@ -42,6 +42,11 @@ public partial class WorkspaceWindow : Window
         try { new ProposalReviewWindow(await ViewModel.LoadProposalReviewAsync()) { Owner = this }.Show(); }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Revisão do plano", MessageBoxButton.OK, MessageBoxImage.Information); }
     }
+    private async void OpenTasks(object sender, RoutedEventArgs e)
+    {
+        try { new TaskQueueWindow(await ViewModel.LoadTaskQueueAsync()) { Owner = this }.Show(); }
+        catch (Exception exception) { MessageBox.Show(this, exception.Message, "Fila de tarefas", MessageBoxButton.OK, MessageBoxImage.Information); }
+    }
     private async void CloseAsync(object? sender, CancelEventArgs e)
     {
         if (_closed) return;

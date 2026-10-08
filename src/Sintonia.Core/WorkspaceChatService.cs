@@ -39,7 +39,6 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
         IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
         Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler, string? taskId)
     {
-        cancellationToken.ThrowIfCancellationRequested();
         if (project.Id != conversation.ProjectId || string.IsNullOrWhiteSpace(prompt) || prompt.Length > 200_000)
             throw new ArgumentException("Projeto incompatível ou pedido vazio/extenso.");
         var instructions = conversation.Instructions;

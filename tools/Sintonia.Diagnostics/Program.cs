@@ -8,13 +8,17 @@ using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["queue"])
+    {
+        await WorkspaceQueueProbe.RunAsync(cancellation.Token); return 0;
+    }
     if (args is ["plan", var plannerName] && Enum.TryParse<ProviderKind>(plannerName, true, out var planner))
     {
         var directory = Path.GetFullPath(Path.Combine("artifacts", "provider-probes", "Plano " + planner + " " + Guid.NewGuid()));
         Directory.CreateDirectory(directory);
         IConversationProvider adapter = planner == ProviderKind.Codex ? new CodexConversationProvider() : new ClaudeConversationProvider();
         var result = await adapter.SendAsync(new(directory,
-            "Proponha exatamente duas tarefas para um menu inicial de jogo: implementação por Codex e revisão por Claude dependente da primeira. "
+            "Proponha exatamente duas tarefas para um formulário de portal: implementação por Codex e revisão por Claude dependente da primeira. "
             + "Use escopo src/ e critérios verificáveis. Modelo null em ambas. Sem ferramentas, arquivos ou agentes adicionais; apenas produza a proposta para revisão.",
             Instructions: PlanProposalFormat.ChiefInstructions), new InlineProgress<ConversationEvent>(_ => { }), cancellation.Token);
         if (result.Outcome != ConversationOutcome.Completed || !PlanProposalFormat.TryParseResponse(result.Text, out var plan, out _)
@@ -112,7 +116,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude | plan Codex/Claude"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude | plan Codex/Claude | queue"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>

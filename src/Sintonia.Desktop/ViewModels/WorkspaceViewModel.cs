@@ -23,7 +23,7 @@ public sealed class ConversationViewModel(WorkspaceConversation record) : Observ
     private bool _running;
     public WorkspaceConversation Record { get => _record; set { _record = value; Notify(); Notify(nameof(Title)); Notify(nameof(Description)); } }
     public string Title => Record.Title;
-    public string Description => $"{Record.Provider} · {Record.Model ?? "Padrão"} · {Record.FunctionName}";
+    public string Description => $"{Record.Provider} · {Record.Model ?? "Padrão"} · {Record.FunctionName}" + (Record.IsTask ? " · Tarefa da fila" : "");
     public string State { get => _state; set => Set(ref _state, value); }
     public bool Running { get => _running; set => Set(ref _running, value); }
     public bool Loaded { get; set; }
@@ -117,7 +117,7 @@ public sealed class WorkspaceViewModel : ObservableObject
                 _ = LoadConversationAsync(value);
             }
             Notify(nameof(Messages)); Notify(nameof(Events)); Notify(nameof(ConversationTitle)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction));
-            if (value is not null) Notice = $"{value.State} · {value.Record.Provider}. Continue pelo campo de mensagem ou abra outra conversa.";
+            if (value is not null) Notice = value.Record.IsTask ? "Conversa de tarefa. Inicie novas tentativas e revise a entrega pela Fila de tarefas." : $"{value.State} · {value.Record.Provider}. Continue pelo campo de mensagem ou abra outra conversa.";
             RefreshCommands();
         }
     }
@@ -146,8 +146,9 @@ public sealed class WorkspaceViewModel : ObservableObject
     public int ActiveCount => _jobs.Count;
     public bool CanConfigure => SelectedConversation is null && !_stopping && !_loadingProject;
     public bool CanReviewProposals => Ready && Project is not null && !_stopping;
-    public bool CanEditFunction => SelectedConversation?.Running != true && !_stopping && !_loadingProject;
+    public bool CanEditFunction => SelectedConversation?.Running != true && SelectedConversation?.Record.IsTask != true && !_stopping && !_loadingProject;
     public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && SelectedConversation?.Running != true
+        && SelectedConversation?.Record.IsTask != true
         && (SelectedConversation is null || SelectedConversation.Loaded) && _jobs.Count < 2
         && !_jobs.Keys.Any(id => _sessions[id].Record.Provider == Provider)
         && !_jobs.Keys.Any(id => _sessions[id].Record.ProjectId == Project.Id && (Access.Value == ConversationAccess.WorkspaceWrite || _sessions[id].Record.Access == ConversationAccess.WorkspaceWrite))
@@ -285,10 +286,10 @@ public sealed class WorkspaceViewModel : ObservableObject
         RefreshCommands();
     }
 
-    private async Task SendCoreAsync(WorkspaceProject project, ConversationViewModel session, string prompt, CancellationTokenSource stop)
+    private async Task SendCoreAsync(WorkspaceProject project, ConversationViewModel session, string prompt, CancellationTokenSource stop, string? taskId = null)
     {
         await Task.Yield();
-        var isChief = session.Record.FunctionName == PlanProposalFormat.ChiefFunctionName;
+        var isChief = taskId is null && session.Record.FunctionName == PlanProposalFormat.ChiefFunctionName;
         var answer = new ChatMessageViewModel(session.Record.Provider.ToString(), "", "Executando");
         session.Messages.Add(new("Você", prompt)); session.Messages.Add(answer);
         var progress = new Progress<ConversationEvent>(ev =>
@@ -308,7 +309,8 @@ public sealed class WorkspaceViewModel : ObservableObject
         try
         {
             await _store.SaveConversationAsync(session.Record);
-            var run = await _chat.SendAsync(project, session.Record, prompt, progress, stop.Token, AskPermissionAsync);
+            var run = taskId is null ? await _chat.SendAsync(project, session.Record, prompt, progress, stop.Token, AskPermissionAsync)
+                : await _chat.SendTaskAsync(project.Id, taskId, progress, stop.Token, AskPermissionAsync);
             answer.Text = run.Response ?? ""; answer.State = session.State = StateText(run.State);
             if (run.Error is not null) session.Messages.Add(new("Sintonia", run.Error));
             var saved = (await _store.GetConversationsAsync(project.Id)).Single(c => c.Id == session.Record.Id);
@@ -351,6 +353,35 @@ public sealed class WorkspaceViewModel : ObservableObject
         await review.InitializeAsync();
         return review;
     }
+
+    public async Task<TaskQueueViewModel> LoadTaskQueueAsync()
+    {
+        var queue = new TaskQueueViewModel(_store, this, Project ?? throw new InvalidOperationException("Selecione um projeto."));
+        await queue.InitializeAsync(); return queue;
+    }
+
+    public async Task<ConversationViewModel> GetTaskConversationAsync(WorkspaceProject project, WorkspaceTask task)
+    {
+        var record = (await _store.GetConversationsAsync(project.Id)).Single(c => c.Id == task.ConversationId && c.IsTask);
+        if (!_sessions.TryGetValue(record.Id, out var session)) _sessions[record.Id] = session = new(record);
+        if (!session.Running) session.Record = record;
+        if (Project?.Id == project.Id && Conversations.All(c => c.Record.Id != record.Id)) Conversations.Insert(0, session);
+        await LoadConversationAsync(session); return session;
+    }
+
+    public async Task StartTaskAsync(WorkspaceProject project, WorkspaceTask task)
+    {
+        if (_stopping) throw new InvalidOperationException("O aplicativo está encerrando.");
+        var session = await GetTaskConversationAsync(project, task);
+        if (_stopping || _jobs.ContainsKey(session.Record.Id)) throw new InvalidOperationException("A conversa já está executando ou o aplicativo está encerrando.");
+        session.Running = true; session.State = "Executando";
+        var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _jobs.Add(session.Record.Id, (stop, Task.CompletedTask));
+        var execution = SendCoreAsync(project, session, "Executar tarefa: " + task.Definition.Title, stop, task.Id);
+        _jobs[session.Record.Id] = (stop, execution); RefreshCommands();
+        await execution;
+    }
+    public void CancelTask(WorkspaceTask task) { if (_jobs.TryGetValue(task.ConversationId, out var job)) job.Stop.Cancel(); }
 
     private async Task<bool> AskPermissionAsync(ConversationPermission permission, CancellationToken token)
     {

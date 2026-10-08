@@ -1,8 +1,8 @@
 # Sintonia
 
-Aplicativo desktop para Windows, em C#/.NET, que centraliza projetos e conversas do Codex e do Claude.
+Aplicativo desktop para Windows, em C#/.NET, que centraliza projetos gerais e conversas do Codex e do Claude: software, documentação, pesquisa, análise e outras tarefas suportadas pelos provedores.
 
-O usuário abre projetos, escolhe uma IA/modelo e acompanha as ferramentas trabalhando. Cada função acrescenta instruções a uma sessão normal do provedor. A chefia produz planos que podem ser editados e confirmados. Distribuição de tarefas, revisão da fila real e integração de mudanças são os próximos incrementos.
+O usuário abre projetos, escolhe uma IA/modelo e acompanha as ferramentas trabalhando. Cada função acrescenta instruções a uma sessão normal do provedor. A chefia produz planos editáveis; a fila permite encaminhar, iniciar tarefas e revisar entregas. Integração Git e acompanhamento automático pela chefia são os próximos incrementos. Jogos são apenas um exemplo opcional de uso.
 
 ## Objetivos
 
@@ -23,7 +23,7 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 **Central real de projetos disponível; M2 em andamento.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico SQLite sobrevive à reabertura. Leitura permite duas IAs simultâneas, uma por provedor; conversas com escrita trabalham sozinhas no projeto até existir integração por worktrees.
 
-Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar tarefas, validar dependências, salvar rascunhos e confirmar o plano no histórico; distribuição e integração Git estão pendentes.
+Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. Integração Git está pendente.
 
 ![Sintonia — central com respostas reais dos dois provedores em pasta de teste](docs/images/sintonia-central.png)
 
@@ -68,15 +68,22 @@ Para planejar, selecione **Chefe do projeto** em **Função e permissões** e de
 
 O [formato de propostas e seus limites](docs/PLAN_PROPOSALS.md) descreve validação e histórico. Propostas inválidas não viram tarefas; a resposta original do chat permanece disponível. Planos são separados por projeto e edições simultâneas não sobrescrevem revisões mais novas.
 
+Abra **Fila de tarefas**, escolha um plano aprovado e use **Encaminhar à fila**. Essa ação preserva a revisão e cria as tarefas, sem executar modelos. Selecione uma tarefa disponível e use **Iniciar tentativa**. Confira resposta, arquivos e critérios; **Aprovar entrega** libera dependências e **Solicitar ajustes** registra o pedido para uma nova tentativa na mesma sessão. Autorizações aparecem no próprio painel. Cancelar não desfaz arquivos já alterados; confira o projeto antes de tentar novamente.
+
+![Fila e revisão em tamanho mínimo — dados de teste com provedores simulados](docs/images/sintonia-fila.png)
+
+Cada tarefa tem até três tentativas explícitas. Planos encaminhados ficam preservados; mudanças de planejamento exigem outra proposta. Histórico e estados sobrevivem à reabertura. [Fluxo e limites da fila](docs/TASK_QUEUE.md). A prova real finita da fila executou um turno de leitura por provedor, verificou contexto da dependência e reabriu o banco. Escrita pela fila e permissões visuais foram testadas com provedores simulados; a autorização real dos adaptadores tem evidências separadas.
+
 Verificação da janela real no Windows (abre, percorre o fluxo e fecha a janela de teste):
 
 ```powershell
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --workspace
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --proposals
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --queue
 ```
 
-O primeiro teste percorre a demonstração; os demais verificam a central e a revisão de planos com provedores de teste, sem consumir modelos. Capturas em `artifacts/ui-smoke`, `artifacts/workspace-smoke` e `artifacts/proposal-smoke`. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere abertura/encerramento do executável normal. A opção `--workspace-real` é prova manual finita, consome quota e não deve rodar em CI/loop.
+O primeiro teste percorre a demonstração; os demais verificam a central, os planos e a fila com provedores de teste, sem consumir modelos. Capturas em `artifacts/ui-smoke`, `artifacts/workspace-smoke`, `artifacts/proposal-smoke` e `artifacts/queue-smoke`. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere abertura/encerramento do executável normal. A opção `--workspace-real` é prova manual finita, consome quota e não deve rodar em CI/loop.
 
 O diagnóstico inicial de instalações já pode ser executado, separado da janela:
 
@@ -89,6 +96,8 @@ Consulta somente versão/ajuda, com prazos e saída limitada. Encontrar um execu
 A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- permissions Claude` consome quota da assinatura: faz no máximo dois turnos em pasta exclusiva de `artifacts/provider-probes`, recusa uma escrita e permite outra com caminho/conteúdo conferidos. Não deve rodar em CI/loop.
 
 A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- plan Claude` faz um turno de planejamento em leitura e valida duas tarefas, ambos os provedores e uma dependência. Consome quota; fora de CI/loop. A mesma opção aceita Codex, cuja geração real de plano ainda não foi exercitada neste incremento.
+
+A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- queue` faz no máximo dois turnos reais em leitura, um por provedor, com plano fornecido pelo diagnóstico em pasta exclusiva. Verifica resposta, revisão, contexto de dependência e reabertura SQLite; para na primeira falha, sem novas tentativas. Consome quota e não deve rodar em CI/loop.
 
 ## Referência e autoria
 

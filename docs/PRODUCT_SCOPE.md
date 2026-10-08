@@ -35,7 +35,7 @@ A chefia é uma função configurável numa sessão normal de Codex ou Claude, c
 
 Fluxo planejado: objetivo no chat → proposta estruturada do chefe → revisão/edição do plano → distribuição para sessões de trabalho → resultados e revisão → acompanhamento no chat central.
 
-As etapas de proposta e revisão estão implementadas: chefia executa em leitura, planos são validados e vinculados à resposta de origem no SQLite. O usuário pode editar e confirmar a proposta; confirmação registra a revisão para execução futura, sem iniciar sessões de trabalho. Distribuição, revisão de entregas e acompanhamento automático permanecem pendentes. Formato e limites em [PLAN_PROPOSALS.md](PLAN_PROPOSALS.md).
+Proposta, revisão e despacho explícito estão implementados: chefia executa em leitura e planos são validados e vinculados à resposta de origem no SQLite. Confirmar não inicia sessões; encaminhar preserva a revisão e cria tarefas. A fila permite iniciar tentativas, revisar resultados, solicitar ajustes e aprovar entregas para liberar dependências. O acompanhamento automático pela chefia e a integração Git permanecem pendentes. Formato em [PLAN_PROPOSALS.md](PLAN_PROPOSALS.md) e fluxo em [TASK_QUEUE.md](TASK_QUEUE.md).
 
 A proposta deve definir objetivo, escopo, responsável, dependências e critérios de entrega. O Sintonia valida identificadores, dependências, diretórios e limites; não executa texto livre do chefe como comandos de controle. A coordenação pode recomendar aprovação, mas não substitui decisões de permissão, aprovação das entregas ou integração reservadas ao usuário.
 
