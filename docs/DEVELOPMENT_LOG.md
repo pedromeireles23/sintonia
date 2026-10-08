@@ -35,3 +35,11 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Validação: 11 testes de Infrastructure e 17 do Core aprovados, incluindo argumentos literais, saída excessiva, falha, timeout com filho e cancelamento. Build da solução e diagnóstico real limitado a versão/ajuda.
 - Limites: nenhuma inferência, handshake, parsing nativo, retomada, negativa de permissão ou extensão foi validada. O painel continua simulado e o M1 está parcial.
 - Próximo incremento: handshake stdio sem turno, contratos/parsing com fixtures e uma prova real pequena de cada provedor com permissões verificadas antes de conectar à janela.
+
+## 08/10/2026 — Direção de central geral de projetos
+
+- Registrado o pedido de múltiplos projetos, chat com provedor/modelo, chefia configurável e abertura/retomada de sessões no Sintonia. M2/M4 ajustados; M1 continua o próximo incremento de código.
+- Registrado o padrão de usar assinaturas pelos CLIs, sem fallback automático para API keys. Comandos de status consultados na conversa anterior informaram ChatGPT no Codex e `claude.ai`/Pro no Claude, sem exposição de identidade/segredos ou inferência.
+- Fontes oficiais confirmam interfaces para escolha de modelo e retomada; capacidades na versão instalada ainda exigem prova. Abertura nos aplicativos gráficos originais não foi prometida como recurso validado.
+- Validação: revisão documental, links e consistência entre escopo, contexto, arquitetura, decisões e roadmap. Nenhuma alteração de código ou teste sem relação com a documentação.
+- Próximo passo: concluir a prova limitada das integrações por assinatura; depois implementar projetos/chat/sessões persistentes.

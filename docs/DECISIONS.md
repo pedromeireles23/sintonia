@@ -37,3 +37,17 @@ SQLite será o armazenamento local do produto quando entrar o histórico real. G
 Estado: adotada.
 
 O Maestro é uma referência arquitetural, não um fork. Seu código declara AGPL 3.0. Nenhum código foi incorporado; uma proposta futura de reutilização deve tratar licença e origem explicitamente.
+
+## 007 — Central de projetos, chat e chefia configurável
+
+Data: 08/10/2026. Estado: direção de produto adotada; implementação pendente.
+
+O usuário quer cadastrar projetos variados, conversar num chat central com provedor/modelo escolhido, atribuir uma função de chefe e abrir as sessões de trabalho. O jogo é o primeiro caso de uso, não um cenário fixo do produto.
+
+Projetos e sessões devem manter contexto separado. O chat organiza vínculos com as conversas nativas; Codex e Claude não compartilham memória automaticamente. O chefe propõe tarefas, mas o aplicativo aplica dependências/limites e o usuário conserva permissões e aprovações. Abertura no Sintonia é requisito; abertura nos aplicativos originais exige validação própria. Escopo em [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md).
+
+## 008 — Assinaturas como padrão de acesso
+
+Data: 08/10/2026. Estado: adotada; execução real a validar no M1.
+
+Usar os CLIs locais com seus logins por assinatura. Não configurar API keys nem fazer fallback automático para cobrança de API. O adaptador deve conferir o modo declarado antes de uma tarefa real sem extrair credenciais, mantendo autenticação nos mecanismos dos provedores. Login declarado não comprova quota ou acesso a um modelo.

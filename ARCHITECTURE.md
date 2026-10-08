@@ -35,6 +35,7 @@ O contrato mínimo `IProviderAdapter` cobre a execução e eventos simulados. De
 | Modelo | Responsabilidade |
 | --- | --- |
 | Project | Pasta, instruções, repositório e comandos de validação |
+| Conversation | Chat do Sintonia vinculado ao projeto e a sessões nativas identificadas |
 | FunctionProfile | Nome, objetivo, provedor padrão e instruções adicionais |
 | WorkTask | Entrega, dependências, função, escopo e estado |
 | ProviderSession | Provedor, identificador nativo, projeto e diretório compatível |
@@ -93,5 +94,9 @@ Autenticação permanece nos mecanismos suportados dos provedores. Chaves futura
 ## Interface
 
 Português, com projetos, funções, tarefas, sessões e revisão. Modo demonstrativo precisa estar visível. O estado da execução pertence ao serviço, e não ao controle visual. Evitar bloquear a thread da interface com processos, banco ou Git.
+
+Direção ampliada: uma central para várias pastas de projeto, com chat, escolha de provedor/modelo e navegação de sessões. Project e Conversation ainda são modelos planejados. O histórico local deve vincular conversas a ProviderSession, identificador nativo, modelo, função e diretório; trocar de provedor exige sessão compatível e contexto explícito. Abrir a conversa no Sintonia é diferente de abrir/controlar uma janela do aplicativo original; esta segunda capacidade depende de interface verificada.
+
+A função de chefe usa uma sessão normal do provedor para produzir uma proposta de tarefas. O aplicativo valida a proposta e aplica as regras; a chefia não ganha um caminho alternativo para alterar permissões, aprovar entregas ou integrar código. Detalhes em [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md).
 
 Um terminal completo, editor de código ou renderização avançada de Markdown pode exigir componentes específicos. Só adicionar quando resolver uma necessidade concreta do usuário.

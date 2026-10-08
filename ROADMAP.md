@@ -31,14 +31,17 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 ## M2 — Primeiro produto utilizável
 
-- [ ] Abrir um projeto local e atribuir funções.
+- [ ] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
+- [ ] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
+- [ ] Atribuir funções com provedor/modelo padrão e instruções adicionais.
 - [ ] Enviar tarefas para sessões novas ou retomadas.
+- [ ] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.
 - [ ] Mostrar mensagens, ferramentas utilizadas e resultados em tempo real.
 - [ ] Salvar tarefas, sessões, execuções e eventos em SQLite.
 - [ ] Oferecer revisão, ajuste, cancelamento e diagnóstico de falhas.
 - [ ] Reabrir o aplicativo com histórico preservado e estado reconciliado.
 
-Aceite: o usuário acompanha uma tarefa real do Claude e outra do Codex no mesmo painel, com resultados revisáveis e histórico local.
+Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo disponível, acompanha uma tarefa real do Claude e outra do Codex e abre/retoma suas sessões no Sintonia, com resultados revisáveis e histórico local. Abertura nos aplicativos originais depende de prova separada, conforme [o escopo do produto](docs/PRODUCT_SCOPE.md).
 
 ## M3 — Trabalho paralelo com Git
 
@@ -53,12 +56,14 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 
 ## M4 — Distribuição assistida
 
+- [ ] Escolher uma função de chefe do projeto com provedor/modelo configurável.
 - [ ] Transformar um objetivo em proposta estruturada de tarefas.
+- [ ] Acompanhar resultados das sessões de trabalho e atualizar o plano pelo chat central.
 - [ ] Permitir edição de função, provedor, dependências e entregas pelo usuário.
 - [ ] Implementar limites de tentativas, tempo, concorrência e consumo disponível.
 - [ ] Distinguir término de execução, aprovação da entrega e integração.
 
-Aceite: um pedido pode ser dividido entre as duas ferramentas, respeitando dependências e limites controlados pelo aplicativo.
+Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sessões das duas ferramentas, com plano revisável, dependências e limites controlados pelo aplicativo. Chefia não substitui permissões ou aprovação das entregas.
 
 ## M5 — Artes e biblioteca de assets
 

@@ -8,6 +8,8 @@ Criar um aplicativo parecido em propósito com o Maestro: conectar suas instala�
 
 As funções podem ser gameplay, sistemas, interface, revisão e arte. Não é necessário criar um sistema separado de agentes autônomos: as próprias ferramentas já executam tarefas. O Sintonia fornece coordenação, estado e acompanhamento.
 
+O usuário ampliou a direção para uma **central geral de projetos**: cadastro de várias pastas, chat central com escolha de provedor/modelo, função de chefe que propõe trabalho a outras sessões e lista de sessões com abertura/retomada. O jogo é o primeiro caso de uso. Escopo e limites em [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md).
+
 Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sintonia**, conforme a pasta e o repositório existentes.
 
 ## Decisões confirmadas
@@ -16,6 +18,9 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 - C# e .NET 10, com WPF e MVVM.
 - SQLite para persistência quando entrar o histórico real.
 - Sessões dos provedores abertas ou retomadas pelo aplicativo; não depender de várias janelas abertas manualmente.
+- Usar os logins por assinatura das instalações locais como padrão; não configurar chaves de API nem mudar automaticamente para cobrança de API.
+- Conversas e sessões pertencem a projetos e preservam provedor/modelo, função e diretório. Não assumir memória compartilhada entre as duas IAs.
+- Chefia configurável para Codex ou Claude: propõe tarefas e acompanha entregas; regras de execução, permissões e aprovações continuam controladas pelo Sintonia/usuário.
 - Codex e Claude devem executar trabalho real. Nenhum deles tem uma função fixa obrigatória.
 - Preservar skills, plugins, instruções e MCPs compatíveis das instalações existentes. Recursos exclusivos dos aplicativos desktop exigem verificação própria.
 - Cada provedor conserva suas extensões; plugins não são compartilhados automaticamente entre Claude e Codex.
@@ -35,12 +40,12 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 - Build sem avisos/erros. Teste da janela nativa percorreu duas execuções simultâneas, cinco aprovações e sessões, sem erros de binding. Capturas revisadas em tamanho normal e mínimo; ações de revisão permanecem acessíveis com rolagem.
 - Não há persistência, abertura de projetos reais, retomada nativa, integração Git ou provas reais dos provedores nesta entrega. Fechar a janela cancela a simulação; reabrir reinicia os exemplos.
 - Uma demonstração anterior em Electron validou o conceito de funções, fila e revisão. Ela permanece fora deste repositório e não deve ser confundida com o produto em .NET.
-- SDK .NET 10.0.200 encontrado no ambiente inicial. Git, Codex CLI e Claude Code também estão disponíveis; autenticação e quotas dos provedores não foram verificadas.
+- SDK .NET 10.0.200 encontrado no ambiente inicial. Consulta posterior pelos comandos de status informou login ChatGPT no Codex e login `claude.ai` com assinatura Pro no Claude. Não houve inferência real para comprovar acesso, validade da sessão ou quota.
 - Preparação do M1: diagnóstico .NET limitado a versão/ajuda detectou Codex CLI `0.162.0-alpha.2` e Claude Code `2.1.277`, consultando executáveis nativos sem interpretar wrappers de shell. 11 testes de Infrastructure aprovados (28 testes xUnit no total), inclusive streams simultâneos, timeout/filho e cancelamento. Detalhes e fontes em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
 
 ## Próxima entrega concreta
 
-Continuar o **M1** pelo handshake stdio do Codex sem turno e por contratos/parsing testados com fixtures. Depois, fazer uma prova real pequena de cada provedor com permissões, negativas, retomada e interrupção verificadas, antes de conectar à janela. A detecção e ajuda já funcionam; autenticação, quota, extensões e inferência continuam não verificadas. Não ampliar o painel simulado para adiar essa prova.
+Continuar o **M1** pelo handshake stdio do Codex sem turno e por contratos/parsing testados com fixtures. Depois, fazer uma prova real pequena de cada provedor usando o login por assinatura, com permissões, negativas, retomada e interrupção verificadas, antes de conectar à janela. A detecção/ajuda funcionam e os CLIs declararam login por assinatura; acesso efetivo, quota, extensões e inferência continuam não verificados. M2 deve evoluir para projetos/chat/sessões conforme o escopo ampliado, sem ampliar a simulação para adiar a prova real.
 
 ## Critério da primeira versão útil
 
