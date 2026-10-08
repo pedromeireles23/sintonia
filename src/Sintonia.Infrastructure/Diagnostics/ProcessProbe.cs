@@ -8,7 +8,8 @@ public sealed record ProcessProbeResult(int ExitCode, string StandardOutput, str
 public static class ProcessProbe
 {
     public static async Task<ProcessProbeResult> RunAsync(ExecutableLaunch launch, IReadOnlyList<string> arguments,
-        string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken = default)
+        string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string?>? environmentOverrides = null)
     {
         if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromSeconds(60))
             throw new ArgumentOutOfRangeException(nameof(timeout), "Diagnósticos devem durar no máximo 60 segundos.");
@@ -20,6 +21,9 @@ public static class ProcessProbe
             StandardOutputEncoding = new UTF8Encoding(false), StandardErrorEncoding = new UTF8Encoding(false)
         };
         foreach (var argument in launch.PrefixArguments.Concat(arguments)) start.ArgumentList.Add(argument);
+        if (environmentOverrides is not null)
+            foreach (var (key, value) in environmentOverrides)
+                if (value is null) start.Environment.Remove(key); else start.Environment[key] = value;
         using var process = new Process { StartInfo = start };
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         lifetime.CancelAfter(timeout);

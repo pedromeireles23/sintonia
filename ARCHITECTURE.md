@@ -99,6 +99,8 @@ SQLite registra tentativas, estados e eventos com migrações explícitas. Recon
 
 Worktrees separam alterações. O merge é serial e testado sobre a versão combinada. Uma falha de remoção de worktree não autoriza exclusão recursiva indiscriminada de seu diretório.
 
+`IGitRepositoryInspector`/`GitRepositoryInspector` consultam a pasta selecionada com Git nativo, argumentos separados e o processo assíncrono/limitado já existente. Rev-parse identifica pasta de trabalho/bare/raiz; status porcelain v2 com NUL conserva nomes e renomeações literalmente, além de branch, commit, acompanhamento local e conflitos. Sem Git, sem repositório, bare, erro e resposta parcial são estados explícitos, nunca interpretados como pasta limpa. Prazo total de 20 segundos e até 64 Ki caracteres por stream. Variáveis GIT_* herdadas são retiradas somente do processo; locks opcionais/fsmonitor/untracked cache e protocolos de rede ficam desativados durante a consulta. Configurações de confiança não são alteradas. O diagnóstico é um retrato local, não uma reserva de revisão para futuras operações de escrita. Criação/integração de worktrees e diffs continuam pendentes.
+
 Autenticação permanece nos mecanismos suportados dos provedores. Chaves futuras de imagens ficam no armazenamento seguro do Windows, nunca na configuração versionada. Logs devem limitar conteúdo e remover dados sensíveis antes de exportação.
 
 ## Interface
