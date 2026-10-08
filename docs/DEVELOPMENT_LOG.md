@@ -175,3 +175,9 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Validação: build sem avisos/erros; 202 testes xUnit (62 Core + 140 Infrastructure), com 13 casos novos de Git real/SQLite e runs simulados. Commit/árvore, índice/lock/original preservados, mudanças sem commit, revisão obsoleta, origem/destino alterados, concorrência, idempotência, bloqueios, interrupção e migração cobertos. A limpeza da fixture de migração desabilita pooling; comparação do registro verifica valores serializados, pois listas internas dos records não têm igualdade por conteúdo. Nenhum modelo chamado.
 - Limites: registro requer commits existentes; pastas e objetos Git continuam sujeitos a mudanças externas. Reserva prepara a coordenação, sem executar merge ou testes da combinação. Não há reserva pela UI enquanto o executor estiver pendente.
 - Próximo incremento: registrar o commit revisado pelo painel WPF de diffs e mostrar o registro persistido. Depois, integração serial verificada e liberação de dependentes.
+
+## 08/10/2026 — Identidade dos objetos Git da entrega
+
+- Comandos de worktrees/diffs/entregas ignoram refs de substituição somente no processo, usando --no-replace-objects. O commit/árvore registrados correspondem aos objetos originais; refs e configuração persistente são preservadas.
+- Validação: build sem avisos/erros; regressão com Git real cria uma substituição que aponta para outra árvore, confere registro da árvore original e verifica que a ref permaneceu intacta. Suíte com 203 testes xUnit (62 Core + 141 Infrastructure). Nenhum modelo chamado.
+- Próximo incremento permanece o registro visual do commit revisado; merge e validação da combinação continuam pendentes.

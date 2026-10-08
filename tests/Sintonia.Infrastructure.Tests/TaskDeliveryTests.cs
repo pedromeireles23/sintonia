@@ -60,6 +60,22 @@ public sealed class TaskDeliveryTests
         Assert.Null((await fixture.CurrentAsync(store, project, task.Id)).Delivery);
     }
     [Fact]
+    public async Task ReplacementRefsCannotRedirectTheRegisteredCommitOrTree()
+    {
+        using var fixture = new TaskWorktreeTests.Fixture(); var (store, project, task, review) = await PrepareAsync(fixture);
+        var directory = task.Worktree!.CheckoutDirectory;
+        var actualTree = (await fixture.GitAsync(directory, "rev-parse", "HEAD^{tree}")).StandardOutput.Trim();
+        var baseTree = (await fixture.GitAsync(directory, "rev-parse", task.Worktree.BaseCommit + "^{tree}")).StandardOutput.Trim();
+        var replacement = (await fixture.GitAsync(directory, "commit-tree", baseTree, "-p", task.Worktree.BaseCommit, "-m", "substituição de teste")).StandardOutput.Trim();
+        await fixture.GitAsync(directory, "replace", review.Snapshot.HeadCommit, replacement);
+        Assert.Equal(baseTree, (await fixture.GitAsync(directory, "rev-parse", "HEAD^{tree}")).StandardOutput.Trim());
+        var refreshed = await new TaskDiffService(store, new GitTaskDiffReader(fixture.Manager)).ScanAsync(project.Id, task.Id, CancellationToken.None);
+        var delivery = await Service(store, fixture).RegisterAsync(project.Id, refreshed, CancellationToken.None);
+        Assert.Equal(review.Snapshot.HeadCommit, delivery.Commit); Assert.Equal(actualTree, delivery.Tree);
+        Assert.Equal(baseTree, (await fixture.GitAsync(directory, "rev-parse", "HEAD^{tree}")).StandardOutput.Trim());
+        Assert.Equal(replacement, (await fixture.GitAsync(directory, "rev-parse", "refs/replace/" + delivery.Commit)).StandardOutput.Trim());
+    }
+    [Fact]
     public async Task ANewCommitAfterReviewAndWrongRunOrProjectCannotBeRegistered()
     {
         using var fixture = new TaskWorktreeTests.Fixture(); var (store, project, task, review) = await PrepareAsync(fixture);

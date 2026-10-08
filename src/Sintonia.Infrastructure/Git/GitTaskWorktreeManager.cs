@@ -165,7 +165,7 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
     {
         if (_launch is null) throw new InvalidOperationException("Git não encontrado no PATH.");
         var result = await ProcessProbe.RunAsync(_launch,
-            new[] { "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
+            new[] { "--no-replace-objects", "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
                 "-c", "core.hooksPath=NUL" }.Concat(arguments).ToArray(),
             directory, Timeout, token, GitRepositoryInspector.CleanEnvironment()).ConfigureAwait(false);
         if (result.TimedOut) throw new TimeoutException("O Git excedeu o prazo de preparação. Confira possíveis efeitos na pasta.");
