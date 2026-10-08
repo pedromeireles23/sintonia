@@ -17,7 +17,7 @@ public interface IWorkspaceStore
     Task SaveConversationAsync(WorkspaceConversation conversation);
     Task<IReadOnlyList<ChatRun>> GetRunsAsync(string conversationId);
     Task<IReadOnlyList<ChatEvent>> GetEventsAsync(string conversationId);
-    Task BeginRunAsync(ChatRun run, string? taskId = null);
+    Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null);
     Task CheckpointRunAsync(ChatRun run, WorkspaceConversation conversation);
     Task FinishRunAsync(ChatRun run, WorkspaceConversation conversation, IReadOnlyList<ChatEvent> events);
     Task RecoverInterruptedRunsAsync();
@@ -27,6 +27,8 @@ public interface IWorkspaceStore
     Task<IReadOnlyList<WorkspaceTaskBatch>> GetTaskBatchesAsync(string projectId);
     Task<WorkspaceTaskBatch> EnqueueProposalAsync(string projectId, string proposalId, int revision);
     Task ReviewTaskAsync(string projectId, string taskId, string runId, bool approve, string note);
+    Task<TaskWorktree> ReserveTaskWorktreeAsync(string projectId, TaskWorktree worktree);
+    Task FinishTaskWorktreeAsync(string taskId, bool ready, string? error);
     Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync();
     Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
     Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);

@@ -29,7 +29,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 4) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 5) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -53,7 +53,11 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE TABLE IF NOT EXISTS function_profiles(id TEXT PRIMARY KEY, name TEXT NOT NULL, name_key TEXT NOT NULL UNIQUE,
                 function_name TEXT NOT NULL, provider INTEGER NOT NULL CHECK(provider IN (0,1)), model TEXT,
                 instructions TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision >= 0));
-            PRAGMA user_version=4;
+            CREATE TABLE IF NOT EXISTS task_worktrees(task_id TEXT PRIMARY KEY REFERENCES work_tasks(id),
+                definition TEXT NOT NULL, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 2), error TEXT,
+                checkout_key TEXT NOT NULL UNIQUE, common_key TEXT NOT NULL);
+            CREATE UNIQUE INDEX IF NOT EXISTS one_worktree_preparation ON task_worktrees(common_key) WHERE state=0;
+            PRAGMA user_version=5;
             """);
         transaction.Commit();
         return true;
@@ -150,11 +154,11 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         return list;
     });
 
-    public Task BeginRunAsync(ChatRun run, string? taskId = null) => RunAsync(connection =>
+    public Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null) => RunAsync(connection =>
     {
         if (run.State != ChatRunState.Running) throw new ArgumentException("Uma tentativa deve começar em execução.");
         using var transaction = connection.BeginTransaction();
-        ReserveTask(connection, transaction, run, taskId);
+        ReserveTask(connection, transaction, run, taskId, expectedWorktree);
         Execute(connection, transaction, "INSERT INTO runs(id,conversation_id,prompt,state,started_at) VALUES($id,$conversation,$prompt,$state,$started)",
             ("$id", run.Id), ("$conversation", run.ConversationId), ("$prompt", run.Prompt), ("$state", (int)ChatRunState.Running), ("$started", run.StartedAt.ToString("O")));
         if (taskId is not null) Execute(connection, transaction, "UPDATE work_tasks SET last_run_id=$run WHERE id=$task", ("$run", run.Id), ("$task", taskId));
@@ -198,6 +202,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             ("$state", (int)ChatRunState.Interrupted), ("$finished", DateTimeOffset.UtcNow.ToString("O")),
             ("$error", "O aplicativo encerrou antes de registrar o resultado. Confira o projeto e a sessão antes de reenviar."));
         Execute(connection, transaction, "UPDATE work_tasks SET state=$state WHERE state=1", ("$state", (int)WorkspaceTaskState.Interrupted));
+        Execute(connection, transaction, "UPDATE task_worktrees SET state=2,error=$error WHERE state=0",
+            ("$error", "O aplicativo encerrou durante a preparação. Confira a pasta e prepare novamente; nenhum efeito foi repetido."));
         transaction.Commit();
         return true;
     });

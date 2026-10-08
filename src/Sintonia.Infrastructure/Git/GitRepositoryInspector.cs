@@ -67,7 +67,7 @@ public sealed class GitRepositoryInspector : IGitRepositoryInspector
             : $"O Git recusou a consulta (código {result.ExitCode}). Confira a pasta, as permissões e a configuração do repositório.");
     private static GitRepositoryDiagnostic Result(string directory, GitDiagnosticState state, string message) =>
         new(directory, state, null, null, null, false, false, null, null, null, [], DateTimeOffset.UtcNow, message);
-    private static ExecutableLaunch? Find(string path)
+    internal static ExecutableLaunch? Find(string path)
     {
         foreach (var part in path.Split(Path.PathSeparator))
         {
@@ -77,7 +77,7 @@ public sealed class GitRepositoryInspector : IGitRepositoryInspector
         }
         return null;
     }
-    private static Dictionary<string, string?> CleanEnvironment()
+    internal static Dictionary<string, string?> CleanEnvironment()
     {
         var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         // Inherited repository/config/trace variables must not redirect the selected project or log secrets.

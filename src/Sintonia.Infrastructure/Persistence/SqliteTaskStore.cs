@@ -26,9 +26,10 @@ public sealed partial class SqliteWorkspaceStore
             using var command = connection.CreateCommand(); command.Transaction = transaction;
             command.CommandText = "SELECT id,plan_task_id,conversation_id,state,attempts,last_run_id,review_note FROM work_tasks WHERE batch_id=$batch ORDER BY rowid";
             command.Parameters.AddWithValue("$batch", batch.Id);
-            using var reader = command.ExecuteReader();
-            while (reader.Read()) tasks.Add(new(reader.GetString(0), batch.Id, batch.Definition.Tasks.Single(t => t.Id == reader.GetString(1)),
-                reader.GetString(2), (WorkspaceTaskState)reader.GetInt32(3), reader.GetInt32(4), Optional(reader, 5), Optional(reader, 6)));
+            using (var reader = command.ExecuteReader())
+                while (reader.Read()) tasks.Add(new(reader.GetString(0), batch.Id, batch.Definition.Tasks.Single(t => t.Id == reader.GetString(1)),
+                    reader.GetString(2), (WorkspaceTaskState)reader.GetInt32(3), reader.GetInt32(4), Optional(reader, 5), Optional(reader, 6)));
+            for (var j = 0; j < tasks.Count; j++) tasks[j] = tasks[j] with { Worktree = ReadWorktree(connection, transaction, tasks[j].Id) };
             batches[i] = batch with { Tasks = tasks };
         }
         return batches;
@@ -64,7 +65,7 @@ public sealed partial class SqliteWorkspaceStore
         transaction.Commit(); return result;
     });
 
-    private static void ReserveTask(SqliteConnection connection, SqliteTransaction transaction, ChatRun run, string? taskId)
+    private static void ReserveTask(SqliteConnection connection, SqliteTransaction transaction, ChatRun run, string? taskId, TaskWorktree? expectedWorktree)
     {
         using var owner = connection.CreateCommand(); owner.Transaction = transaction;
         owner.CommandText = "SELECT t.id,b.project_id FROM work_tasks t JOIN task_batches b ON b.id=t.batch_id WHERE t.conversation_id=$conversation";
@@ -73,9 +74,15 @@ public sealed partial class SqliteWorkspaceStore
         using (var reader = owner.ExecuteReader())
             if (reader.Read()) { ownedTask = reader.GetString(0); projectId = reader.GetString(1); }
         if (taskId != ownedTask) throw new InvalidOperationException("Esta conversa deve ser executada pela tarefa correspondente na fila.");
-        if (taskId is null) return;
+        if (taskId is null)
+        {
+            if (expectedWorktree is not null) throw new InvalidOperationException("Worktrees pertencem a tarefas da fila.");
+            return;
+        }
         var batch = ReadBatches(connection, transaction, projectId!).Single(b => b.Tasks.Any(t => t.Id == taskId));
         var task = batch.Tasks.Single(t => t.Id == taskId);
+        if (task.Worktree != expectedWorktree)
+            throw new InvalidOperationException("A pasta de trabalho da tarefa mudou. Atualize a fila antes de executar.");
         if (!WorkspaceTaskPolicy.CanStart(task, batch.Tasks))
             throw new InvalidOperationException("Tarefa indisponível: confira dependências aprovadas, estado e limite de três tentativas.");
         Execute(connection, transaction, "UPDATE work_tasks SET state=1,attempts=attempts+1 WHERE id=$task", ("$task", taskId));

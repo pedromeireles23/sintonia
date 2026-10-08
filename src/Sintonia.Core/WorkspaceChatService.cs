@@ -4,7 +4,8 @@ using System.Text;
 namespace Sintonia.Core;
 
 /// <summary>Reserves capacity before persistence/inference. Writing conversations run alone in their project.</summary>
-public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<IConversationProvider> providers)
+public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<IConversationProvider> providers,
+    IGitTaskWorktreeManager? worktrees = null)
 {
     private readonly IReadOnlyDictionary<ProviderKind, IConversationProvider> _providers = providers.ToDictionary(p => p.Kind);
     private readonly object _gate = new();
@@ -31,13 +32,19 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             dependencies.AddRange(await store.GetRunsAsync(dependency.ConversationId).ConfigureAwait(false));
         }
         var prompt = WorkspaceTaskPolicy.BuildPrompt(batch, task, dependencies);
+        if (task.Worktree is { } worktree)
+        {
+            if (worktrees is null) throw new InvalidOperationException("O gerenciador de worktrees não está disponível nesta instalação.");
+            await worktrees.ValidateAsync(worktree, cancellationToken).ConfigureAwait(false);
+            project = project with { Directory = worktree.WorkingDirectory };
+        }
         var conversation = (await store.GetConversationsAsync(projectId).ConfigureAwait(false)).Single(c => c.Id == task.ConversationId);
-        return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, taskId).ConfigureAwait(false);
+        return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, taskId, task.Worktree).ConfigureAwait(false);
     }
 
     private async Task<ChatRun> SendCoreAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
         IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
-        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler, string? taskId)
+        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler, string? taskId, TaskWorktree? expectedWorktree = null)
     {
         if (project.Id != conversation.ProjectId || string.IsNullOrWhiteSpace(prompt) || prompt.Length > 200_000)
             throw new ArgumentException("Projeto incompatível ou pedido vazio/extenso.");
@@ -59,7 +66,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
         try
         {
             var run = new ChatRun(Guid.NewGuid().ToString(), conversation.Id, prompt, null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
-            await store.BeginRunAsync(run, taskId).ConfigureAwait(false);
+            await store.BeginRunAsync(run, taskId, expectedWorktree).ConfigureAwait(false);
             var text = new StringBuilder();
             var events = new ConcurrentQueue<ChatEvent>();
             var checkpoint = Task.CompletedTask;

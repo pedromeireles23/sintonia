@@ -5,7 +5,7 @@ namespace Sintonia.Core;
 
 public enum WorkspaceTaskState { Pending, Running, AwaitingReview, Approved, ChangesRequested, Blocked, Failed, Cancelled, Interrupted }
 public sealed record WorkspaceTask(string Id, string BatchId, ProposedTask Definition, string ConversationId,
-    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote);
+    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null);
 public sealed record WorkspaceTaskBatch(string Id, string ProjectId, string ProposalId, int ProposalRevision,
     PlanProposal Definition, IReadOnlyList<WorkspaceTask> Tasks);
 
@@ -16,7 +16,19 @@ public static class WorkspaceTaskPolicy
     public static bool CanStart(WorkspaceTask task, IReadOnlyList<WorkspaceTask> tasks) =>
         task.Attempts < MaxAttempts && (task.State is WorkspaceTaskState.Pending or WorkspaceTaskState.ChangesRequested
             or WorkspaceTaskState.Blocked or WorkspaceTaskState.Failed or WorkspaceTaskState.Cancelled or WorkspaceTaskState.Interrupted)
-        && task.Definition.Dependencies.All(id => tasks.Any(t => t.Definition.Id == id && t.State == WorkspaceTaskState.Approved));
+        && (task.Worktree is null || task.Worktree.State == TaskWorktreeState.Ready)
+        && DependenciesAvailable(task, tasks);
+
+    public static bool CanPrepareWorktree(WorkspaceTask task, IReadOnlyList<WorkspaceTask> tasks) =>
+        task.Attempts == 0 && task.State == WorkspaceTaskState.Pending
+        && task.Definition.Access == ConversationAccess.WorkspaceWrite && task.Definition.FunctionName != PlanProposalFormat.ChiefFunctionName
+        && (task.Worktree is null || task.Worktree.State == TaskWorktreeState.NeedsAttention) && DependenciesAvailable(task, tasks);
+
+    // Delivery approval alone does not put changes from a separate checkout into the project.
+    // Git integration is the next increment; successors must wait for it.
+    private static bool DependenciesAvailable(WorkspaceTask task, IReadOnlyList<WorkspaceTask> tasks) =>
+        task.Definition.Dependencies.All(id => tasks.Any(t => t.Definition.Id == id
+            && t.State == WorkspaceTaskState.Approved && t.Worktree is null));
 
     public static WorkspaceTaskState FromRun(ChatRunState state) => state switch
     {
@@ -30,7 +42,7 @@ public static class WorkspaceTaskPolicy
 
     public static string BuildPrompt(WorkspaceTaskBatch batch, WorkspaceTask task, IReadOnlyList<ChatRun> dependencies)
     {
-        if (!CanStart(task, batch.Tasks)) throw new InvalidOperationException("Tarefa indisponível: confira dependências aprovadas, estado e limite de três tentativas.");
+        if (!CanStart(task, batch.Tasks)) throw new InvalidOperationException("Tarefa indisponível: confira pasta preparada, aprovação e integração das dependências, estado e limite de três tentativas.");
         var context = task.Definition.Dependencies.Select(id =>
         {
             var dependency = batch.Tasks.Single(t => t.Definition.Id == id);
