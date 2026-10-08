@@ -52,3 +52,10 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Validação: build isolado para preservar janela demonstrativa aberta, sem avisos/erros; 45 testes xUnit (17 Core + 28 Infrastructure), com correlação, texto extenso/acento, falha, recusa, autorização explícita, retomada e interrupção simulada. Chamadas reais não integram a suíte automática.
 - Limites: autorização interativa do Claude e equivalência completa de extensões pendentes. A janela permanece demonstrativa até o próximo incremento.
 - Próximo passo: cadastro/alternância de projetos, chat central e sessões com histórico SQLite e retomada na janela.
+
+## 08/10/2026 — Persistência de projetos e conversas
+
+- SQLite com schema explícito/versionado, parâmetros, transações, pastas únicas e vínculo imutável de projeto/provedor. Identificador nativo e resposta parcial recebem checkpoints; histórico conserva resultados, falhas, bloqueios e cancelamentos.
+- Serviço de chat reserva duas vagas/uma por IA; conversa com escrita executa sozinha no projeto até encerrar. Recuperação identifica interrupção sem repetir efeitos automaticamente.
+- Validação: oito novos testes de persistência/serviço com provedores de teste: reabertura, duplicata, separação de projetos, checkpoint/recuperação, atualização indevida, resultado/falha/bloqueio, concorrência e cancelamento. Microsoft.Data.Sqlite 10.0.12 em lockfiles; operações executadas fora da thread WPF.
+- Próximo incremento: central WPF com cadastro de pastas, escolha de modelo/função e abertura/retomada das conversas reais.

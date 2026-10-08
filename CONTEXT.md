@@ -47,6 +47,8 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 
 ## Próxima entrega concreta
 
+M2 em andamento: `SqliteWorkspaceStore` e `WorkspaceChatService` já preservam projetos, conversas, identificadores nativos, tentativas, checkpoints de texto e eventos. Recuperação marca tentativas interrompidas sem reenvio. Escrita é exclusiva no projeto; leitura admite duas IAs, uma execução por provedor. A UI ainda aguarda conexão.
+
 Implementar projetos/chat/sessões persistentes do **M2**, conectando os adaptadores comprovados. Conservar a demonstração identificada em acesso separado. Completar o host de permissões do Claude antes de anunciar autorização interativa equivalente à do Codex; regras e hooks dos provedores continuam relevantes.
 
 ## Critério da primeira versão útil

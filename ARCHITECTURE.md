@@ -32,6 +32,8 @@ O contrato mínimo `IProviderAdapter` cobre a execução e eventos simulados. De
 
 `IConversationProvider` já cobre conversas reais por diretório/modelo/identificador nativo, com eventos e resultado concluído/bloqueado. `ProviderProcess` limita eventos por linha, drena stderr, serializa stdin e encerra a árvore. `JsonRpcClient` correlaciona respostas e processa notificações sem bloquear a leitura. Codex verifica conta ChatGPT e política aplicada antes do turno; Claude verifica `claude.ai`/assinatura e rejeita configuração explícita de API no ambiente. Nenhum adaptador abre arquivos de credenciais. O host pode responder às autorizações do Codex; solicitações sem host são recusadas. O host Claude ainda está pendente.
 
+`SqliteWorkspaceStore` implementa projects/conversations/runs/events com migração 1, WAL, transações e restrições de integridade. A execução assíncrona usa trabalho em background, pois Microsoft.Data.Sqlite realiza I/O síncrono. `WorkspaceChatService` reserva capacidade antes da persistência/inferência, faz checkpoints do identificador/resposta parcial, e registra resultado terminal. Reabrir reconcilia running para interrupted sem reenvio. Escrita no mesmo projeto é serial até existir integração de worktrees.
+
 ## Modelo de domínio
 
 | Modelo | Responsabilidade |
