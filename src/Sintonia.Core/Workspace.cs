@@ -3,7 +3,7 @@ namespace Sintonia.Core;
 public sealed record WorkspaceProject(string Id, string Name, string Directory);
 public enum ChatRunState { Running, Completed, Blocked, Failed, Cancelled, Interrupted }
 public sealed record WorkspaceConversation(string Id, string ProjectId, string Title, ProviderKind Provider,
-    string? Model, string? NativeSessionId, string FunctionName, string Instructions, ConversationAccess Access);
+    string? Model, string? NativeSessionId, string FunctionName, string Instructions, ConversationAccess Access, bool IsTask = false);
 public sealed record ChatRun(string Id, string ConversationId, string Prompt, string? Response, ChatRunState State,
     DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string? Error);
 public sealed record ChatEvent(string RunId, ConversationEventKind Kind, string Text);
@@ -17,11 +17,14 @@ public interface IWorkspaceStore
     Task SaveConversationAsync(WorkspaceConversation conversation);
     Task<IReadOnlyList<ChatRun>> GetRunsAsync(string conversationId);
     Task<IReadOnlyList<ChatEvent>> GetEventsAsync(string conversationId);
-    Task BeginRunAsync(ChatRun run);
+    Task BeginRunAsync(ChatRun run, string? taskId = null);
     Task CheckpointRunAsync(ChatRun run, WorkspaceConversation conversation);
     Task FinishRunAsync(ChatRun run, WorkspaceConversation conversation, IReadOnlyList<ChatEvent> events);
     Task RecoverInterruptedRunsAsync();
     Task<IReadOnlyList<WorkspaceProposal>> GetProposalsAsync(string projectId);
     Task<WorkspaceProposal> CreateProposalAsync(string projectId, string sourceRunId);
     Task<WorkspaceProposal> SaveProposalAsync(WorkspaceProposal proposal);
+    Task<IReadOnlyList<WorkspaceTaskBatch>> GetTaskBatchesAsync(string projectId);
+    Task<WorkspaceTaskBatch> EnqueueProposalAsync(string projectId, string proposalId, int revision);
+    Task ReviewTaskAsync(string projectId, string taskId, string runId, bool approve, string note);
 }

@@ -4,7 +4,7 @@ using Sintonia.Core;
 namespace Sintonia.Infrastructure.Persistence;
 
 /// <summary>Small explicit schema. SQLite work runs off the WPF dispatcher and each mutation is transactional.</summary>
-public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
+public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
 {
     private readonly SemaphoreSlim _gate = new(1);
     private readonly string _path = Path.GetFullPath(databasePath);
@@ -29,7 +29,7 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 2) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 3) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -44,7 +44,13 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
             CREATE TABLE IF NOT EXISTS proposals(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
                 source_run_id TEXT NOT NULL UNIQUE REFERENCES runs(id), definition TEXT NOT NULL,
                 state INTEGER NOT NULL CHECK(state IN (0,1)), revision INTEGER NOT NULL CHECK(revision >= 0));
-            PRAGMA user_version=2;
+            CREATE TABLE IF NOT EXISTS task_batches(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
+                proposal_id TEXT NOT NULL UNIQUE REFERENCES proposals(id), proposal_revision INTEGER NOT NULL, definition TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS work_tasks(id TEXT PRIMARY KEY, batch_id TEXT NOT NULL REFERENCES task_batches(id),
+                plan_task_id TEXT NOT NULL, conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id),
+                state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 8), attempts INTEGER NOT NULL CHECK(attempts BETWEEN 0 AND 3),
+                last_run_id TEXT REFERENCES runs(id), review_note TEXT, UNIQUE(batch_id,plan_task_id));
+            PRAGMA user_version=3;
             """);
         transaction.Commit();
         return true;
@@ -84,12 +90,12 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
     public Task<IReadOnlyList<WorkspaceConversation>> GetConversationsAsync(string projectId) => RunAsync<IReadOnlyList<WorkspaceConversation>>(connection =>
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id,project_id,title,provider,model,native_session_id,function_name,instructions,access FROM conversations WHERE project_id=$project ORDER BY rowid DESC";
+        command.CommandText = "SELECT id,project_id,title,provider,model,native_session_id,function_name,instructions,access,EXISTS(SELECT 1 FROM work_tasks t WHERE t.conversation_id=conversations.id) FROM conversations WHERE project_id=$project ORDER BY rowid DESC";
         command.Parameters.AddWithValue("$project", projectId);
         using var reader = command.ExecuteReader();
         var list = new List<WorkspaceConversation>();
         while (reader.Read()) list.Add(new(reader.GetString(0), reader.GetString(1), reader.GetString(2), (ProviderKind)reader.GetInt32(3),
-            Optional(reader, 4), Optional(reader, 5), reader.GetString(6), reader.GetString(7), (ConversationAccess)reader.GetInt32(8)));
+            Optional(reader, 4), Optional(reader, 5), reader.GetString(6), reader.GetString(7), (ConversationAccess)reader.GetInt32(8), reader.GetBoolean(9)));
         return list;
     });
 
@@ -108,7 +114,10 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
             VALUES($id,$project,$title,$provider,$model,$native,$function,$instructions,$access)
             ON CONFLICT(id) DO UPDATE SET title=excluded.title,model=excluded.model,native_session_id=excluded.native_session_id,
                 function_name=excluded.function_name,instructions=excluded.instructions,access=excluded.access
-            WHERE conversations.project_id=excluded.project_id AND conversations.provider=excluded.provider;
+            WHERE conversations.project_id=excluded.project_id AND conversations.provider=excluded.provider
+                AND (NOT EXISTS(SELECT 1 FROM work_tasks t WHERE t.conversation_id=conversations.id)
+                    OR (conversations.title=excluded.title AND conversations.function_name=excluded.function_name
+                        AND conversations.instructions=excluded.instructions AND conversations.access=excluded.access));
             """, ("$id", conversation.Id), ("$project", conversation.ProjectId), ("$title", conversation.Title), ("$provider", (int)conversation.Provider),
             ("$model", conversation.Model), ("$native", conversation.NativeSessionId), ("$function", conversation.FunctionName),
             ("$instructions", conversation.Instructions), ("$access", (int)conversation.Access)) != 1)
@@ -138,10 +147,15 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
         return list;
     });
 
-    public Task BeginRunAsync(ChatRun run) => RunAsync(connection =>
+    public Task BeginRunAsync(ChatRun run, string? taskId = null) => RunAsync(connection =>
     {
-        Execute(connection, null, "INSERT INTO runs(id,conversation_id,prompt,state,started_at) VALUES($id,$conversation,$prompt,$state,$started)",
+        if (run.State != ChatRunState.Running) throw new ArgumentException("Uma tentativa deve começar em execução.");
+        using var transaction = connection.BeginTransaction();
+        ReserveTask(connection, transaction, run, taskId);
+        Execute(connection, transaction, "INSERT INTO runs(id,conversation_id,prompt,state,started_at) VALUES($id,$conversation,$prompt,$state,$started)",
             ("$id", run.Id), ("$conversation", run.ConversationId), ("$prompt", run.Prompt), ("$state", (int)ChatRunState.Running), ("$started", run.StartedAt.ToString("O")));
+        if (taskId is not null) Execute(connection, transaction, "UPDATE work_tasks SET last_run_id=$run WHERE id=$task", ("$run", run.Id), ("$task", taskId));
+        transaction.Commit();
         return true;
     });
 
@@ -168,15 +182,20 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
             throw new InvalidOperationException("A execução já foi encerrada ou não existe.");
         foreach (var ev in events.TakeLast(500)) Execute(connection, transaction, "INSERT INTO events(run_id,kind,text) VALUES($id,$kind,$text)",
             ("$id", run.Id), ("$kind", (int)ev.Kind), ("$text", ev.Text.Length > 8000 ? ev.Text[..8000] : ev.Text));
+        Execute(connection, transaction, "UPDATE work_tasks SET state=$state WHERE conversation_id=$conversation AND last_run_id=$run AND state=1",
+            ("$state", (int)WorkspaceTaskPolicy.FromRun(run.State)), ("$conversation", conversation.Id), ("$run", run.Id));
         transaction.Commit();
         return true;
     });
 
     public Task RecoverInterruptedRunsAsync() => RunAsync(connection =>
     {
-        Execute(connection, null, "UPDATE runs SET state=$state,finished_at=$finished,error=$error WHERE state=0",
+        using var transaction = connection.BeginTransaction();
+        Execute(connection, transaction, "UPDATE runs SET state=$state,finished_at=$finished,error=$error WHERE state=0",
             ("$state", (int)ChatRunState.Interrupted), ("$finished", DateTimeOffset.UtcNow.ToString("O")),
             ("$error", "O aplicativo encerrou antes de registrar o resultado. Confira o projeto e a sessão antes de reenviar."));
+        Execute(connection, transaction, "UPDATE work_tasks SET state=$state WHERE state=1", ("$state", (int)WorkspaceTaskState.Interrupted));
+        transaction.Commit();
         return true;
     });
 
@@ -230,10 +249,11 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
             using var transaction = connection.BeginTransaction();
             if (Execute(connection, transaction, """
                 UPDATE proposals SET definition=$definition,state=$state,revision=revision+1
-                WHERE id=$id AND project_id=$project AND source_run_id=$run AND revision=$revision;
+                WHERE id=$id AND project_id=$project AND source_run_id=$run AND revision=$revision
+                    AND NOT EXISTS(SELECT 1 FROM task_batches b WHERE b.proposal_id=proposals.id);
                 """, ("$definition", definition), ("$state", (int)proposal.State), ("$id", proposal.Id),
                 ("$project", proposal.ProjectId), ("$run", proposal.SourceRunId), ("$revision", proposal.Revision)) != 1)
-                throw new InvalidOperationException("A proposta mudou em outra janela ou não pertence a este projeto. Reabra a revisão antes de salvar.");
+                throw new InvalidOperationException("A proposta mudou em outra janela, já foi encaminhada à fila ou não pertence a este projeto. Reabra a revisão; para um plano encaminhado, crie uma nova proposta.");
             transaction.Commit();
             return proposal with { Revision = proposal.Revision + 1, Definition = PlanProposalFormat.ParseJson(definition) };
         });

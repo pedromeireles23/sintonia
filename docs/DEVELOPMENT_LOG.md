@@ -91,3 +91,11 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Validação: 117 testes xUnit (51 Core + 66 Infrastructure), build sem avisos/erros, testes WPF da central e do editor com zero erros de binding. A regressão da central revelou seleção sobrescrita durante carregamento do projeto; correção preserva a seleção existente e a reabertura passou. Capturas revisadas; imagem de dados simulados identificada no README. Release local atualizado e abertura/encerramento verificados.
 - Prova real: exatamente um turno de planejamento em leitura com Claude `claude-opus-5`, sem ferramentas solicitadas, produzindo duas tarefas para os dois provedores e dependência válida. Plano em artifacts/provider-probes, ignorado; fora de CI/loop. Geração real pelo Codex não exercitada neste incremento.
 - Próximo incremento: fila real persistente a partir de plano confirmado, despacho explícito e revisão de entregas/dependências. Escrita continua serial por projeto; worktrees e integração pertencem ao M3.
+
+## 08/10/2026 — Núcleo persistente da fila geral
+
+- Registrada a reafirmação do usuário: projetos gerais, sem especialização em jogos. Contexto, escopo e M6 agora descrevem tipos de projeto e validação configurável; exemplos históricos permanecem demonstrativos.
+- Schema 3 acrescenta cópia imutável de plano aprovado, tarefas, estados e vínculos a conversas/runs. Encaminhamento exige revisão atual aprovada e é idempotente. Conversas de tarefas não permitem desvio pelo chat nem alteração de contrato.
+- Despacho compartilha reservas do chat, limite de três tentativas, contexto dos runs aprovados e ajustes explícitos. Banco reserva tarefa/tentativa e finaliza entrega/estado atomicamente. Revisão exige o run atual concluído; falha, recusa, cancelamento e interrupção não liberam dependências. Recuperação não repete efeitos.
+- Validação: build sem avisos/erros e suíte xUnit aprovada; oito novos testes cobrem aprovação, duplicação, origem, ajustes, revisão obsoleta, permissões, limite, concorrência, cancelamento, recuperação e migração do schema 2. Provedores de teste, sem chamadas pagas.
+- Próximo incremento: janela da fila com despacho, atividade, histórico e revisão das entregas. Núcleo concluído não representa fluxo visual pronto.

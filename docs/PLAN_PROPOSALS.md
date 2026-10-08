@@ -9,24 +9,24 @@ Uma resposta pode trazer explicação em português e exatamente um bloco `sinto
 ```json
 {
   "schemaVersion": 1,
-  "title": "Menu inicial",
-  "objective": "Entrar no jogo por um menu acessível.",
+  "title": "Formulário do portal",
+  "objective": "Enviar solicitações por um formulário acessível.",
   "tasks": [
     {
       "id": "task-1",
-      "title": "Implementar menu",
+      "title": "Implementar formulário",
       "functionName": "Interface",
       "provider": "Codex",
       "model": null,
       "access": "WorkspaceWrite",
-      "instructions": "Criar título e botão para iniciar o jogo.",
+      "instructions": "Criar rótulos, campos e botão de envio.",
       "scope": ["src/"],
       "dependencies": [],
       "acceptanceCriteria": ["O botão pode ser acionado pelo teclado."]
     },
     {
       "id": "task-2",
-      "title": "Revisar menu",
+      "title": "Revisar formulário",
       "functionName": "Revisão",
       "provider": "Claude",
       "model": null,

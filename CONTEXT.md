@@ -4,11 +4,11 @@ Atualizado em 08/10/2026. Este arquivo é o ponto de entrada para retomar o dese
 
 ## Intenção do usuário
 
-Criar um aplicativo parecido em propósito com o Maestro: conectar suas instalações de Codex e Claude, distribuir funções e permitir que ambos trabalhem num projeto de programação. O primeiro caso de uso é desenvolver um jogo. O produto também poderá ser apresentado em portfólio de C#/.NET.
+Criar uma central para projetos em geral: conectar suas instalações de Codex e Claude, distribuir funções e acompanhar entregas em várias pastas de trabalho. Desenvolvimento de software, documentação, pesquisa e outras tarefas suportadas pelos provedores fazem parte do propósito. O produto também poderá ser apresentado em portfólio de C#/.NET.
 
-As funções podem ser gameplay, sistemas, interface, revisão e arte. Não é necessário criar um sistema separado de agentes autônomos: as próprias ferramentas já executam tarefas. O Sintonia fornece coordenação, estado e acompanhamento.
+As funções podem ser desenvolvimento, interface, revisão, documentação, análise e outras definidas pelo usuário. Não é necessário criar um sistema separado de agentes autônomos: as próprias ferramentas já executam tarefas. O Sintonia fornece coordenação, estado e acompanhamento.
 
-O usuário ampliou a direção para uma **central geral de projetos**: cadastro de várias pastas, chat central com escolha de provedor/modelo, função de chefe que propõe trabalho a outras sessões e lista de sessões com abertura/retomada. O jogo é o primeiro caso de uso. Escopo e limites em [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md).
+O usuário reafirmou que o Sintonia é uma **central geral de projetos**, sem especialização em jogos: cadastro de várias pastas, chat central com escolha de provedor/modelo, função de chefe que propõe trabalho a outras sessões e lista de sessões com abertura/retomada. Exemplos de jogos são demonstrativos e opcionais. Escopo e limites em [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md).
 
 Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sintonia**, conforme a pasta e o repositório existentes.
 
@@ -52,7 +52,9 @@ M2 em andamento: `SqliteWorkspaceStore` e `WorkspaceChatService` preservam proje
 
 Chefia estruturada conectada: o serviço força leitura, acrescenta o contrato ao pedido e não oferece host de autorização durante planejamento. Propostas válidas de respostas concluídas são salvas com origem e revisão; Revisar planos permite editar/adicionar/remover tarefas, validar, salvar rascunho e confirmar. Confirmar não chama provedores nem executa tarefas. Importação idempotente recupera resposta salva antes de interrupção e mantém edições; revisões antigas não sobrescrevem as novas. Uma prova real finita com Claude `claude-opus-5` gerou duas tarefas para Codex/Claude com dependência válida. Geração real de plano com Codex ainda não foi exercitada; UI testada com provedor de teste. Formato em [docs/PLAN_PROPOSALS.md](docs/PLAN_PROPOSALS.md).
 
-Próximo incremento: transformar um plano confirmado em fila de tarefas reais persistentes, com despacho explícito, revisão de entregas e dependências liberadas após aprovação. Usar os limites existentes e serializar escrita no mesmo projeto; nada de execução automática ou paralela de escrita antes do M3. Negativas reais de Bash/Edit/MCP, interações especiais e acompanhamento de background no Claude permanecem parciais. Worktrees/diffs/integração Git continuam pendentes.
+Núcleo da fila real implementado: schema 3 salva cópia imutável de um plano aprovado, tarefas e vínculos a conversas/tentativas. Encaminhamento idempotente não chama provedores. Despacho usa os limites do chat, três tentativas por tarefa, dependências aprovadas e contexto explícito dos runs aprovados. Término e revisão são transações; cancelamento/interrupção não liberam dependências. O banco impede envio da conversa de tarefa fora da fila e revisão obsoleta. A janela da fila ainda entra no próximo incremento; não anunciar distribuição visual como pronta.
+
+Próximo incremento: conectar a fila a uma janela com despacho explícito, eventos, histórico e revisão de entregas. Serializar escrita no mesmo projeto; nada de execução automática ou paralela de escrita antes do M3. Negativas reais de Bash/Edit/MCP, interações especiais e acompanhamento de background no Claude permanecem parciais. Worktrees/diffs/integração Git continuam pendentes.
 
 ## Critério da primeira versão útil
 
@@ -67,7 +69,7 @@ Selecionar a pasta de um projeto, atribuir uma tarefa ao Claude e outra ao Codex
 - A versão de cada CLI define seus eventos, flags e capacidades. Codex App Server tem interfaces experimentais; preferir a superfície estável e registrar o que foi testado.
 - Claude em modo não interativo tem host validado para Write; outras ferramentas têm cobertura de protocolo com processos de teste, sem prova real individual. Regras/hooks podem resolver permissões antes do host. O modo `--bare` pode omitir as extensões que o usuário quer preservar.
 - SQLite deve registrar tentativas e eventos suficientes para reconciliar trabalho após interrupção; repetir uma tarefa pode repetir efeitos.
-- Engine do jogo e provedor de imagens ainda não foram escolhidos; não bloquear o núcleo por essas decisões futuras.
+- Configurações específicas de stacks, engines e provedores de imagens são opcionais; não bloqueiam o núcleo geral.
 
 ## Como manter este arquivo
 

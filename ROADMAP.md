@@ -1,6 +1,6 @@
 # Roadmap do Sintonia
 
-Aplicativo Windows em C#/.NET 10 e WPF para coordenar sessões de Codex e Claude. Os marcos são incrementos verificáveis; não representam datas prometidas.
+Aplicativo Windows em C#/.NET 10 e WPF para coordenar sessões de Codex e Claude em projetos gerais. Jogos são um exemplo opcional de uso. Os marcos são incrementos verificáveis; não representam datas prometidas.
 
 ## M0 — Base .NET e fluxo demonstrativo
 
@@ -76,13 +76,13 @@ Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sess�
 
 Aceite: uma imagem é gerada e entregue como arquivo revisável. Evolução: imagens estáticas e texturas → sprites isolados → variações consistentes → animações validadas.
 
-## M6 — Fluxo de desenvolvimento de jogo
+## M6 — Fluxos para projetos gerais
 
-- [ ] Definir modelo para a engine escolhida pelo usuário.
-- [ ] Integrar código, especificações de assets, build e testes adequados.
-- [ ] Preparar um pequeno recurso de jogo que combine entregas das duas ferramentas.
+- [ ] Permitir configurar comandos de validação e critérios adequados à stack ou ao tipo de projeto.
+- [ ] Integrar entregas de código, documentação, análise e arquivos conforme o projeto.
+- [ ] Preparar exemplos de projetos distintos que combinem entregas das duas ferramentas.
 
-Aceite: uma entrega do jogo reúne código do Codex, código do Claude e, se configurado, um asset aprovado.
+Aceite: projetos de tipos diferentes combinam entregas do Codex e do Claude e passam pelos critérios definidos pelo usuário. Recursos específicos de jogos ou imagens são opcionais.
 
 ## M7 — Distribuição e portfólio
 

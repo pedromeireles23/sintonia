@@ -10,10 +10,36 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
     private readonly object _gate = new();
     private readonly Dictionary<string, WorkspaceConversation> _active = [];
 
-    public async Task<ChatRun> SendAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
+    public Task<ChatRun> SendAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
         IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
         Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler = null)
     {
+        if (conversation.IsTask) throw new InvalidOperationException("Inicie ou ajuste esta conversa pela fila de tarefas.");
+        return SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, null);
+    }
+
+    public async Task<ChatRun> SendTaskAsync(string projectId, string taskId, IProgress<ConversationEvent> progress,
+        CancellationToken cancellationToken, Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler = null)
+    {
+        var project = (await store.GetProjectsAsync().ConfigureAwait(false)).Single(p => p.Id == projectId);
+        var batch = (await store.GetTaskBatchesAsync(projectId).ConfigureAwait(false)).Single(b => b.Tasks.Any(t => t.Id == taskId));
+        var task = batch.Tasks.Single(t => t.Id == taskId);
+        var dependencies = new List<ChatRun>();
+        foreach (var id in task.Definition.Dependencies)
+        {
+            var dependency = batch.Tasks.Single(t => t.Definition.Id == id);
+            dependencies.AddRange(await store.GetRunsAsync(dependency.ConversationId).ConfigureAwait(false));
+        }
+        var prompt = WorkspaceTaskPolicy.BuildPrompt(batch, task, dependencies);
+        var conversation = (await store.GetConversationsAsync(projectId).ConfigureAwait(false)).Single(c => c.Id == task.ConversationId);
+        return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, taskId).ConfigureAwait(false);
+    }
+
+    private async Task<ChatRun> SendCoreAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
+        IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
+        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler, string? taskId)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         if (project.Id != conversation.ProjectId || string.IsNullOrWhiteSpace(prompt) || prompt.Length > 200_000)
             throw new ArgumentException("Projeto incompatível ou pedido vazio/extenso.");
         var instructions = conversation.Instructions;
@@ -35,7 +61,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
         try
         {
             var run = new ChatRun(Guid.NewGuid().ToString(), conversation.Id, prompt, null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
-            await store.BeginRunAsync(run).ConfigureAwait(false);
+            await store.BeginRunAsync(run, taskId).ConfigureAwait(false);
             var text = new StringBuilder();
             var events = new ConcurrentQueue<ChatEvent>();
             var checkpoint = Task.CompletedTask;

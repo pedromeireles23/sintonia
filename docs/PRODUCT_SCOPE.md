@@ -4,7 +4,7 @@ Direção solicitada pelo usuário em 08/10/2026. A central real já oferece pro
 
 ## Experiência desejada
 
-O Sintonia será uma central geral de trabalho com Codex e Claude Code. O jogo é o primeiro caso de uso, não um projeto fixo nem uma limitação do aplicativo.
+O Sintonia é uma central geral de trabalho com Codex e Claude Code: desenvolvimento, documentação, pesquisa, análise e outras tarefas suportadas pelos provedores. Jogos são um exemplo opcional; não orientam requisitos obrigatórios do produto.
 
 | Área | Comportamento planejado |
 | --- | --- |

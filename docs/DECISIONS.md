@@ -42,7 +42,7 @@ O Maestro é uma referência arquitetural, não um fork. Seu código declara AGP
 
 Data: 08/10/2026. Estado: direção de produto adotada; implementação pendente.
 
-O usuário quer cadastrar projetos variados, conversar num chat central com provedor/modelo escolhido, atribuir uma função de chefe e abrir as sessões de trabalho. O jogo é o primeiro caso de uso, não um cenário fixo do produto.
+O usuário quer cadastrar projetos variados, conversar num chat central com provedor/modelo escolhido, atribuir uma função de chefe e abrir as sessões de trabalho. O jogo é um exemplo opcional, não um cenário fixo do produto. O usuário reafirmou em 08/10/2026 que o foco são projetos gerais; o núcleo e o roadmap não exigem engine nem especialização em jogos.
 
 Projetos e sessões devem manter contexto separado. O chat organiza vínculos com as conversas nativas; Codex e Claude não compartilham memória automaticamente. O chefe propõe tarefas, mas o aplicativo aplica dependências/limites e o usuário conserva permissões e aprovações. Abertura no Sintonia é requisito; abertura nos aplicativos originais exige validação própria. Escopo em [PRODUCT_SCOPE.md](PRODUCT_SCOPE.md).
 
