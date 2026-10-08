@@ -18,6 +18,8 @@ public sealed record TaskDiffRow(TaskDiffFile File)
 public sealed class TaskDiffViewModel : ObservableObject
 {
     private readonly TaskDiffService _service;
+    private readonly TaskDeliveryService? _deliveries;
+    private TaskDelivery? _delivery;
     private CancellationTokenSource? _stop;
     private Task _operation = Task.CompletedTask;
     private TaskDiffReview? _review;
@@ -26,12 +28,13 @@ public sealed class TaskDiffViewModel : ObservableObject
     private TaskFileDiff? _content;
     private bool _busy, _stopping;
     private string _notice = "Atualize para consultar a pasta registrada desta tarefa.";
-    public TaskDiffViewModel(WorkspaceProject project, WorkspaceTask task, TaskDiffService service)
+    public TaskDiffViewModel(WorkspaceProject project, WorkspaceTask task, TaskDiffService service, TaskDeliveryService? deliveries = null)
     {
-        Project = project; TaskRecord = task; _service = service; _comparison = Comparisons[0];
+        Project = project; TaskRecord = task; _service = service; _deliveries = deliveries; _delivery = task.Delivery; _comparison = Comparisons[0];
         RefreshCommand = new(RefreshAsync, ShowError, () => !Busy && !_stopping);
         ReadCommand = new(ReadSelectedAsync, ShowError, () => CanRead);
         CancelCommand = new(() => _stop?.Cancel(), () => Busy && !_stopping);
+        RegisterCommand = new(RegisterAsync, ShowError, () => CanRegister);
     }
     public WorkspaceProject Project { get; }
     public WorkspaceTask TaskRecord { get; }
@@ -50,6 +53,12 @@ public sealed class TaskDiffViewModel : ObservableObject
     }
     public TaskDiffReview? Review => _review;
     public TaskFileDiff? Content => _content;
+    public TaskDelivery? Delivery => _delivery;
+    public Func<TaskDiffReview, bool>? ConfirmDelivery { get; set; }
+    public string DeliveryStatus => Delivery is { } delivery ? $"Commit registrado da entrega: {delivery.Commit}\nRegistrado em {delivery.RegisteredAt.ToLocalTime():dd/MM/yyyy HH:mm:ss}. A integração ainda está pendente."
+        : (Review?.Task ?? TaskRecord).State != WorkspaceTaskState.Approved ? "Para registrar um commit, aprove a entrega na fila e atualize os diffs."
+        : Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent) ? "Salve as mudanças em um commit e atualize os diffs antes de registrar. Arquivos ignorados ficam fora da entrega."
+        : "Confira a comparação desde a base e registre o commit revisado. O registro inclui toda a worktree e não integra a entrega.";
     public string Context => $"{Project.Name} · {TaskRecord.Definition.Title}\nBase registrada: {TaskRecord.Worktree?.BaseCommit}\nPasta da tarefa: {TaskRecord.Worktree?.WorkingDirectory}";
     public string Summary => Review is null ? "Lista indisponível até concluir a consulta."
         : $"{Files.Count} caminhos · {Files.Count(f => f.File.HasUntrackedContent)} novos · {Files.Count(f => f.File.LocalChange?.IsConflict == true)} conflitos\n"
@@ -62,9 +71,13 @@ public sealed class TaskDiffViewModel : ObservableObject
     public bool Busy { get => _busy; private set { Set(ref _busy, value); RefreshProperties(); } }
     public bool CanChoose => !Busy && !_stopping;
     public bool CanRead => CanChoose && Review is not null && SelectedFile is not null;
+    public bool CanRegister => CanChoose && _deliveries is not null && Delivery is null && Review?.Task.State == WorkspaceTaskState.Approved
+        && Comparison.Value == TaskDiffView.SinceBase && !Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent)
+        && (Files.Count == 0 || Content is not null);
     public AsyncCommand RefreshCommand { get; }
     public AsyncCommand ReadCommand { get; }
     public DelegateCommand CancelCommand { get; }
+    public AsyncCommand RegisterCommand { get; }
     public Task RefreshAsync()
     {
         if (!CanChoose) return Task.CompletedTask;
@@ -78,7 +91,7 @@ public sealed class TaskDiffViewModel : ObservableObject
         {
             var review = await _service.ScanAsync(Project.Id, TaskRecord.Id, stop.Token);
             stop.Token.ThrowIfCancellationRequested(); if (_stopping) return;
-            _review = review; foreach (var file in review.Snapshot.Files) Files.Add(new(file));
+            _review = review; _delivery = review.Task.Delivery; foreach (var file in review.Snapshot.Files) Files.Add(new(file));
             Notice = Files.Count == 0 ? "Nenhuma diferença desde a base ou alteração local nesta consulta." : "Lista consultada. Selecione um arquivo e a comparação desejada.";
         }
         catch (Exception exception) { ClearReview(); ShowError(exception); }
@@ -107,11 +120,33 @@ public sealed class TaskDiffViewModel : ObservableObject
     { _review = null; _file = null; _content = null; Files.Clear(); Notify(nameof(SelectedFile)); RefreshProperties(); }
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException or TimeoutException
         ? "Consulta cancelada ou prazo excedido. Atualize para obter uma nova leitura." : exception.Message;
+    public Task RegisterAsync()
+    {
+        if (!CanRegister) return Task.CompletedTask;
+        var review = Review!; _stop = new(); Busy = true;
+        return _operation = RegisterCoreAsync(review, _stop);
+    }
+    private async Task RegisterCoreAsync(TaskDiffReview review, CancellationTokenSource stop)
+    {
+        await Task.Yield();
+        try
+        {
+            stop.Token.ThrowIfCancellationRequested();
+            if (ConfirmDelivery?.Invoke(review) != true) { Notice = "Registro não confirmado. A entrega continua sem commit registrado."; return; }
+            stop.Token.ThrowIfCancellationRequested(); Notice = "Conferindo o commit revisado e registrando a entrega. Nenhum merge ou modelo será executado.";
+            _delivery = await _deliveries!.RegisterAsync(Project.Id, review, stop.Token);
+            // A completed transaction remains registered, even if cancellation arrived while SQLite was committing.
+            _review = review with { Task = review.Task with { Delivery = _delivery } };
+            Notice = "Commit da entrega registrado. Arquivos preservados; dependentes continuam aguardando integração.";
+        }
+        catch (Exception exception) { ClearReview(); ShowError(exception); Notice += " Atualize para conferir se o registro foi concluído."; }
+        finally { _stop = null; stop.Dispose(); Busy = false; }
+    }
     public async Task StopAsync()
     { _stopping = true; _stop?.Cancel(); RefreshProperties(); await _operation; }
     private void RefreshProperties()
     {
-        foreach (var property in new[] { nameof(Review), nameof(Content), nameof(Summary), nameof(ContentText), nameof(ContentStatus), nameof(CanChoose), nameof(CanRead) }) Notify(property);
-        RefreshCommand?.Refresh(); ReadCommand?.Refresh(); CancelCommand?.Refresh();
+        foreach (var property in new[] { nameof(Review), nameof(Content), nameof(Delivery), nameof(DeliveryStatus), nameof(Summary), nameof(ContentText), nameof(ContentStatus), nameof(CanChoose), nameof(CanRead), nameof(CanRegister) }) Notify(property);
+        RefreshCommand?.Refresh(); ReadCommand?.Refresh(); CancelCommand?.Refresh(); RegisterCommand?.Refresh();
     }
 }

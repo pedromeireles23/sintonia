@@ -47,13 +47,14 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 ## M3 — Trabalho paralelo com Git
 
-Estado: diagnóstico Git, preparação explícita de worktrees e revisão de diffs conectados à central/fila. Diretório, branch e base persistidos, subpastas mapeadas, cancelamento/retomada e original preservado. O painel mostra comparações desde a base/índice/pasta, arquivos novos, renomeações, exclusões e conflitos. Próximo incremento: fixar o conjunto revisado e implementar integração serial verificada, mantendo dependentes bloqueados enquanto a entrega estiver apenas na worktree. Projetos sem Git continuam disponíveis; escrita permanece serial. 189 testes xUnit e fluxos WPF validados, com Git real em pastas de teste e sem chamadas de modelos neste incremento.
+Estado: diagnóstico Git, preparação explícita de worktrees, diffs e registro do commit revisado conectados à central/fila. Diretório, branch e base persistidos, subpastas mapeadas, cancelamento/retomada e original preservado. O registro exige entrega aprovada, mudanças commitadas e consulta atual; conserva commit/árvore/run sem fazer merge. Núcleo de reserva serial por Git comum implementado, com bloqueio de execuções/preparações relacionadas e recuperação sem repetição. Próximo incremento: executar integração serial e testar a combinação, preservando arquivos locais/ignorados e liberando dependentes somente com resultado validado. Projetos sem Git continuam disponíveis; escrita permanece serial. 203 testes xUnit e fluxos WPF validados, com Git real em pastas de teste e sem chamadas de modelos neste incremento.
 
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
 - [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
 - [ ] Entregar especificações, contratos e resumos entre sessões.
 - [ ] Vincular tarefas à revisão correta do código de suas dependências.
 - [x] Mostrar diffs e conflitos antes de integrar.
+- [x] Registrar commit/árvore revisados e preparar reserva serial por repositório.
 - [ ] Integrar alterações de forma serial e testar o conjunto.
 - [ ] Preservar alterações locais e arquivos necessários ao limpar worktrees.
 

@@ -102,7 +102,8 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     public string WorktreeDetails => SelectedTask?.Record.Worktree is not { } worktree
         ? $"Pasta usada nas tentativas: {Project.Directory}\n\nUma tarefa com escrita pode preparar outra pasta Git antes da primeira tentativa. A preparação é opcional e não chama modelos."
         : $"{WorktreeStateText(worktree.State)}\n\nBranch: {worktree.Branch}\nCommit de base: {worktree.BaseCommit}\n\nPasta usada nas tentativas:\n{worktree.WorkingDirectory}\n\nCheckout:\n{worktree.CheckoutDirectory}\n\nRepositório original:\n{worktree.RepositoryDirectory}"
-            + (worktree.Error is { } error ? "\n\n" + error : "");
+            + (worktree.Error is { } error ? "\n\n" + error : "")
+            + (SelectedTask.Record.Delivery is { } delivery ? $"\n\nCommit registrado da entrega:\n{delivery.Commit}\nIntegração pendente." : "");
     public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nA escrita continua serial no projeto. Aprovar uma entrega não integra seus arquivos; dependentes aguardam a integração Git, ainda em desenvolvimento.";
     public Func<TaskWorktree, bool>? ConfirmWorktree { get; set; }
     public bool CanPrepareWorktree => !Busy && !_loading && Workspace.CanPrepareWorktrees && SelectedTask is { } task && SelectedBatch is { } batch

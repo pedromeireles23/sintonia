@@ -13,6 +13,8 @@ Antes da primeira tentativa com escrita, a aba **Pasta de trabalho** permite pre
 
 Com a worktree pronta e a tarefa parada, use **Revisar diffs** na mesma aba. Selecione arquivo e comparação desde a base, índice ou pasta; confira renomeações, exclusões, arquivos novos e conflitos. A janela permanece vinculada à tarefa ao navegar. [Fluxo, atualização e limites](TASK_DIFFS.md).
 
+Depois de aprovar a entrega e salvar as mudanças em Git, use **Registrar commit revisado** no painel de diffs. O registro conserva commit/árvore e tentativa aprovada, sem integrar arquivos. Atualizar a fila mostra o commit em Pasta de trabalho. [Fluxo e limites do registro](TASK_DELIVERIES.md).
+
 Planos encaminhados são preservados e não aceitam edição. Um plano entra na fila uma única vez; repetir o encaminhamento não duplica tarefas. Para outro planejamento, gere uma nova proposta.
 
 ## Estado e revisão

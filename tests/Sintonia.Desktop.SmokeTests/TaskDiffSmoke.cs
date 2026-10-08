@@ -149,25 +149,26 @@ internal static class TaskDiffSmoke
         };
         app.Run(main); return exitCode;
     }
-    private static async Task SeedAsync(SqliteWorkspaceStore store, WorkspaceProject project)
+    internal static async Task SeedAsync(SqliteWorkspaceStore store, WorkspaceProject project, bool independentWrites = false)
     {
         var conversation = new WorkspaceConversation(Guid.NewGuid().ToString(), project.Id, "Plano de teste", ProviderKind.Codex, null, null,
             PlanProposalFormat.ChiefFunctionName, "", ConversationAccess.ReadOnly); await store.SaveConversationAsync(conversation);
         var plan = new PlanProposal(1, "Portal de atendimento", "Criar portal acessível", [
             new("portal", "Criar formulário acessível", "Desenvolvimento", ProviderKind.Codex, null, ConversationAccess.WorkspaceWrite, "Criar formulário", ["portal.txt"], [], ["Conferir acessibilidade"]),
-            new("review", "Revisar formulário", "Revisão", ProviderKind.Claude, null, ConversationAccess.ReadOnly, "Conferir critérios", ["portal.txt"], ["portal"], ["Relatório"])]);
+            new("review", "Revisar formulário", "Revisão", ProviderKind.Claude, null, independentWrites ? ConversationAccess.WorkspaceWrite : ConversationAccess.ReadOnly,
+                "Conferir critérios", ["portal.txt"], independentWrites ? [] : ["portal"], ["Relatório"])]);
         var run = new ChatRun(Guid.NewGuid().ToString(), conversation.Id, "Plano", null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
         await store.BeginRunAsync(run); await store.FinishRunAsync(run with { State = ChatRunState.Completed, FinishedAt = DateTimeOffset.UtcNow,
             Response = "SIMULAÇÃO: plano de teste.\n```sintonia-plan\n" + PlanProposalFormat.Serialize(plan) + "\n```" }, conversation, []);
         var proposal = await store.CreateProposalAsync(project.Id, run.Id); await store.SaveProposalAsync(proposal with { State = ProposalReviewState.Approved });
     }
-    private static async Task GitAsync(string directory, int exitCode, params string[] args)
+    internal static async Task GitAsync(string directory, int exitCode, params string[] args)
     {
         var result = await ProcessProbe.RunAsync(new("git.exe", [], "Git teste"),
             new[] { "-c", "user.name=Sintonia Test", "-c", "user.email=sintonia@example.invalid", "-c", "commit.gpgSign=false", "-c", "core.hooksPath=NUL", "-c", "core.fsmonitor=false" }.Concat(args).ToArray(),
             directory, TimeSpan.FromSeconds(10)); Require(result.ExitCode == exitCode && !result.TimedOut && !result.Truncated, "Git recusou fixture: " + result.StandardError);
     }
-    private static async Task SelectAsync(TaskDiffWindow window, string path)
+    internal static async Task SelectAsync(TaskDiffWindow window, string path)
     {
         var vm = window.ViewModel; var list = (ListBox)window.FindName("DiffFiles");
         list.SelectedItem = vm.Files.Single(f => f.Path == path); list.ScrollIntoView(list.SelectedItem);
@@ -179,7 +180,7 @@ internal static class TaskDiffSmoke
         var vm = window.ViewModel; ((ComboBox)window.FindName("DiffComparison")).SelectedItem = vm.Comparisons.Single(c => c.Value == view);
         await Until(() => !vm.Busy && vm.Content is not null);
     }
-    private static Button Button(DependencyObject root, string id)
+    internal static Button Button(DependencyObject root, string id)
     {
         if (root is Button button && AutomationProperties.GetAutomationId(button) == id) return button;
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
@@ -187,13 +188,13 @@ internal static class TaskDiffSmoke
         throw new KeyNotFoundException(id);
     }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
-    private static async Task Until(Func<bool> condition)
+    internal static async Task Until(Func<bool> condition)
     {
         var deadline = DateTime.UtcNow.AddSeconds(15);
         while (!condition()) { if (DateTime.UtcNow >= deadline) throw new TimeoutException("Estado da revisão de diffs não chegou."); await Task.Delay(25); }
         await Task.Delay(20);
     }
-    private static void Capture(Window window, string path)
+    internal static void Capture(Window window, string path)
     {
         window.UpdateLayout(); var surface = (FrameworkElement)window.Content;
         var bitmap = new RenderTargetBitmap((int)surface.ActualWidth, (int)surface.ActualHeight, 96, 96, PixelFormats.Pbgra32); bitmap.Render(surface);

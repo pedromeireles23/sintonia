@@ -38,6 +38,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private readonly WorkspaceChatService _chat;
     private readonly TaskWorktreeService? _worktrees;
     private readonly TaskDiffService? _diffs;
+    private readonly TaskDeliveryService? _deliveries;
     private readonly HashSet<Task> _gitJobs = [];
     private readonly Dispatcher _dispatcher;
     private readonly Func<string?> _pickDirectory;
@@ -67,11 +68,12 @@ public sealed class WorkspaceViewModel : ObservableObject
 
     public WorkspaceViewModel(IWorkspaceStore store, WorkspaceChatService chat, Dispatcher dispatcher,
         Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect,
-        TaskWorktreeService? worktrees = null, TaskDiffService? diffs = null)
+        TaskWorktreeService? worktrees = null, TaskDiffService? diffs = null, TaskDeliveryService? deliveries = null)
     {
         _store = store; _chat = chat; _dispatcher = dispatcher; _pickDirectory = pickDirectory; _inspect = inspect;
         _worktrees = worktrees;
         _diffs = diffs;
+        _deliveries = deliveries;
         _function = Functions[0]; _access = AccessOptions[0];
         AddProjectCommand = new(AddPickedProjectAsync, ShowError, () => Ready && !_stopping);
         RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && Project is not null && CanConfigure);
@@ -439,7 +441,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public TaskDiffViewModel CreateTaskDiffReview(WorkspaceProject project, WorkspaceTask task)
     {
         if (!CanReviewTaskDiffs) throw new InvalidOperationException("A revisão de diffs não está disponível ou o aplicativo está encerrando.");
-        return new(project, task, _diffs!);
+        return new(project, task, _diffs!, _deliveries);
     }
     public Task<TaskWorktree> PreviewTaskWorktreeAsync(WorkspaceProject project, WorkspaceTask task, CancellationToken token) =>
         RunGitOperationAsync(stop => _worktrees!.PreviewAsync(project.Id, task.Id, stop), token);

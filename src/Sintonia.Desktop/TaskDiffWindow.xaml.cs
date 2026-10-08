@@ -10,6 +10,9 @@ public partial class TaskDiffWindow : Window
     public TaskDiffWindow(TaskDiffViewModel viewModel)
     {
         InitializeComponent(); DataContext = viewModel;
+        ViewModel.ConfirmDelivery ??= review => MessageBox.Show(this,
+            $"Registrar o commit {review.Snapshot.HeadCommit} da tarefa {review.Task.Definition.Title}?\n\nO registro inclui os arquivos versionados de toda a worktree, inclusive fora da subpasta do projeto. Não cria commits nem integra arquivos; dependentes continuam bloqueados.",
+            "Registrar commit revisado", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         Loaded += async (_, _) => await ViewModel.RefreshAsync();
         Closing += async (_, e) =>
         {

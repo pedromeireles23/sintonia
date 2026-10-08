@@ -22,7 +22,8 @@ public partial class WorkspaceWindow : Window
         var worktrees = new GitTaskWorktreeManager();
         DataContext = viewModel ?? new WorkspaceViewModel(store,
             new WorkspaceChatService(store, [new CodexConversationProvider(), new ClaudeConversationProvider()], worktrees), Dispatcher,
-            PickDirectory, InspectAsync, new TaskWorktreeService(store, worktrees), new TaskDiffService(store, new GitTaskDiffReader(worktrees)));
+            PickDirectory, InspectAsync, new TaskWorktreeService(store, worktrees), new TaskDiffService(store, new GitTaskDiffReader(worktrees)),
+            new TaskDeliveryService(store, new GitTaskDeliveryInspector(worktrees)));
         Loaded += async (_, _) => await ViewModel.InitializeAsync();
         Closing += CloseAsync;
     }

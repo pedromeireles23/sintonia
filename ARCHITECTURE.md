@@ -4,7 +4,7 @@
 
 C# com .NET 10, interface WPF em MVVM e SQLite para o histórico real. A primeira versão é local e focada no Windows.
 
-Estrutura atual (M0, adaptadores reais do M1 e central persistente do M2):
+Estrutura atual (M0–M3, com adaptadores reais e central persistente):
 
 ```text
 Sintonia.sln
@@ -140,3 +140,5 @@ A aba Pasta de trabalho consulta a prévia, confirma diretório/branch/base e pr
 `TaskQueueWindow`/`TaskQueueViewModel` permitem encaminhar planos, iniciar tentativas, acompanhar mensagens/eventos, selecionar tentativas anteriores e revisar a entrega atual. `WorkspaceViewModel` registra os jobs da fila junto aos do chat e compartilha o host de permissões, mostrado nas duas janelas; encerramento cancela e aguarda ambos. Conversas de tarefas ficam consultáveis no chat, sem envio ou edição de função/acesso. A janela de planos indica quando a proposta já foi encaminhada. A revisão de uma tentativa anterior fica desabilitada e é recusada no banco. Detalhes em [docs/TASK_QUEUE.md](docs/TASK_QUEUE.md).
 
 `TaskDiffWindow`/`TaskDiffViewModel` capturam projeto/tarefa ao abrir por Pasta de trabalho na fila. Consultam lista ao carregar e leem o arquivo/comparação escolhido sem bloquear a interface. Operação pendente bloqueia seleção e retira a prévia anterior; atualização, erro ou cancelamento retira a lista. O serviço revalida estado persistido antes/depois; a janela descarta resultados tardios e cancela/aguarda ao fechar. A central também aguarda seus painéis de diffs. Leitura não aprova entrega nem fixa conteúdo para a futura integração.
+
+O mesmo painel registra o commit da consulta desde a base para uma tarefa aprovada com status limpo. Confirmação mostra commit/tarefa e abrangência da árvore; depois o serviço confere objetos/estado e o banco compara a aprovação/vínculo antes de salvar. O registro aparece no cabeçalho e em Pasta de trabalho ao atualizar a fila. Recusa não chama o serviço; falha retira a consulta e orienta atualização. Registro concluído não é desfeito por cancelamento posterior. Fechamento aguarda a operação, sem disparar integração.

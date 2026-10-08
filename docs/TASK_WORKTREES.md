@@ -35,4 +35,6 @@ O painel conserva o projeto ao navegar na central. Mostra estado, pasta efetiva,
 
 Com a worktree pronta e a tarefa parada, **Revisar diffs** abre a comparação de arquivos desde a base, no índice ou na pasta. A consulta inclui todo o checkout e não fixa conteúdo para integração nem altera a aprovação da entrega.
 
+Após aprovar a entrega e salvar suas mudanças em um commit, o painel de diffs permite [registrar esse commit](TASK_DELIVERIES.md). A identificação persistida não altera arquivos nem integra a entrega; dependentes continuam bloqueados.
+
 Teste WPF `--worktrees` percorre recusa/confirmação pelos comandos visuais, preparação com Git real, escrita/autorização e ajuste com provedor simulado, reabertura, dependência bloqueada, troca de projeto, cancelamento parcial e fechamento da central. Layout normal/mínimo revisado, zero erros de binding. Preview evita status do original para não executar filtros clean; a conferência de retomada desabilita filtros somente no próprio comando.
