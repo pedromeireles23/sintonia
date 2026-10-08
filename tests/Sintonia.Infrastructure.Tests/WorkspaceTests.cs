@@ -17,6 +17,119 @@ public sealed class WorkspaceTests : IDisposable
     private static WorkspaceConversation Conversation(WorkspaceProject project, ProviderKind provider = ProviderKind.Codex,
         ConversationAccess access = ConversationAccess.ReadOnly) => new(Guid.NewGuid().ToString(), project.Id, "Conversa", provider, null, null, "Revisão", "Confira critérios.", access);
 
+    private static PlanProposal Plan() => new(1, "Menu do jogo", "Entrar pelo menu.",
+        [new("task-1", "Criar menu", "Interface", ProviderKind.Codex, null, ConversationAccess.WorkspaceWrite,
+            "Criar tela inicial.", ["src/"], [], ["Botão inicia o jogo."]),
+         new("task-2", "Revisar menu", "Revisão", ProviderKind.Claude, null, ConversationAccess.ReadOnly,
+            "Revisar entrega.", ["src/"], ["task-1"], ["Conferir acessibilidade."])]);
+    private static async Task<ChatRun> ProposalSourceAsync(SqliteWorkspaceStore store, WorkspaceProject project,
+        ChatRunState state = ChatRunState.Completed, string? response = null)
+    {
+        var conversation = Conversation(project) with { FunctionName = PlanProposalFormat.ChiefFunctionName };
+        await store.SaveConversationAsync(conversation);
+        var run = new ChatRun(Guid.NewGuid().ToString(), conversation.Id, "Planejar menu.", null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
+        await store.BeginRunAsync(run);
+        run = run with { Response = response ?? "```sintonia-plan\n" + PlanProposalFormat.Serialize(Plan()) + "\n```", State = state, FinishedAt = DateTimeOffset.UtcNow };
+        await store.FinishRunAsync(run, conversation, []);
+        return run;
+    }
+
+    [Fact]
+    public async Task ProposalReviewSurvivesRestartAndReimportPreservesApproval()
+    {
+        var store = await StoreAsync(); var project = await store.AddProjectAsync(_directory);
+        var run = await ProposalSourceAsync(store, project);
+        var proposal = await store.CreateProposalAsync(project.Id, run.Id);
+        Assert.Equal(ProposalReviewState.Draft, proposal.State);
+        var approved = await store.SaveProposalAsync(proposal with { State = ProposalReviewState.Approved,
+            Definition = proposal.Definition with { Title = "Plano revisado pelo usuário" } });
+        var reopened = await StoreAsync();
+        var saved = await reopened.CreateProposalAsync(project.Id, run.Id);
+        Assert.Equal(approved.Id, saved.Id); Assert.Equal(approved.Revision, saved.Revision);
+        Assert.Equal(ProposalReviewState.Approved, saved.State);
+        Assert.Equal("Plano revisado pelo usuário", saved.Definition.Title);
+        Assert.Single(await reopened.GetProposalsAsync(project.Id));
+        Assert.Equal(run.Response, Assert.Single(await reopened.GetRunsAsync(run.ConversationId)).Response);
+    }
+
+    [Theory]
+    [InlineData(ChatRunState.Blocked)]
+    [InlineData(ChatRunState.Failed)]
+    [InlineData(ChatRunState.Interrupted)]
+    public async Task OnlyCompletedResponsesCanBecomeProposals(ChatRunState state)
+    {
+        var store = await StoreAsync(); var project = await store.AddProjectAsync(_directory);
+        var run = await ProposalSourceAsync(store, project, state);
+        await Assert.ThrowsAsync<PlanValidationException>(() => store.CreateProposalAsync(project.Id, run.Id));
+        Assert.Empty(await store.GetProposalsAsync(project.Id));
+    }
+
+    [Fact]
+    public async Task ProposalSourceMustBelongToProjectAndContainValidPlan()
+    {
+        var store = await StoreAsync(); var project = await store.AddProjectAsync(_directory);
+        var secondPath = Path.Combine(_directory, "outro"); Directory.CreateDirectory(secondPath);
+        var second = await store.AddProjectAsync(secondPath);
+        var run = await ProposalSourceAsync(store, project);
+        await Assert.ThrowsAsync<PlanValidationException>(() => store.CreateProposalAsync(second.Id, run.Id));
+        var invalid = await ProposalSourceAsync(store, project, response: "Texto livre sem proposta.");
+        await Assert.ThrowsAsync<PlanValidationException>(() => store.CreateProposalAsync(project.Id, invalid.Id));
+        Assert.Empty(await store.GetProposalsAsync(project.Id)); Assert.Empty(await store.GetProposalsAsync(second.Id));
+    }
+
+    [Fact]
+    public async Task InvalidEditsStaleRevisionsAndChangedOriginCannotOverwriteProposal()
+    {
+        var store = await StoreAsync(); var project = await store.AddProjectAsync(_directory);
+        var run = await ProposalSourceAsync(store, project);
+        var original = await store.CreateProposalAsync(project.Id, run.Id);
+        var saved = await store.SaveProposalAsync(original with { State = ProposalReviewState.Approved });
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveProposalAsync(original));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveProposalAsync(saved with { ProjectId = "another-project" }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveProposalAsync(saved with { SourceRunId = "another-run" }));
+        await Assert.ThrowsAsync<PlanValidationException>(() => store.SaveProposalAsync(saved with
+        {
+            Definition = saved.Definition with { Tasks = [saved.Definition.Tasks[0] with { Dependencies = ["missing"] }] }
+        }));
+        Assert.Equal(saved.Revision, Assert.Single(await store.GetProposalsAsync(project.Id)).Revision);
+        Assert.Equal(ProposalReviewState.Approved, Assert.Single(await store.GetProposalsAsync(project.Id)).State);
+        var draft = await store.SaveProposalAsync(saved with { State = ProposalReviewState.Draft, Definition = saved.Definition with { Title = "Em ajuste" } });
+        Assert.Equal(ProposalReviewState.Draft, draft.State);
+    }
+
+    [Fact]
+    public async Task VersionOneMigrationPreservesConversationAndRunHistory()
+    {
+        var store = await StoreAsync(); var project = await store.AddProjectAsync(_directory);
+        var run = await ProposalSourceAsync(store, project);
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Database};Pooling=False"))
+        {
+            connection.Open(); using var command = connection.CreateCommand();
+            command.CommandText = "DROP TABLE proposals; PRAGMA user_version=1;"; command.ExecuteNonQuery();
+        }
+        var migrated = await StoreAsync();
+        Assert.Equal(run.Response, Assert.Single(await migrated.GetRunsAsync(run.ConversationId)).Response);
+        Assert.Empty(await migrated.GetProposalsAsync(project.Id));
+        Assert.Equal(project.Id, (await migrated.CreateProposalAsync(project.Id, run.Id)).ProjectId);
+    }
+
+    [Fact]
+    public async Task ChiefUsesReadOnlyRequestWithoutPermissionHostAndDoesNotPersistProtocolInstructions()
+    {
+        var store = await StoreAsync(); var project = await store.AddProjectAsync(_directory);
+        var conversation = Conversation(project, access: ConversationAccess.WorkspaceWrite) with
+            { FunctionName = PlanProposalFormat.ChiefFunctionName, Instructions = "Contexto adicional." };
+        await store.SaveConversationAsync(conversation);
+        var provider = new TestProvider(ProviderKind.Codex); var service = new WorkspaceChatService(store, [provider]);
+        await service.SendAsync(project, conversation, "Planejar.", new InlineProgress(), CancellationToken.None, (_, _) => Task.FromResult(true));
+        Assert.Equal(ConversationAccess.ReadOnly, provider.LastRequest!.Access); Assert.Null(provider.LastRequest.PermissionHandler);
+        Assert.Contains("sintonia-plan", provider.LastRequest.Instructions);
+        var saved = Assert.Single(await store.GetConversationsAsync(project.Id));
+        Assert.Equal("Contexto adicional.", saved.Instructions); Assert.Equal(ConversationAccess.ReadOnly, saved.Access);
+        await service.SendAsync(project, saved, "Replanejar.", new InlineProgress(), CancellationToken.None);
+        Assert.Equal(1, provider.LastRequest!.Instructions.Split("Atue como chefe do projeto.", StringSplitOptions.None).Length - 1);
+    }
+
     [Fact]
     public async Task DuplicatePathReturnsSameProjectAndConversationsStaySeparatedAcrossRestart()
     {
@@ -135,9 +248,11 @@ public sealed class WorkspaceTests : IDisposable
     private sealed class TestProvider(ProviderKind kind, bool denied = false, bool failed = false, bool wait = false) : IConversationProvider
     {
         public ProviderKind Kind => kind;
+        public ConversationRequest? LastRequest { get; private set; }
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async Task<ConversationResult> SendAsync(ConversationRequest request, IProgress<ConversationEvent> progress, CancellationToken cancellationToken)
         {
+            LastRequest = request;
             var id = request.NativeSessionId ?? Guid.NewGuid().ToString();
             progress.Report(new(ConversationEventKind.Session, "Sessão de teste", id, "modelo"));
             progress.Report(new(ConversationEventKind.TextDelta, "parcial"));

@@ -1,6 +1,6 @@
 # Sintonia como central de projetos
 
-Direção solicitada pelo usuário em 08/10/2026. Este documento descreve funcionalidades planejadas; a implementação atual continua sendo o M0 simulado.
+Direção solicitada pelo usuário em 08/10/2026. A central real já oferece projetos, chat, sessões persistentes e propostas de chefia para revisão. Este documento também descreve a distribuição e a integração ainda planejadas; a demonstração M0 permanece separada e simulada.
 
 ## Experiência desejada
 
@@ -35,13 +35,15 @@ A chefia é uma função configurável numa sessão normal de Codex ou Claude, c
 
 Fluxo planejado: objetivo no chat → proposta estruturada do chefe → revisão/edição do plano → distribuição para sessões de trabalho → resultados e revisão → acompanhamento no chat central.
 
+As etapas de proposta e revisão estão implementadas: chefia executa em leitura, planos são validados e vinculados à resposta de origem no SQLite. O usuário pode editar e confirmar a proposta; confirmação registra a revisão para execução futura, sem iniciar sessões de trabalho. Distribuição, revisão de entregas e acompanhamento automático permanecem pendentes. Formato e limites em [PLAN_PROPOSALS.md](PLAN_PROPOSALS.md).
+
 A proposta deve definir objetivo, escopo, responsável, dependências e critérios de entrega. O Sintonia valida identificadores, dependências, diretórios e limites; não executa texto livre do chefe como comandos de controle. A coordenação pode recomendar aprovação, mas não substitui decisões de permissão, aprovação das entregas ou integração reservadas ao usuário.
 
 ## Assinaturas
 
 O padrão solicitado é usar os logins das assinaturas nos CLIs locais. Não configurar cobrança por chave de API nem migrar para esse modo automaticamente. Antes de uma execução real, o adaptador deve conferir o modo de autenticação sem expor segredos e recusar um modo incompatível com essa escolha.
 
-Na consulta local realizada nesta conversa, Codex informou login ChatGPT; Claude informou login `claude.ai` e assinatura Pro. Isso comprova o estado declarado pelos CLIs naquele momento, não validade de uma inferência futura, quota disponível ou acesso a todo modelo anunciado. Nenhuma tarefa real do Sintonia foi enviada.
+Nas consultas locais, Codex informou login ChatGPT; Claude informou login `claude.ai` e assinatura Pro. Turnos reais limitados comprovaram leitura/retomada nos dois, autorização de Write e geração de proposta no Claude. Isso comprova acesso naquele momento, não quota futura ou acesso a todo modelo anunciado. Evidências em [PROVIDER_PROBES.md](PROVIDER_PROBES.md).
 
 ## Ordem de implementação
 

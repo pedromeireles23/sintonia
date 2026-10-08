@@ -37,6 +37,11 @@ public partial class WorkspaceWindow : Window
             ["Aliases anunciados pelo Claude instalado. Você também pode informar um identificador de modelo; o acesso é conferido ao enviar."]);
     }
     private void OpenDemo(object sender, RoutedEventArgs e) => new MainWindow().Show();
+    private async void OpenProposals(object sender, RoutedEventArgs e)
+    {
+        try { new ProposalReviewWindow(await ViewModel.LoadProposalReviewAsync()) { Owner = this }.Show(); }
+        catch (Exception exception) { MessageBox.Show(this, exception.Message, "Revisão do plano", MessageBoxButton.OK, MessageBoxImage.Information); }
+    }
     private async void CloseAsync(object? sender, CancelEventArgs e)
     {
         if (_closed) return;

@@ -80,4 +80,16 @@ Comando opcional (consome quota; dois turnos no máximo, três iterações por t
 rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- permissions Claude
 ```
 
-Evidência e arquivos ficam em artifacts/provider-probes, ignorados pelo Git. Se a negativa não cumprir os critérios, a prova para antes do segundo turno. Não executar em loop/CI. Próximo incremento: proposta estruturada de chefia validada para revisão.
+Evidência e arquivos ficam em artifacts/provider-probes, ignorados pelo Git. Se a negativa não cumprir os critérios, a prova para antes do segundo turno. Não executar em loop/CI. Propostas estruturadas foram acrescentadas no incremento abaixo.
+
+## Proposta estruturada de chefia — 08/10/2026
+
+- Um único turno Claude `claude-opus-5` por assinatura, em leitura, produziu duas tarefas para Codex/Claude com dependência e critérios. O formato sintonia-plan foi extraído e validado pelo mesmo Core da central. Modelo null nas tarefas indica padrão futuro; não prova acesso de workers a esses modelos.
+- Nenhuma ferramenta foi solicitada no prompt e nenhuma tarefa foi distribuída. Arquivo plan.json foi salvo pelo diagnóstico em pasta exclusiva de artifacts/provider-probes. Prova opcional com prazo total de três minutos; não entra na suíte/CI.
+- 117 testes xUnit e testes WPF com provedor de teste validaram contrato, migração, origem, edição, revisão concorrente, confirmação sem execução e reabertura. Chefia funciona pelo contrato comum nos dois provedores; a geração real de plano pelo Codex ainda não foi exercitada.
+
+```powershell
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- plan Claude
+```
+
+O mesmo diagnóstico aceita plan Codex para prova manual futura. Não executar em loops/CI. Próximo incremento: fila real com despacho/revisão explícitos a partir de plano confirmado.

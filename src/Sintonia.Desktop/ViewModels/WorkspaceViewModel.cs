@@ -137,12 +137,15 @@ public sealed class WorkspaceViewModel : ObservableObject
     public string Model { get => _model; set => Set(ref _model, value); }
     public string Prompt { get => _prompt; set { if (Set(ref _prompt, value)) RefreshCommands(); } }
     public string Instructions { get => _instructions; set => Set(ref _instructions, value); }
-    public FunctionOption Function { get => _function; set { if (Set(ref _function, value)) Instructions = value.Instructions; } }
-    public AccessOption Access { get => _access; set { Set(ref _access, value); RefreshCommands(); } }
+    public FunctionOption Function { get => _function; set { if (Set(ref _function, value)) { Instructions = value.Instructions; if (IsChief) Access = AccessOptions[0]; Notify(nameof(CanEditAccess)); } } }
+    public bool IsChief => Function.Name == PlanProposalFormat.ChiefFunctionName;
+    public bool CanEditAccess => CanEditFunction && !IsChief;
+    public AccessOption Access { get => _access; set { Set(ref _access, IsChief ? AccessOptions[0] : value); RefreshCommands(); } }
     public string Notice { get => _notice; private set => Set(ref _notice, value); }
     public bool Ready { get => _ready; private set { Set(ref _ready, value); RefreshCommands(); } }
     public int ActiveCount => _jobs.Count;
     public bool CanConfigure => SelectedConversation is null && !_stopping && !_loadingProject;
+    public bool CanReviewProposals => Ready && Project is not null && !_stopping;
     public bool CanEditFunction => SelectedConversation?.Running != true && !_stopping && !_loadingProject;
     public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && SelectedConversation?.Running != true
         && (SelectedConversation is null || SelectedConversation.Loaded) && _jobs.Count < 2
@@ -204,7 +207,7 @@ public sealed class WorkspaceViewModel : ObservableObject
                     session.State = StateText(runs.LastOrDefault()?.State);
                 }
             }
-            SelectedConversation = Conversations.FirstOrDefault();
+            SelectedConversation ??= Conversations.FirstOrDefault();
             ResetModels();
         }
         catch (Exception exception) { ShowError(exception); }
@@ -285,6 +288,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private async Task SendCoreAsync(WorkspaceProject project, ConversationViewModel session, string prompt, CancellationTokenSource stop)
     {
         await Task.Yield();
+        var isChief = session.Record.FunctionName == PlanProposalFormat.ChiefFunctionName;
         var answer = new ChatMessageViewModel(session.Record.Provider.ToString(), "", "Executando");
         session.Messages.Add(new("Você", prompt)); session.Messages.Add(answer);
         var progress = new Progress<ConversationEvent>(ev =>
@@ -310,6 +314,19 @@ public sealed class WorkspaceViewModel : ObservableObject
             var saved = (await _store.GetConversationsAsync(project.Id)).Single(c => c.Id == session.Record.Id);
             session.Record = saved;
             Notice = run.State == ChatRunState.Completed ? "Resposta salva. Você pode continuar esta conversa ou abrir outra." : run.Error ?? StateText(run.State);
+            if (isChief && run.State == ChatRunState.Completed)
+            {
+                try
+                {
+                    await _store.CreateProposalAsync(project.Id, run.Id);
+                    Notice = "Proposta salva para revisão. Abra Revisar planos para editar as tarefas e confirmar.";
+                }
+                catch (Exception exception)
+                {
+                    session.Events.Add("Proposta não importada: " + exception.Message);
+                    Notice = "Resposta salva, mas a proposta não pôde ser importada. " + exception.Message;
+                }
+            }
         }
         catch (Exception exception)
         {
@@ -320,6 +337,19 @@ public sealed class WorkspaceViewModel : ObservableObject
         {
             session.Running = false; _jobs.Remove(session.Record.Id); stop.Dispose(); RefreshCommands();
         }
+    }
+
+    public async Task<ProposalReviewViewModel> LoadProposalReviewAsync()
+    {
+        var project = Project ?? throw new InvalidOperationException("Selecione um projeto para revisar seus planos.");
+        // Recover the gap between a saved response and proposal import after an application interruption.
+        foreach (var conversation in await _store.GetConversationsAsync(project.Id))
+            foreach (var run in await _store.GetRunsAsync(conversation.Id))
+                if (run.State == ChatRunState.Completed && PlanProposalFormat.TryParseResponse(run.Response, out _, out _))
+                    await _store.CreateProposalAsync(project.Id, run.Id);
+        var review = new ProposalReviewViewModel(_store, project);
+        await review.InitializeAsync();
+        return review;
     }
 
     private async Task<bool> AskPermissionAsync(ConversationPermission permission, CancellationToken token)
@@ -347,7 +377,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException ? "Operação cancelada ou prazo excedido." : exception.Message;
     private void RefreshCommands()
     {
-        Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanSend));
+        Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanEditAccess)); Notify(nameof(CanSend)); Notify(nameof(CanReviewProposals));
         AddProjectCommand?.Refresh(); RefreshModelsCommand?.Refresh(); NewConversationCommand?.Refresh(); SendCommand?.Refresh(); CancelCommand?.Refresh();
         AllowPermissionCommand?.Refresh(); DenyPermissionCommand?.Refresh();
     }

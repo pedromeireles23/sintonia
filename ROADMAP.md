@@ -31,7 +31,7 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 ## M2 — Primeiro produto utilizável
 
-Estado: central real utilizável para conversas e tarefas individuais, com autorizações por ação nos dois provedores. Chefia estruturada/automatizada e revisão de entregas da fila real ainda pendentes.
+Estado: central real utilizável para conversas e tarefas individuais, com autorizações por ação nos dois provedores e propostas de chefia editáveis/confirmáveis. Distribuição das tarefas e revisão de entregas da fila real ainda pendentes.
 
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
@@ -39,7 +39,7 @@ Estado: central real utilizável para conversas e tarefas individuais, com autor
 - [x] Enviar tarefas para sessões novas ou retomadas.
 - [x] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.
 - [x] Mostrar mensagens, ferramentas utilizadas e resultados em tempo real.
-- [ ] Salvar tarefas, sessões, execuções e eventos em SQLite.
+- [ ] Salvar tarefas, sessões, execuções e eventos em SQLite (conversas, execuções, eventos e propostas prontos; fila de tarefas reais pendente).
 - [ ] Oferecer revisão, ajuste, cancelamento e diagnóstico de falhas.
 - [x] Reabrir o aplicativo com histórico preservado e estado reconciliado.
 
@@ -58,10 +58,10 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 
 ## M4 — Distribuição assistida
 
-- [ ] Escolher uma função de chefe do projeto com provedor/modelo configurável.
-- [ ] Transformar um objetivo em proposta estruturada de tarefas.
+- [x] Escolher uma função de chefe do projeto com provedor/modelo configurável.
+- [x] Transformar um objetivo em proposta estruturada de tarefas, validada e salva para revisão.
 - [ ] Acompanhar resultados das sessões de trabalho e atualizar o plano pelo chat central.
-- [ ] Permitir edição de função, provedor, dependências e entregas pelo usuário.
+- [x] Permitir edição de função, provedor/modelo, escopo, dependências e critérios da proposta pelo usuário.
 - [ ] Implementar limites de tentativas, tempo, concorrência e consumo disponível.
 - [ ] Distinguir término de execução, aprovação da entrega e integração.
 

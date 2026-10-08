@@ -29,7 +29,7 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 1) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 2) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -41,7 +41,10 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
                 response TEXT, state INTEGER NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, error TEXT);
             CREATE UNIQUE INDEX IF NOT EXISTS one_live_run ON runs(conversation_id) WHERE state=0;
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL REFERENCES runs(id), kind INTEGER NOT NULL, text TEXT NOT NULL);
-            PRAGMA user_version=1;
+            CREATE TABLE IF NOT EXISTS proposals(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
+                source_run_id TEXT NOT NULL UNIQUE REFERENCES runs(id), definition TEXT NOT NULL,
+                state INTEGER NOT NULL CHECK(state IN (0,1)), revision INTEGER NOT NULL CHECK(revision >= 0));
+            PRAGMA user_version=2;
             """);
         transaction.Commit();
         return true;
@@ -176,6 +179,68 @@ public sealed class SqliteWorkspaceStore(string databasePath) : IWorkspaceStore
             ("$error", "O aplicativo encerrou antes de registrar o resultado. Confira o projeto e a sessão antes de reenviar."));
         return true;
     });
+
+    public Task<IReadOnlyList<WorkspaceProposal>> GetProposalsAsync(string projectId) => RunAsync<IReadOnlyList<WorkspaceProposal>>(connection =>
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id,project_id,source_run_id,definition,state,revision FROM proposals WHERE project_id=$project ORDER BY rowid DESC";
+        command.Parameters.AddWithValue("$project", projectId);
+        using var reader = command.ExecuteReader();
+        var proposals = new List<WorkspaceProposal>();
+        while (reader.Read()) proposals.Add(ReadProposal(reader));
+        return proposals;
+    });
+
+    public Task<WorkspaceProposal> CreateProposalAsync(string projectId, string sourceRunId) => RunAsync(connection =>
+    {
+        using var transaction = connection.BeginTransaction();
+        using var source = connection.CreateCommand();
+        source.Transaction = transaction;
+        source.CommandText = "SELECT r.response FROM runs r JOIN conversations c ON c.id=r.conversation_id WHERE r.id=$run AND c.project_id=$project AND r.state=$completed";
+        source.Parameters.AddWithValue("$run", sourceRunId); source.Parameters.AddWithValue("$project", projectId);
+        source.Parameters.AddWithValue("$completed", (int)ChatRunState.Completed);
+        var response = source.ExecuteScalar() as string;
+        if (!PlanProposalFormat.TryParseResponse(response, out var definition, out var error))
+            throw new PlanValidationException("Não foi possível importar a proposta desta execução: " + error);
+        var id = Guid.NewGuid().ToString();
+        Execute(connection, transaction, """
+            INSERT INTO proposals(id,project_id,source_run_id,definition,state,revision) VALUES($id,$project,$run,$definition,0,0)
+            ON CONFLICT(source_run_id) DO NOTHING;
+            """, ("$id", id), ("$project", projectId), ("$run", sourceRunId), ("$definition", PlanProposalFormat.Serialize(definition!)));
+        using var saved = connection.CreateCommand();
+        saved.Transaction = transaction;
+        saved.CommandText = "SELECT id,project_id,source_run_id,definition,state,revision FROM proposals WHERE source_run_id=$run AND project_id=$project";
+        saved.Parameters.AddWithValue("$run", sourceRunId); saved.Parameters.AddWithValue("$project", projectId);
+        WorkspaceProposal result;
+        using (var reader = saved.ExecuteReader())
+        {
+            if (!reader.Read()) throw new InvalidOperationException("A proposta pertence a outro projeto.");
+            result = ReadProposal(reader);
+        }
+        transaction.Commit();
+        return result;
+    });
+
+    public Task<WorkspaceProposal> SaveProposalAsync(WorkspaceProposal proposal)
+    {
+        if (!Enum.IsDefined(proposal.State) || proposal.Revision < 0) throw new ArgumentException("Estado ou revisão de proposta inválido.");
+        var definition = PlanProposalFormat.Serialize(proposal.Definition);
+        return RunAsync(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            if (Execute(connection, transaction, """
+                UPDATE proposals SET definition=$definition,state=$state,revision=revision+1
+                WHERE id=$id AND project_id=$project AND source_run_id=$run AND revision=$revision;
+                """, ("$definition", definition), ("$state", (int)proposal.State), ("$id", proposal.Id),
+                ("$project", proposal.ProjectId), ("$run", proposal.SourceRunId), ("$revision", proposal.Revision)) != 1)
+                throw new InvalidOperationException("A proposta mudou em outra janela ou não pertence a este projeto. Reabra a revisão antes de salvar.");
+            transaction.Commit();
+            return proposal with { Revision = proposal.Revision + 1, Definition = PlanProposalFormat.ParseJson(definition) };
+        });
+    }
+
+    private static WorkspaceProposal ReadProposal(SqliteDataReader reader) => new(reader.GetString(0), reader.GetString(1),
+        reader.GetString(2), PlanProposalFormat.ParseJson(reader.GetString(3)), (ProposalReviewState)reader.GetInt32(4), reader.GetInt32(5));
 
     private static string? Optional(SqliteDataReader reader, int column) => reader.IsDBNull(column) ? null : reader.GetString(column);
     private static int Execute(SqliteConnection connection, SqliteTransaction? transaction, string sql, params (string Name, object? Value)[] parameters)

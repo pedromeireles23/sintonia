@@ -16,6 +16,14 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
     {
         if (project.Id != conversation.ProjectId || string.IsNullOrWhiteSpace(prompt) || prompt.Length > 200_000)
             throw new ArgumentException("Projeto incompatível ou pedido vazio/extenso.");
+        var instructions = conversation.Instructions;
+        if (conversation.FunctionName == PlanProposalFormat.ChiefFunctionName)
+        {
+            conversation = conversation with { Access = ConversationAccess.ReadOnly };
+            permissionHandler = null;
+            instructions = PlanProposalFormat.ChiefInstructions + "\n\nInstruções adicionais do projeto:\n" + instructions;
+            if (instructions.Length > 8000) throw new ArgumentException("Reduza as instruções adicionais do chefe: o formato do plano também ocupa parte do limite de 8.000 caracteres.");
+        }
         lock (_gate)
         {
             if (_active.Count >= 2 || _active.ContainsKey(conversation.Id) || _active.Values.Any(c => c.Provider == conversation.Provider))
@@ -59,7 +67,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             try
             {
                 var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt, conversation.Model,
-                    conversation.NativeSessionId, conversation.Instructions, conversation.Access, permissionHandler), live, cancellationToken).ConfigureAwait(false);
+                    conversation.NativeSessionId, instructions, conversation.Access, permissionHandler), live, cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 conversation = conversation with { NativeSessionId = result.NativeSessionId, Model = result.Model };
                 run = run with { Response = result.Text, State = result.Outcome == ConversationOutcome.Completed ? ChatRunState.Completed : ChatRunState.Blocked,

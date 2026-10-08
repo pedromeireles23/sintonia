@@ -21,4 +21,7 @@ public interface IWorkspaceStore
     Task CheckpointRunAsync(ChatRun run, WorkspaceConversation conversation);
     Task FinishRunAsync(ChatRun run, WorkspaceConversation conversation, IReadOnlyList<ChatEvent> events);
     Task RecoverInterruptedRunsAsync();
+    Task<IReadOnlyList<WorkspaceProposal>> GetProposalsAsync(string projectId);
+    Task<WorkspaceProposal> CreateProposalAsync(string projectId, string sourceRunId);
+    Task<WorkspaceProposal> SaveProposalAsync(WorkspaceProposal proposal);
 }
