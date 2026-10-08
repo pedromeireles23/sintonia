@@ -6,6 +6,7 @@ using Sintonia.Core;
 using Sintonia.Desktop.ViewModels;
 using Sintonia.Infrastructure.Persistence;
 using Sintonia.Infrastructure.Providers;
+using Sintonia.Infrastructure.Git;
 
 namespace Sintonia.Desktop;
 
@@ -37,6 +38,11 @@ public partial class WorkspaceWindow : Window
             ["Aliases anunciados pelo Claude instalado. Você também pode informar um identificador de modelo; o acesso é conferido ao enviar."]);
     }
     private void OpenDemo(object sender, RoutedEventArgs e) => new MainWindow().Show();
+    private void OpenGitDiagnostics(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Project is { } project)
+            new GitDiagnosticsWindow(new(project, new GitRepositoryInspector())) { Owner = this }.Show();
+    }
     private async void OpenProposals(object sender, RoutedEventArgs e)
     {
         try { new ProposalReviewWindow(await ViewModel.LoadProposalReviewAsync()) { Owner = this }.Show(); }
@@ -66,7 +72,10 @@ public partial class WorkspaceWindow : Window
         _closing = true;
         IsEnabled = false;
         await Task.Yield();
-        try { await ViewModel.StopAsync(); }
+        try
+        {
+            await Task.WhenAll(OwnedWindows.OfType<GitDiagnosticsWindow>().Select(window => window.ViewModel.StopAsync()).Append(ViewModel.StopAsync()));
+        }
         finally { _closed = true; Close(); }
     }
 }
