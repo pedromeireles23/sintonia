@@ -136,6 +136,10 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
     }
     private static string LockReason(TaskWorktree worktree) => "Sintonia: tarefa " + worktree.TaskId;
     private async Task<ProcessProbeResult> StatusWithoutFiltersAsync(string directory, CancellationToken token)
+        => await RunWithoutFiltersAsync(directory, token, ["status", "--porcelain=v2", "-z", "--untracked-files=all"]).ConfigureAwait(false);
+
+    internal async Task<ProcessProbeResult> RunWithoutFiltersAsync(string directory, CancellationToken token,
+        IReadOnlyList<string> command, bool allowTruncation = false)
     {
         // A dirty .gitattributes in an interrupted checkout must not execute a clean/process filter while checking retry safety.
         var keys = await RunAsync(directory, token, "config", "--name-only", "--get-regexp", "^filter\\..*\\.(clean|smudge|process)$").ConfigureAwait(false);
@@ -148,14 +152,16 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
             arguments.AddRange(["-c", key + "=", "-c", key[..key.LastIndexOf('.')] + ".required=false"]);
         }
         if (arguments.Sum(a => a.Length + 3) > 16000) throw new InvalidOperationException("Configuração de filtros extensa demais para uma conferência completa.");
-        arguments.AddRange(["status", "--porcelain=v2", "-z", "--untracked-files=all"]);
-        return await RunAsync(directory, token, arguments.ToArray()).ConfigureAwait(false);
+        arguments.AddRange(command);
+        return await RunProbeAsync(directory, token, allowTruncation, arguments.ToArray()).ConfigureAwait(false);
     }
     private static bool SamePath(string first, string second) => string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(first)),
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(second)), StringComparison.OrdinalIgnoreCase);
     private static CancellationTokenSource Deadline(CancellationToken token)
     { var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(Timeout); return deadline; }
-    private async Task<ProcessProbeResult> RunAsync(string directory, CancellationToken token, params string[] arguments)
+    internal Task<ProcessProbeResult> RunAsync(string directory, CancellationToken token, params string[] arguments) =>
+        RunProbeAsync(directory, token, false, arguments);
+    private async Task<ProcessProbeResult> RunProbeAsync(string directory, CancellationToken token, bool allowTruncation, params string[] arguments)
     {
         if (_launch is null) throw new InvalidOperationException("Git não encontrado no PATH.");
         var result = await ProcessProbe.RunAsync(_launch,
@@ -163,7 +169,7 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
                 "-c", "core.hooksPath=NUL" }.Concat(arguments).ToArray(),
             directory, Timeout, token, GitRepositoryInspector.CleanEnvironment()).ConfigureAwait(false);
         if (result.TimedOut) throw new TimeoutException("O Git excedeu o prazo de preparação. Confira possíveis efeitos na pasta.");
-        if (result.Truncated) throw new InvalidOperationException("A saída Git excedeu o limite de 64 Ki caracteres. Confira a pasta antes de continuar.");
+        if (result.Truncated && !allowTruncation) throw new InvalidOperationException("A saída Git excedeu o limite de 64 Ki caracteres. Confira a pasta antes de continuar.");
         return result;
     }
     private static void RequireSuccess(ProcessProbeResult result)

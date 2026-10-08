@@ -264,7 +264,7 @@ public sealed class TaskWorktreeTests
         }
         public Task ValidateAsync(TaskWorktree worktree, CancellationToken cancellationToken) => Task.CompletedTask;
     }
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         public string Root { get; } = Path.Combine(Path.GetTempPath(), "sintonia-worktree-ação " + Guid.NewGuid());
         public string Repository => Path.Combine(Root, "original");

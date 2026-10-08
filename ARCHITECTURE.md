@@ -107,6 +107,8 @@ Worktrees separam alterações. O merge será serial e testado sobre a versão c
 
 Autenticação permanece nos mecanismos suportados dos provedores. Chaves futuras de imagens ficam no armazenamento seguro do Windows, nunca na configuração versionada. Logs devem limitar conteúdo e remover dados sensíveis antes de exportação.
 
+`TaskDiffService` lê o vínculo persistido e recusa tarefa em execução ou alterada durante a consulta. `IGitTaskDiffReader`/`GitTaskDiffReader` combinam status local e diferenças desde a base, incluindo commits posteriores, arquivos preparados/não preparados/novos, renomeações, exclusões e conflitos. Cada arquivo pode comparar base, índice ou pasta; renomeações usam a origem correspondente à comparação. Git roda com caminhos literais, sem diff externo/textconv/filtros/fsmonitor e sem alteração do índice. Consultas têm prazo total de 20 segundos e limites de saída; listas parciais são recusadas, conteúdos grandes/binários são explícitos. Validação de worktree/branch/estado precede e sucede a leitura. A consulta não fixa uma revisão imutável para integração. Detalhes em [docs/TASK_DIFFS.md](docs/TASK_DIFFS.md).
+
 ## Interface
 
 Português, com projetos, funções, tarefas, sessões e revisão. Modo demonstrativo precisa estar visível. O estado da execução pertence ao serviço, e não ao controle visual. Evitar bloquear a thread da interface com processos, banco ou Git.
