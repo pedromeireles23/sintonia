@@ -4,7 +4,7 @@
 
 C# com .NET 10, interface WPF em MVVM e SQLite para o histórico real. A primeira versão é local e focada no Windows.
 
-Estrutura proposta, a ser criada no M0:
+Estrutura atual (M0):
 
 ```text
 Sintonia.sln
@@ -14,11 +14,17 @@ src/
   Sintonia.Desktop/        WPF, ViewModels, navegação e composição
 tests/
   Sintonia.Core.Tests/     Regras do núcleo
-  Sintonia.Infrastructure.Tests/  Eventos e processos quando necessário
+  Sintonia.Desktop.SmokeTests/  Fluxo real WPF com provedores simulados
 docs/
 ```
 
 O Core não depende de WPF ou dos executáveis dos provedores. Infrastructure implementa contratos do Core. Desktop apresenta dados e compõe os serviços; não executa regras de negócio dentro de eventos visuais. Começar com apenas os projetos necessários ao incremento.
+
+No M0, `SchedulingPolicy` decide admissões e valida o grafo; `TaskCoordinator` aplica reservas e transições sob uma trava curta, executando os adaptadores fora dela. Slots cancelados permanecem reservados até a tentativa parar. Snapshots e eventos entregues à UI são cópias de leitura; os ViewModels despacham atualizações para a thread WPF.
+
+`SimulatedProviderAdapter` produz atrasos canceláveis, eventos e texto de exemplo, sem processos ou arquivos externos. `DemoScenario` fornece as quatro funções e cinco tarefas do exemplo. `ProviderSession` é um identificador demonstrativo por tentativa; retomada e compatibilidade com diretórios reais ainda não existem. A aprovação entrega ao dependente o resumo e o identificador da tentativa aprovada; disponibilidade de arquivos/revisões reais será necessária antes de escrita paralela.
+
+O contrato mínimo `IProviderAdapter` cobre a execução e eventos simulados. Detecção, permissões, eventos nativos e retomada serão acrescentados somente com evidência do M1. Os demais modelos da tabela abaixo são planejados; não há SQLite neste marco.
 
 ## Modelo de domínio
 

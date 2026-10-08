@@ -21,7 +21,11 @@ A comunicação com os provedores será feita por adaptadores. A primeira opçã
 
 ## Estado atual
 
-Repositório inicializado com contexto, arquitetura, roadmap e instruções de desenvolvimento. A implementação C# começa pelo marco M0. As integrações reais ainda precisam ser desenvolvidas e verificadas.
+**M0 concluído.** Janela WPF/MVVM em português, funções atribuíveis a Codex e Claude, fila com dependências, revisão, cancelamento e sessões demonstrativas. O núcleo limita a concorrência a duas execuções e uma por provedor; dependentes só executam após aprovação da entrega.
+
+**Toda execução deste marco é simulada.** Não chama modelos, não inicia os CLIs e não altera arquivos de um jogo. Dados e tentativas ficam em memória; reabrir o aplicativo reinicia a demonstração. Integrações reais, SQLite e worktrees entram nos próximos marcos.
+
+![Sintonia M0 — revisão de entregas simuladas](docs/images/sintonia-m0.png)
 
 A demonstração Electron criada durante a pesquisa foi um experimento de fluxo; ela não é a implementação deste repositório. O produto será desenvolvido em C#/.NET.
 
@@ -39,9 +43,28 @@ A demonstração Electron criada durante a pesquisa foi um experimento de fluxo;
 
 ## Executar
 
-Requisitos: Windows e SDK do .NET 10. Os comandos serão habilitados pela solução criada no marco M0; atualmente não existe um aplicativo compilável neste repositório.
+Requisitos: Windows e SDK do .NET 10. O repositório fixa a linha 10.0.200 do SDK; aceita atualizações de patch.
 
-Os pré-requisitos de Codex e Claude serão diagnosticados pelo aplicativo. Encontrar um executável não confirma autenticação, assinatura ou quota disponível.
+```powershell
+rtk proxy dotnet restore Sintonia.sln --locked-mode
+rtk proxy dotnet build Sintonia.sln --no-restore
+rtk proxy dotnet test Sintonia.sln --no-build
+rtk proxy dotnet run --project src/Sintonia.Desktop --no-build
+```
+
+O aplicativo não depende do RTK. Em outro ambiente, os comandos podem começar diretamente com `dotnet`.
+
+Na janela, escolha os provedores das funções, clique em **Distribuir fila**, selecione uma tarefa e revise a entrega de exemplo. **Aprovar entrega** libera as dependências e distribui as tarefas prontas. **Voltar à fila** conserva o histórico e permite uma nova tentativa; **Cancelar** interrompe uma tarefa na fila ou em execução.
+
+Verificação da janela real no Windows (abre, percorre o fluxo e fecha a janela de teste):
+
+```powershell
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build
+```
+
+As capturas desse teste ficam em `artifacts/ui-smoke`, fora do versionamento.
+
+Os pré-requisitos de Codex e Claude serão diagnosticados numa próxima etapa. Encontrar um executável não confirma autenticação, assinatura ou quota disponível.
 
 ## Referência e autoria
 

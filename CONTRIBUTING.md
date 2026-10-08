@@ -6,18 +6,22 @@ Windows e SDK .NET 10. WPF é a interface escolhida. Visual Studio com ferrament
 
 No ambiente do usuário, os comandos de terminal dos assistentes devem começar com `rtk`. Para comandos sem filtro próprio, usar `rtk proxy`. A aplicação não deve depender do RTK para funcionar.
 
-## Primeiro incremento
+## Solução e validação
 
-Criar `Sintonia.sln`, `Sintonia.Core`, `Sintonia.Infrastructure`, `Sintonia.Desktop` e os testes necessários. Não executar comandos para uma solução inexistente nem descrever a base como compilada antes de verificar.
+A solução contém Core, Infrastructure, Desktop, testes xUnit do núcleo e um executável de verificação WPF. O último exige uma sessão Windows com acesso à interface gráfica; não é executado por `dotnet test`.
 
-Após a criação da solução, validação prevista:
+Validação:
 
 ```powershell
-rtk proxy dotnet restore Sintonia.sln
+rtk proxy dotnet restore Sintonia.sln --locked-mode
 rtk proxy dotnet build Sintonia.sln --no-restore
 rtk proxy dotnet test Sintonia.sln --no-build
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build
+rtk proxy powershell -NoProfile -File tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1
 rtk proxy dotnet run --project src/Sintonia.Desktop
 ```
+
+O teste WPF verifica a criação da janela nativa, bindings, concorrência demonstrativa, bloqueio antes da revisão, cinco aprovações e sessões. Salva capturas em `artifacts/ui-smoke` para inspeção visual. Todo o fluxo usa provedores simulados.
 
 ## Regras de código
 

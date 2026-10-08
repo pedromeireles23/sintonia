@@ -29,22 +29,17 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 
 - Repositório criado pelo usuário, inicialmente vazio, clonado na pasta de trabalho da Área de Trabalho.
 - Documentação inicial preparada: README, contexto, instruções para Codex e Claude, arquitetura, roadmap, contribuição e pesquisa.
-- Solução .NET criada com Core, Infrastructure, Desktop WPF e testes xUnit do Core. A janela ainda é uma base mínima; o painel demonstrativo está em implementação.
-- Núcleo com estados, aprovação explícita de dependências, limites global/por provedor, reserva atômica, cancelamento e histórico de tentativas em memória. 17 testes automatizados aprovados; build inicial da janela verificado.
+- M0 concluído: solução .NET com Core, Infrastructure, Desktop WPF/MVVM, testes xUnit e verificação executável da janela no Windows.
+- Núcleo com estados, aprovação explícita de dependências, limites global/por provedor, reserva atômica, cancelamento e histórico de tentativas em memória. 17 testes automatizados aprovados.
+- Painel em português com quatro funções de provedor editável, cinco tarefas dependentes, entregas, eventos e sessões. Adaptadores de Codex e Claude são **simulados**: nenhum CLI/modelo é chamado e nenhum arquivo do jogo é alterado.
+- Build sem avisos/erros. Teste da janela nativa percorreu duas execuções simultâneas, cinco aprovações e sessões, sem erros de binding. Capturas revisadas em tamanho normal e mínimo; ações de revisão permanecem acessíveis com rolagem.
+- Não há persistência, abertura de projetos reais, retomada nativa, integração Git ou provas reais dos provedores nesta entrega. Fechar a janela cancela a simulação; reabrir reinicia os exemplos.
 - Uma demonstração anterior em Electron validou o conceito de funções, fila e revisão. Ela permanece fora deste repositório e não deve ser confundida com o produto em .NET.
 - SDK .NET 10.0.200 encontrado no ambiente inicial. Git, Codex CLI e Claude Code também estão disponíveis; autenticação e quotas dos provedores não foram verificadas.
 
 ## Próxima entrega concreta
 
-Concluir o marco **M0** do roadmap:
-
-1. Conectar o núcleo a adaptadores simulados, sem chamadas aos CLIs.
-2. Criar a primeira janela WPF em português, com lista de funções e tarefas.
-3. Modelar tarefas e estados, com dependências e uma política simples de concorrência.
-4. Demonstrar distribuição para Codex e Claude com execução explicitamente simulada.
-5. Fazer build e testes relevantes; atualizar este contexto; fazer commit do incremento validado.
-
-Depois, avançar ao M1: detectar as duas ferramentas e validar suas interfaces de execução antes de conectá-las ao painel. Não construir um grande painel simulado enquanto a viabilidade das integrações reais permanece sem prova.
+Preparar o **M1**: detectar executáveis/versões e conferir interfaces instaladas com operações limitadas e sem inferência. Em seguida, implementar transportes e fazer uma prova pequena de cada provedor, com permissões verificadas, antes de ampliar o painel. Encontrar os CLIs não comprova autenticação, quota ou execução real.
 
 ## Critério da primeira versão útil
 

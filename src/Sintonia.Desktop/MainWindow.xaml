@@ -1,7 +1,171 @@
 <Window x:Class="Sintonia.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Sintonia · Demonstração simulada" Width="1200" Height="800"
+        xmlns:core="clr-namespace:Sintonia.Core;assembly=Sintonia.Core"
+        Title="Sintonia · Demonstração simulada" Width="1440" Height="920" MinWidth="1120" MinHeight="760"
+        FontFamily="Segoe UI" FontSize="13" Background="#F3F6F4" Foreground="{StaticResource Ink}"
         WindowStartupLocation="CenterScreen">
-    <TextBlock Text="Sintonia · Base .NET" Margin="32" FontSize="32" />
+    <Window.Resources>
+        <Style x:Key="StateBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Background" Value="#EFF2F0" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Running}"><Setter Property="Background" Value="#DBE9FA" /></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.InReview}"><Setter Property="Background" Value="#FFF0C8" /></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Completed}"><Setter Property="Background" Value="#DDF0E3" /></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Failed}"><Setter Property="Background" Value="#FADDD8" /></DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Grid Background="#F3F6F4">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="236" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Border Background="#18392D">
+            <Grid Margin="22,28,22,22">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <StackPanel>
+                    <TextBlock Text="◈  sintonia" Foreground="#F4FFF8" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="COORDENE. REVISE. CONSTRUA." Foreground="#A9C8B7" FontSize="9" Margin="2,8,0,32" />
+                    <Border Background="#28533F" CornerRadius="8" Padding="12,10">
+                        <TextBlock Text="▦   Espaço de trabalho" Foreground="White" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="FUNÇÕES" Foreground="#A9C8B7" FontSize="11" FontWeight="SemiBold" Margin="2,28,0,14" />
+                    <ItemsControl ItemsSource="{Binding Functions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="2,0,2,18">
+                                    <TextBlock Text="{Binding Name}" Foreground="#E9F5ED" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider, Mode=TwoWay}" IsEnabled="{Binding CanAssign}"
+                                              Padding="8,5" FontSize="12" ToolTip="Altera o provedor das próximas tentativas desta função." AutomationProperties.Name="{Binding Name}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="As funções acrescentam instruções à tarefa de cada provedor." Foreground="#A9C8B7" FontSize="11" Margin="2,8,0,0" />
+                </StackPanel>
+                <Border Grid.Row="2" BorderBrush="#355745" BorderThickness="0,1,0,0" Padding="2,18,2,0">
+                    <StackPanel>
+                        <TextBlock Text="Codex + Claude" Foreground="#E9F5ED" FontWeight="SemiBold" />
+                        <TextBlock Text="Sessões simuladas neste marco" Foreground="#A9C8B7" FontSize="11" Margin="0,5,0,8" />
+                        <TextBlock Text="M0 · Base do aplicativo" Foreground="#A9C8B7" FontSize="11" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+        <Grid Grid.Column="1" Margin="28,26,28,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                <RowDefinition Height="*" /><RowDefinition Height="150" /><RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="PROJETO DE EXEMPLO / JOGO DE PLATAFORMA" Style="{StaticResource Caption}" FontWeight="SemiBold" />
+                    <TextBlock Text="Uma equipe, em sintonia." FontSize="28" FontWeight="SemiBold" Margin="0,7,0,7" />
+                    <TextBlock Text="Distribua o trabalho entre funções e acompanhe cada entrega." Foreground="{StaticResource Muted}" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="▶  Distribuir fila" Command="{Binding DispatchCommand}" Background="{StaticResource Accent}" Foreground="White"
+                        VerticalAlignment="Center" Margin="16,0,0,0" AutomationProperties.AutomationId="DispatchQueue" />
+            </Grid>
+            <Border Grid.Row="1" Background="#FFF4D8" BorderBrush="#EADBAE" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18">
+                <TextBlock Foreground="#72571B"><Bold>DEMONSTRAÇÃO SIMULADA</Bold><Run Text="  ·  Nenhum modelo é chamado e nenhum arquivo de jogo é alterado." /></TextBlock>
+            </Border>
+            <UniformGrid Grid.Row="2" Columns="3" Margin="0,0,0,18">
+                <Border Style="{StaticResource Card}" Margin="0,0,12,0" Padding="16,12">
+                    <StackPanel><TextBlock Text="NA FILA" Style="{StaticResource Caption}" /><TextBlock Text="{Binding QueuedCount}" FontSize="26" FontWeight="SemiBold" /><TextBlock Text="Inclui tarefas aguardando dependências" Style="{StaticResource Caption}" /></StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Margin="0,0,12,0" Padding="16,12">
+                    <StackPanel><TextBlock Text="EXECUTANDO · SIMULADO" Style="{StaticResource Caption}" /><TextBlock Text="{Binding RunningCount}" FontSize="26" FontWeight="SemiBold" /><TextBlock Text="Até 2 tarefas, 1 por provedor" Style="{StaticResource Caption}" /></StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Padding="16,12">
+                    <StackPanel><TextBlock Text="AGUARDANDO REVISÃO" Style="{StaticResource Caption}" /><TextBlock Text="{Binding ReviewCount}" FontSize="26" FontWeight="SemiBold" /><TextBlock Text="{Binding ProgressText}" Style="{StaticResource Caption}" /></StackPanel>
+                </Border>
+            </UniformGrid>
+            <Grid Grid.Row="3" Margin="0,0,0,18">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="1.05*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Grid Margin="0,0,0,12">
+                        <TextBlock Text="Fila de tarefas" FontSize="17" FontWeight="SemiBold" />
+                        <TextBlock Text="5 TAREFAS DE EXEMPLO" Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
+                    <ListBox Grid.Row="1" ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask}" Background="Transparent" BorderThickness="0" Foreground="{StaticResource Ink}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" AutomationProperties.AutomationId="TaskQueue">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Template"><Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="TaskCard" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,9">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="TaskCard" Property="BorderBrush" Value="{StaticResource Accent}" /><Setter TargetName="TaskCard" Property="Background" Value="#F3FAF5" /></Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TaskCard" Property="Background" Value="#F3FAF5" /></Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value></Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate><DataTemplate>
+                            <StackPanel>
+                                <TextBlock FontSize="14" FontWeight="SemiBold"><Run Text="#" /><Run Text="{Binding Id, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding Title, Mode=OneWay}" /></TextBlock>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBlock VerticalAlignment="Center" Style="{StaticResource Caption}"><Run Text="{Binding FunctionName, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Provider, Mode=OneWay}" /></TextBlock>
+                                    <Border Grid.Column="1" Style="{StaticResource StateBadge}"><TextBlock Text="{Binding StateText}" FontSize="10" /></Border>
+                                </Grid>
+                            </StackPanel>
+                        </DataTemplate></ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+                <Border Grid.Column="2" Style="{StaticResource Card}" DataContext="{Binding SelectedTask}">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                          <StackPanel>
+                            <TextBlock Text="ENTREGA E REVISÃO" Style="{StaticResource Caption}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,8" />
+                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" FontSize="12" />
+                            <TextBlock Text="{Binding DependencyText}" Foreground="{StaticResource Accent}" FontSize="11" Margin="0,10,0,5" />
+                            <TextBlock Text="{Binding AttemptText}" Style="{StaticResource Caption}" Margin="0,0,0,12" />
+                        <TabControl BorderBrush="{StaticResource Line}" Background="White" Foreground="{StaticResource Ink}" Height="180" Margin="0,0,0,4">
+                            <TabItem Header="Entrega" Padding="10,5"><ScrollViewer VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding Result}" FontSize="12" Margin="10" /></ScrollViewer></TabItem>
+                            <TabItem Header="Eventos simulados" Padding="10,5"><ScrollViewer VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding Events}" FontFamily="Consolas" FontSize="12" Margin="10" /></ScrollViewer></TabItem>
+                        </TabControl>
+                          </StackPanel>
+                        </ScrollViewer>
+                        <WrapPanel Grid.Row="1" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <Button Content="Aprovar entrega" Command="{Binding ApproveCommand}" Background="{StaticResource Accent}" Foreground="White" Margin="0,0,8,4" Padding="12,9" AutomationProperties.AutomationId="ApproveDelivery" />
+                            <Button Content="Voltar à fila" Command="{Binding RetryCommand}" Margin="0,0,8,4" Padding="12,9" />
+                            <Button Content="Cancelar" Command="{Binding CancelCommand}" Background="Transparent" Padding="8,9" />
+                        </WrapPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+            <Border Grid.Row="4" Style="{StaticResource Card}" Padding="16,12" Margin="0,0,0,10">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <TextBlock Text="Sessões simuladas" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <TextBlock Grid.Row="1" Text="As sessões aparecerão aqui quando as tarefas forem distribuídas." VerticalAlignment="Center">
+                        <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource Caption}"><Style.Triggers><DataTrigger Binding="{Binding HasSessions}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                    </TextBlock>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Sessions}"><ItemsControl.ItemTemplate><DataTemplate>
+                            <Grid Margin="0,3,0,3">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="75" /><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="175" /><ColumnDefinition Width="145" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Provider}" FontWeight="SemiBold" FontSize="12" />
+                                <TextBlock Grid.Column="1" Text="{Binding FunctionName}" Style="{StaticResource Caption}" />
+                                <TextBlock Grid.Column="2" Text="{Binding TaskTitle}" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                <TextBlock Grid.Column="3" Text="{Binding Attempt}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource Muted}" />
+                                <TextBlock Grid.Column="4" Text="{Binding State}" FontSize="11" Foreground="{StaticResource Accent}" />
+                            </Grid>
+                        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+            <TextBlock Grid.Row="5" Text="{Binding Notice}" Style="{StaticResource Caption}" MinHeight="32" VerticalAlignment="Center" />
+        </Grid>
+    </Grid>
 </Window>
