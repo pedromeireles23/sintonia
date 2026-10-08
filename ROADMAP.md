@@ -17,15 +17,15 @@ Aceite: a janela abre no Windows; as funções podem ser atribuídas aos dois pr
 
 ## M1 — Prova das duas integrações
 
-Estado: preparação parcial. Detecção/ajuda verificadas, sem inferência. Evidências e próximo passo em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
+Estado: integração real de leitura/retomada/interrupção comprovada nos dois provedores. Autorização interativa do Claude ainda pendente. Evidências em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
 
 - [x] Detectar executáveis e versões sem acessar credenciais.
-- [ ] Validar handshake, eventos e interrupção do Codex App Server por stdio.
-- [ ] Validar Claude CLI: saída estruturada, nova sessão e retomada explícita.
+- [x] Validar handshake, eventos e interrupção do Codex App Server por stdio.
+- [x] Validar Claude CLI: saída estruturada, nova sessão e retomada explícita.
 - [ ] Comparar skills, plugins e MCPs esperados com capacidades disponíveis.
 - [ ] Validar o fluxo de permissões e negativas de cada provedor.
-- [ ] Testar caminhos com espaços, acentos, prompts extensos e encerramento de processos filhos.
-- [ ] Registrar versões e comportamentos efetivamente testados.
+- [x] Testar caminhos com espaços, acentos, prompts extensos e encerramento de processos filhos.
+- [x] Registrar versões e comportamentos efetivamente testados.
 
 Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem bypass global de permissões. Falhas e recusas não são registradas como sucesso.
 

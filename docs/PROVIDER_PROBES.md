@@ -1,6 +1,6 @@
 # Preparação das integrações — M1
 
-Verificado em 08/10/2026, no Windows desta sessão. Este registro comprova **detecção e ajuda local**, não execução de modelos ou conclusão do M1.
+Verificado em 08/10/2026, no Windows desta sessão. A preparação inicial abaixo registra detecção/ajuda. A seção final registra as provas reais posteriores; M1 continua com limitações de permissões/extensões.
 
 ## Diagnóstico reproduzível
 
@@ -41,4 +41,27 @@ Próximo incremento verificável:
 
 11 testes de Infrastructure, usando somente arquivos e processos de teste: detecção nativa/npm, wrapper incompatível, ausência, falha de lançamento, versões/ajuda sintéticas, argumentos literais com espaços/acentos/sintaxe de shell, falha com stderr, inundação simultânea dos dois streams, timeout com encerramento de filho e cancelamento pelo chamador. Os 17 testes do Core também passaram.
 
-Nenhuma inferência real, sessão nativa, configuração de permissões, autenticação, skill, plugin ou MCP foi validado. O painel WPF continua inteiramente simulado.
+Nessa preparação inicial nenhuma inferência foi realizada. O painel WPF continua simulado até o incremento de conexão à UI.
+
+## Provas reais posteriores — 08/10/2026
+
+- Schema estável gerado pelo executável instalado; handshake initialize/initialized e account/read comprovados. Login ChatGPT exigido antes de cada turno, modelProvider openai e política efetiva conferidos. Catálogo retornou sete modelos e inventário de skills/MCPs, sem habilitar opt-in experimental.
+- Codex `gpt-6.1-sol` e Claude `claude-opus-5`: cada um leu amostra.txt em caminho com espaços/acentos, confirmou soma 25 e marcador SINTONIA-7341. Segundo turno, na mesma sessão, recuperou ambos sem ferramentas. Evidências locais ignoradas em artifacts/provider-probes.
+- Interrupção real após primeiro delta de texto comprovada nos dois provedores, em uma chamada finita cada. Adaptadores encerram processos/filhos e reportam cancelamento; não tratam saída parcial como sucesso.
+- Codex: sandbox elevado falhou em `apply deny-read ACLs`. Override local `windows.sandbox="unelevated"` usa o isolamento oficial por token restrito, sem modificar configuração global. command/exec readOnly leu a amostra e negou Set-Content: exit não zero e arquivo ausente. Política on-request e sandbox readOnly/workspaceWrite; autorizações recebem apenas accept por ação mediante callback explícito, nunca bypass geral. Fonte: [sandbox Windows](https://developers.openai.com/codex/windows/).
+- Claude: print/stream-json com verbose/partial messages, stdin UTF-8, session-id/resume. Leitura usa plan; escrita usa manual + permission-prompts none, respeitando regras/hooks existentes. Falta host interativo Claude: ações que dependerem de resposta são recusadas e resultado com permission_denials fica bloqueado. Não equivale a isolamento do sistema operacional. Fonte: [execução programática](https://code.claude.com/docs/en/headless).
+- Claude carregou quatro plugins e skills; pixellab e Claude Docs conectaram, diversos conectores exigem autenticação e Google Calendar/Gmail de plugins falharam. Codex anunciou skills e MCPs locais. Inventário não comprova funcionamento de cada ferramenta nem paridade desktop.
+- 45 testes automáticos sem modelos: 17 Core e 28 Infrastructure. Incluem protocolo, respostas correlacionadas, prompts extensos/acentos, retomada, assinatura incompatível, política insegura, evento adicional, resultado ausente/falha, cancelamento, recusa e autorização explícita.
+
+Comandos opcionais e finitos (real/interrupt consomem a quota da assinatura):
+
+```powershell
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics -- handshake
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics -- sandbox readOnly
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics -- real Codex
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics -- real Claude
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics -- interrupt Codex
+rtk proxy dotnet run --project tools/Sintonia.Diagnostics -- interrupt Claude
+```
+
+Não executar as provas reais em loops/CI. Próximo incremento: conectar projetos/chat/sessões persistentes e completar host de permissões Claude.

@@ -43,3 +43,12 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Fontes oficiais confirmam interfaces para escolha de modelo e retomada; capacidades na versão instalada ainda exigem prova. Abertura nos aplicativos gráficos originais não foi prometida como recurso validado.
 - Validação: revisão documental, links e consistência entre escopo, contexto, arquitetura, decisões e roadmap. Nenhuma alteração de código ou teste sem relação com a documentação.
 - Próximo passo: concluir a prova limitada das integrações por assinatura; depois implementar projetos/chat/sessões persistentes.
+
+## 08/10/2026 — Conversas reais e retomada por assinatura
+
+- Contrato de conversa e adaptadores Codex/Claude com eventos, identificador nativo, modelo, login por assinatura obrigatório, limites, resultado final, falha/bloqueio e cancelamento. Prompts via protocolo/stdin, sem interpretação de shell.
+- Provas reais finitas: cada provedor leu a amostra, conferiu soma 25/marcador e retomou a mesma conversa sem reler arquivos. Modelos `gpt-6.1-sol`/`claude-opus-5`. Interrupção após início do stream verificada em ambos. Amostras/evidência local ignoradas em artifacts.
+- Sandbox elevado Codex falhou nas ACLs; modo oficial unelevated, restrito ao processo do cliente, permitiu leitura e bloqueou escrita. Nenhuma configuração global alterada ou bypass adotado. Claude carregou skills/plugins/MCPs; alguns servidores precisam de autenticação ou falharam.
+- Validação: build isolado para preservar janela demonstrativa aberta, sem avisos/erros; 45 testes xUnit (17 Core + 28 Infrastructure), com correlação, texto extenso/acento, falha, recusa, autorização explícita, retomada e interrupção simulada. Chamadas reais não integram a suíte automática.
+- Limites: autorização interativa do Claude e equivalência completa de extensões pendentes. A janela permanece demonstrativa até o próximo incremento.
+- Próximo passo: cadastro/alternância de projetos, chat central e sessões com histórico SQLite e retomada na janela.

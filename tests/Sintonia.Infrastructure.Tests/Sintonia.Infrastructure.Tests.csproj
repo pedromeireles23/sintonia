@@ -24,8 +24,11 @@
   </ItemGroup>
 
   <Target Name="CopyProcessFixture" AfterTargets="Build">
+    <MSBuild Projects="../Sintonia.ProcessFixture/Sintonia.ProcessFixture.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="FixtureTarget" />
+    </MSBuild>
     <ItemGroup>
-      <FixtureFiles Include="$(MSBuildProjectDirectory)/../Sintonia.ProcessFixture/bin/$(Configuration)/net10.0/Sintonia.ProcessFixture.*" />
+      <FixtureFiles Include="%(FixtureTarget.RootDir)%(FixtureTarget.Directory)Sintonia.ProcessFixture.*" />
     </ItemGroup>
     <Copy SourceFiles="@(FixtureFiles)" DestinationFolder="$(OutDir)fixtures" />
   </Target>

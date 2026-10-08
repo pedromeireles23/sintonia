@@ -38,14 +38,16 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 - Núcleo com estados, aprovação explícita de dependências, limites global/por provedor, reserva atômica, cancelamento e histórico de tentativas em memória. 17 testes automatizados aprovados.
 - Painel em português com quatro funções de provedor editável, cinco tarefas dependentes, entregas, eventos e sessões. Adaptadores de Codex e Claude são **simulados**: nenhum CLI/modelo é chamado e nenhum arquivo do jogo é alterado.
 - Build sem avisos/erros. Teste da janela nativa percorreu duas execuções simultâneas, cinco aprovações e sessões, sem erros de binding. Capturas revisadas em tamanho normal e mínimo; ações de revisão permanecem acessíveis com rolagem.
-- Não há persistência, abertura de projetos reais, retomada nativa, integração Git ou provas reais dos provedores nesta entrega. Fechar a janela cancela a simulação; reabrir reinicia os exemplos.
+- A janela ainda não tem persistência ou projetos reais. Fechar a demonstração cancela a simulação; reabrir reinicia os exemplos. Os adaptadores reais já existem separadamente, sem conexão à UI neste incremento.
 - Uma demonstração anterior em Electron validou o conceito de funções, fila e revisão. Ela permanece fora deste repositório e não deve ser confundida com o produto em .NET.
-- SDK .NET 10.0.200 encontrado no ambiente inicial. Consulta posterior pelos comandos de status informou login ChatGPT no Codex e login `claude.ai` com assinatura Pro no Claude. Não houve inferência real para comprovar acesso, validade da sessão ou quota.
+- SDK .NET 10.0.200. Login ChatGPT no Codex e `claude.ai`/Pro no Claude conferidos antes dos turnos. Ambos leram uma amostra com soma/marcador, produziram a resposta correta e retomaram a mesma sessão mantendo contexto. Modelos usados: `gpt-6.1-sol` e `claude-opus-5`. Isso comprova acesso naquele momento, sem garantir quota futura.
 - Preparação do M1: diagnóstico .NET limitado a versão/ajuda detectou Codex CLI `0.162.0-alpha.2` e Claude Code `2.1.277`, consultando executáveis nativos sem interpretar wrappers de shell. 11 testes de Infrastructure aprovados (28 testes xUnit no total), inclusive streams simultâneos, timeout/filho e cancelamento. Detalhes e fontes em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
+- M1: contratos de conversa, processo com streams assíncronos limitados, cliente stdio e adaptadores reais com checagem de assinatura, retomada, resultados finais e cancelamento. Isolamento de leitura do Codex bloqueou escrita; interrupção real verificada nos dois provedores. Extensões listadas sem alterar configuração. 28 testes de Infrastructure + 17 de Core aprovados.
+- O isolamento elevado do Codex instalado falhou com `apply deny-read ACLs`; o cliente usa o modo oficial `unelevated` somente no próprio processo, sem bypass ou alteração global. Claude usa plan para leitura e manual/recusa de prompts para escrita; host de autorização do Claude ainda pendente.
 
 ## Próxima entrega concreta
 
-Continuar o **M1** pelo handshake stdio do Codex sem turno e por contratos/parsing testados com fixtures. Depois, fazer uma prova real pequena de cada provedor usando o login por assinatura, com permissões, negativas, retomada e interrupção verificadas, antes de conectar à janela. A detecção/ajuda funcionam e os CLIs declararam login por assinatura; acesso efetivo, quota, extensões e inferência continuam não verificados. M2 deve evoluir para projetos/chat/sessões conforme o escopo ampliado, sem ampliar a simulação para adiar a prova real.
+Implementar projetos/chat/sessões persistentes do **M2**, conectando os adaptadores comprovados. Conservar a demonstração identificada em acesso separado. Completar o host de permissões do Claude antes de anunciar autorização interativa equivalente à do Codex; regras e hooks dos provedores continuam relevantes.
 
 ## Critério da primeira versão útil
 

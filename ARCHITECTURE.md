@@ -4,13 +4,13 @@
 
 C# com .NET 10, interface WPF em MVVM e SQLite para o histórico real. A primeira versão é local e focada no Windows.
 
-Estrutura atual (M0 e preparação do M1):
+Estrutura atual (M0 e adaptadores reais do M1):
 
 ```text
 Sintonia.sln
 src/
   Sintonia.Core/           Modelos, estados, dependências e contratos
-  Sintonia.Infrastructure/ Adaptadores simulados e diagnósticos de processos
+  Sintonia.Infrastructure/ Adaptadores simulados/reais e processos
   Sintonia.Desktop/        WPF, ViewModels, navegação e composição
 tests/
   Sintonia.Core.Tests/     Regras do núcleo
@@ -29,6 +29,8 @@ No M0, `SchedulingPolicy` decide admissões e valida o grafo; `TaskCoordinator` 
 `SimulatedProviderAdapter` produz atrasos canceláveis, eventos e texto de exemplo, sem processos ou arquivos externos. `DemoScenario` fornece as quatro funções e cinco tarefas do exemplo. `ProviderSession` é um identificador demonstrativo por tentativa; retomada e compatibilidade com diretórios reais ainda não existem. A aprovação entrega ao dependente o resumo e o identificador da tentativa aprovada; disponibilidade de arquivos/revisões reais será necessária antes de escrita paralela.
 
 O contrato mínimo `IProviderAdapter` cobre a execução e eventos simulados. Detecção, permissões, eventos nativos e retomada serão acrescentados somente com evidência do M1. Os demais modelos da tabela abaixo são planejados; não há SQLite neste marco.
+
+`IConversationProvider` já cobre conversas reais por diretório/modelo/identificador nativo, com eventos e resultado concluído/bloqueado. `ProviderProcess` limita eventos por linha, drena stderr, serializa stdin e encerra a árvore. `JsonRpcClient` correlaciona respostas e processa notificações sem bloquear a leitura. Codex verifica conta ChatGPT e política aplicada antes do turno; Claude verifica `claude.ai`/assinatura e rejeita configuração explícita de API no ambiente. Nenhum adaptador abre arquivos de credenciais. O host pode responder às autorizações do Codex; solicitações sem host são recusadas. O host Claude ainda está pendente.
 
 ## Modelo de domínio
 

@@ -3,6 +3,11 @@ using System.Text;
 using System.Text.Json;
 
 Console.OutputEncoding = new UTF8Encoding(false);
+Console.InputEncoding = new UTF8Encoding(false);
+if (args.FirstOrDefault()?.StartsWith("rpc-", StringComparison.Ordinal) == true)
+    return await ProtocolFixture.RunCodexAsync(args[0]);
+if (args.FirstOrDefault()?.StartsWith("claude-", StringComparison.Ordinal) == true)
+    return await ProtocolFixture.RunClaudeAsync(args);
 var name = Path.GetFileNameWithoutExtension(Environment.ProcessPath);
 if (args.Contains("--version"))
 {
