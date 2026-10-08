@@ -47,10 +47,10 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 ## M3 — Trabalho paralelo com Git
 
-Estado: diagnóstico Git em leitura concluído e conectado à central, com raiz/branch/commit, alterações e conflitos, atualização/cancelamento e preservação do índice. Próximo incremento: preparar worktrees explicitamente por tarefa com diretório e revisão de base registrados. Projetos sem Git continuam disponíveis na central e na fila; escrita permanece serial.
+Estado: diagnóstico Git e preparação explícita de worktrees conectados à central/fila. Diretório, branch e base persistidos, subpastas mapeadas, cancelamento/retomada e original preservado. Próximo incremento: diffs por tarefa e integração verificada, mantendo dependentes bloqueados enquanto a entrega estiver apenas na worktree. Projetos sem Git continuam disponíveis; escrita permanece serial. Git real e provedores simulados validaram o novo fluxo, sem chamadas de modelos.
 
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
-- [ ] Criar ou reutilizar worktrees adequadas por tarefa de escrita.
+- [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
 - [ ] Entregar especificações, contratos e resumos entre sessões.
 - [ ] Vincular tarefas à revisão correta do código de suas dependências.
 - [ ] Mostrar diffs e conflitos antes de integrar.

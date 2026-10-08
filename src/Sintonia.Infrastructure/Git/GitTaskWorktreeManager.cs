@@ -19,14 +19,17 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
     {
         if (!Guid.TryParse(taskId, out var id)) throw new ArgumentException("Identificador de tarefa inválido.");
         CheckPath(project.Directory);
-        var diagnostic = await new GitRepositoryInspector(launch: _launch, searchPath: "").InspectAsync(project.Directory, cancellationToken).ConfigureAwait(false);
-        if (diagnostic.State != GitDiagnosticState.Available || diagnostic.IsUnborn || diagnostic.HeadCommit is null)
-            throw new InvalidOperationException("A preparação exige Git, uma cópia de trabalho e pelo menos um commit. " + diagnostic.Message);
         using var deadline = Deadline(cancellationToken);
-        var root = diagnostic.RootDirectory!;
+        var type = await RunAsync(project.Directory, deadline.Token, "rev-parse", "--is-inside-work-tree", "--is-bare-repository").ConfigureAwait(false);
+        if (type.ExitCode != 0 || type.StandardOutput.Replace("\r", "", StringComparison.Ordinal) != "true\nfalse\n")
+            throw new InvalidOperationException("A preparação exige uma cópia de trabalho Git disponível. Confira a pasta e a confiança do repositório.");
+        var rootResult = await RunAsync(project.Directory, deadline.Token, "rev-parse", "--show-toplevel").ConfigureAwait(false);
+        RequireSuccess(rootResult); var root = rootResult.StandardOutput.TrimEnd('\r', '\n'); CheckPath(root);
+        var head = await RunAsync(project.Directory, deadline.Token, "rev-parse", "--verify", "HEAD^{commit}").ConfigureAwait(false);
+        if (head.ExitCode != 0) throw new InvalidOperationException("A preparação exige pelo menos um commit salvo no repositório.");
         var common = await CommonDirectoryAsync(root, deadline.Token).ConfigureAwait(false);
         var plan = new TaskWorktree(taskId, Path.GetFullPath(root), common, Path.Combine(_root, id.ToString("N")),
-            Path.GetRelativePath(root, project.Directory), diagnostic.HeadCommit, "codex/sintonia/" + id.ToString("N"));
+            Path.GetRelativePath(root, project.Directory), head.StandardOutput.TrimEnd('\r', '\n'), "codex/sintonia/" + id.ToString("N"));
         plan.ValidateDefinition(project.Directory);
         await CheckSourceAsync(plan, deadline.Token).ConfigureAwait(false);
         return plan;
@@ -42,7 +45,7 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
         if (existing is not null)
         {
             await ValidateAsync(worktree, deadline.Token).ConfigureAwait(false);
-            var status = await RunAsync(worktree.CheckoutDirectory, deadline.Token, "status", "--porcelain=v2", "-z", "--untracked-files=all").ConfigureAwait(false);
+            var status = await StatusWithoutFiltersAsync(worktree.CheckoutDirectory, deadline.Token).ConfigureAwait(false);
             RequireSuccess(status);
             if (existing.Head != worktree.BaseCommit || status.StandardOutput.Length != 0)
                 throw new InvalidOperationException("A pasta já contém alterações. Confira os arquivos antes de retomar; o Sintonia não os sobrescreve.");
@@ -132,6 +135,22 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
                 throw new InvalidOperationException("A preparação não suporta links ou junções no caminho das pastas. Escolha um caminho direto.");
     }
     private static string LockReason(TaskWorktree worktree) => "Sintonia: tarefa " + worktree.TaskId;
+    private async Task<ProcessProbeResult> StatusWithoutFiltersAsync(string directory, CancellationToken token)
+    {
+        // A dirty .gitattributes in an interrupted checkout must not execute a clean/process filter while checking retry safety.
+        var keys = await RunAsync(directory, token, "config", "--name-only", "--get-regexp", "^filter\\..*\\.(clean|smudge|process)$").ConfigureAwait(false);
+        if (keys.ExitCode is not (0 or 1)) RequireSuccess(keys);
+        var arguments = new List<string>();
+        foreach (var key in keys.StandardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!key.StartsWith("filter.", StringComparison.OrdinalIgnoreCase) || key.LastIndexOf('.') <= 7)
+                throw new FormatException("Nome de filtro Git inválido.");
+            arguments.AddRange(["-c", key + "=", "-c", key[..key.LastIndexOf('.')] + ".required=false"]);
+        }
+        if (arguments.Sum(a => a.Length + 3) > 16000) throw new InvalidOperationException("Configuração de filtros extensa demais para uma conferência completa.");
+        arguments.AddRange(["status", "--porcelain=v2", "-z", "--untracked-files=all"]);
+        return await RunAsync(directory, token, arguments.ToArray()).ConfigureAwait(false);
+    }
     private static bool SamePath(string first, string second) => string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(first)),
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(second)), StringComparison.OrdinalIgnoreCase);
     private static CancellationTokenSource Deadline(CancellationToken token)

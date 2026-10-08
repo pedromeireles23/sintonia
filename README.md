@@ -21,7 +21,7 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 ## Estado atual
 
-**M2 concluído; M3 iniciado com diagnóstico Git.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico e perfis SQLite sobrevivem à reabertura. Consulte branch e alterações pelo painel Git. Leitura permite duas IAs simultâneas, uma por provedor; conversas com escrita trabalham sozinhas no projeto até existir integração por worktrees. Build sem avisos/erros, 157 testes xUnit aprovados e fluxos WPF verificados.
+**M2 concluído; M3 com diagnóstico e worktrees por tarefa.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico, perfis e pastas de tarefas sobrevivem à reabertura. Consulte branch e alterações pelo painel Git e prepare uma worktree explicitamente pela fila. Leitura permite duas IAs simultâneas, uma por provedor; escrita continua serial no projeto. Diffs e integração Git ainda estão pendentes. Build sem avisos/erros, 170 testes xUnit aprovados e fluxos WPF verificados.
 
 Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. Integração Git está pendente.
 
@@ -42,6 +42,7 @@ A demonstração Electron criada durante a pesquisa foi um experimento de fluxo;
 - [Registro de desenvolvimento](docs/DEVELOPMENT_LOG.md).
 - [Perfis de função](docs/FUNCTION_PROFILES.md).
 - [Diagnóstico Git](docs/GIT_DIAGNOSTICS.md).
+- [Worktrees por tarefa](docs/TASK_WORKTREES.md).
 - [Análise do Maestro](docs/MAESTRO_ANALYSIS.md).
 - [Decisões técnicas](docs/DECISIONS.md).
 
@@ -74,13 +75,17 @@ Para planejar, selecione **Chefe do projeto** em **Função e permissões** e de
 
 O [formato de propostas e seus limites](docs/PLAN_PROPOSALS.md) descreve validação e histórico. Propostas inválidas não viram tarefas; a resposta original do chat permanece disponível. Planos são separados por projeto e edições simultâneas não sobrescrevem revisões mais novas.
 
-Abra **Fila de tarefas**, escolha um plano aprovado e use **Encaminhar à fila**. Essa ação preserva a revisão e cria as tarefas, sem executar modelos. Selecione uma tarefa disponível e use **Iniciar tentativa**. Confira resposta, arquivos e critérios; **Aprovar entrega** libera dependências e **Solicitar ajustes** registra o pedido para uma nova tentativa na mesma sessão. Autorizações aparecem no próprio painel. Cancelar não desfaz arquivos já alterados; confira o projeto antes de tentar novamente.
+Abra **Fila de tarefas**, escolha um plano aprovado e use **Encaminhar à fila**. Essa ação preserva a revisão e cria as tarefas, sem executar modelos. Selecione uma tarefa disponível e use **Iniciar tentativa**. Confira resposta, arquivos e critérios; **Aprovar entrega** registra sua decisão e **Solicitar ajustes** registra o pedido para uma nova tentativa na mesma sessão. Dependências exigem aprovação e, quando a entrega usa worktree, integração Git. Autorizações aparecem no próprio painel. Cancelar não desfaz arquivos já alterados; confira o projeto antes de tentar novamente.
 
 ![Fila e revisão em tamanho mínimo — dados de teste com provedores simulados](docs/images/sintonia-fila.png)
 
 Cada tarefa tem até três tentativas explícitas. Planos encaminhados ficam preservados; mudanças de planejamento exigem outra proposta. Histórico e estados sobrevivem à reabertura. [Fluxo e limites da fila](docs/TASK_QUEUE.md). A prova real finita da fila executou um turno de leitura por provedor, verificou contexto da dependência e reabriu o banco. Escrita pela fila e permissões visuais foram testadas com provedores simulados; a autorização real dos adaptadores tem evidências separadas.
 
-Abra **Diagnóstico Git** para conferir raiz, branch/commit, acompanhamento local e alterações preparadas, na pasta, novas ou em conflito. Uma subpasta mostra o repositório inteiro; confira a raiz indicada. O painel permite atualizar/cancelar sem modificar arquivos ou índice e mantém o projeto consultado mesmo ao navegar na central. Projetos sem Git continuam disponíveis. Criação de worktrees, diffs e integração estão pendentes. [Fluxo e limites do diagnóstico](docs/GIT_DIAGNOSTICS.md).
+Na fila, abra **Pasta de trabalho** e use **Preparar worktree** antes da primeira tentativa de uma tarefa com escrita. Confira diretório, branch e commit na confirmação. A nova pasta vem desse commit; alterações locais e arquivos ignorados permanecem no original. Confira instruções, configurações e dependências disponíveis antes de iniciar. Preparação não chama modelos; tentativas e ajustes conservam a mesma pasta/sessão. Cancelamento/interrupção preserva efeitos para conferência e retomada explícita. A integração ainda está em desenvolvimento: aprovar uma entrega em worktree mantém dependentes bloqueados. [Fluxo e limites das worktrees](docs/TASK_WORKTREES.md).
+
+![Pasta da tarefa em tamanho mínimo — Git real em pasta de teste, provedor simulado](docs/images/sintonia-worktree.png)
+
+Abra **Diagnóstico Git** para conferir raiz, branch/commit, acompanhamento local e alterações preparadas, na pasta, novas ou em conflito. Uma subpasta mostra o repositório inteiro; confira a raiz indicada. O painel permite atualizar/cancelar sem modificar arquivos ou índice e mantém o projeto consultado mesmo ao navegar na central. Projetos sem Git continuam disponíveis. Diffs e integração estão pendentes. [Fluxo e limites do diagnóstico](docs/GIT_DIAGNOSTICS.md).
 
 ![Diagnóstico Git em tamanho mínimo — Git real em pasta de teste, sem chamada de modelos](docs/images/sintonia-git.png)
 
@@ -93,9 +98,10 @@ rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- -
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --queue
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --profiles
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --git
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --worktrees
 ```
 
-O primeiro teste percorre a demonstração; os demais verificam a central, os planos, a fila e os perfis com provedores de teste, sem consumir modelos. `--git` usa Git real em pasta exclusiva de teste, com chat/erros simulados e nenhuma chamada de modelos. Capturas em `artifacts/ui-smoke`, `artifacts/workspace-smoke`, `artifacts/proposal-smoke`, `artifacts/queue-smoke`, `artifacts/profile-smoke` e `artifacts/git-smoke`. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere abertura/encerramento do executável normal. A opção `--workspace-real` é prova manual finita, consome quota e não deve rodar em CI/loop.
+O primeiro teste percorre a demonstração; os demais verificam a central, os planos, a fila e os perfis com provedores de teste, sem consumir modelos. `--git` e `--worktrees` usam Git real em pastas exclusivas de teste, com provedores/erros/interrupções simulados e nenhuma chamada de modelos. Capturas em `artifacts/ui-smoke`, `artifacts/workspace-smoke`, `artifacts/proposal-smoke`, `artifacts/queue-smoke`, `artifacts/profile-smoke`, `artifacts/git-smoke` e `artifacts/worktree-smoke`. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere abertura/encerramento do executável normal. A opção `--workspace-real` é prova manual finita, consome quota e não deve rodar em CI/loop.
 
 O diagnóstico inicial de instalações já pode ser executado, separado da janela:
 

@@ -56,6 +56,16 @@
                             </Grid>
                         </TabItem>
                         <TabItem Header="Atividade"><ListBox ItemsSource="{Binding Session.Events}" BorderThickness="0" Margin="14" ScrollViewer.HorizontalScrollBarVisibility="Disabled"><ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ListBox.ItemTemplate></ListBox></TabItem>
+                        <TabItem Header="Pasta de trabalho" AutomationProperties.AutomationId="TaskWorktreeTab">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="14">
+                                    <TextBlock Text="Pasta da tarefa" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                    <Button Content="Preparar worktree" Command="{Binding PrepareWorktreeCommand}" HorizontalAlignment="Left" Margin="0,0,0,14" AutomationProperties.AutomationId="PrepareTaskWorktree" />
+                                    <TextBox Text="{Binding WorktreeDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="Transparent" BorderThickness="0" AutomationProperties.AutomationId="TaskWorktreeDetails" />
+                                    <TextBlock Text="{Binding WorktreeExplanation}" Style="{StaticResource Caption}" Margin="0,14,0,0" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
                     </TabControl>
                     <Border Grid.Row="1" Style="{StaticResource Card}" Background="#FFF4DA" Padding="10" Margin="0,10,0,0" Visibility="{Binding Workspace.HasPermission, Converter={StaticResource BoolVisibility}}">
                         <StackPanel>

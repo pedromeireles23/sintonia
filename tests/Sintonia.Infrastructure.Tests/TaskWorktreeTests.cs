@@ -181,6 +181,25 @@ public sealed class TaskWorktreeTests
     }
 
     [Fact]
+    public async Task PreviewAndInterruptedCheckoutInspectionDoNotRunCleanFilters()
+    {
+        using var fixture = new Fixture(); await fixture.InitializeAsync();
+        var project = new WorkspaceProject("id", "Portal", fixture.Project);
+        var marker = Path.Combine(fixture.Root, "clean-filter-ran"); var script = Path.Combine(fixture.Root, "clean-filter.sh");
+        await File.WriteAllTextAsync(script, "#!/bin/sh\necho ran > '" + marker.Replace('\\', '/') + "'\ncat\n");
+        await fixture.GitAsync(fixture.Repository, "config", "filter.fixture.clean", "\"" + script.Replace('\\', '/') + "\"");
+        // Dirty source attributes must not affect the committed checkout or invoke a filter during preview.
+        await File.WriteAllTextAsync(Path.Combine(fixture.Repository, ".gitattributes"), "portal/* filter=fixture\n");
+        await File.WriteAllTextAsync(Path.Combine(fixture.Project, "portal.txt"), "local");
+        var plan = await fixture.Manager.PlanAsync(project, Guid.NewGuid().ToString(), CancellationToken.None);
+        Assert.False(File.Exists(marker)); await fixture.Manager.PrepareAsync(plan, CancellationToken.None);
+        await File.WriteAllTextAsync(Path.Combine(plan.CheckoutDirectory, ".gitattributes"), "portal/* filter=fixture\n");
+        await File.WriteAllTextAsync(Path.Combine(plan.WorkingDirectory, "portal.txt"), "partial");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Manager.PrepareAsync(plan, CancellationToken.None));
+        Assert.False(File.Exists(marker));
+    }
+
+    [Fact]
     public async Task MissingGitUnbornRepositoryAndUncommittedProjectCannotPrepare()
     {
         using var fixture = new Fixture(); Directory.CreateDirectory(fixture.Repository);

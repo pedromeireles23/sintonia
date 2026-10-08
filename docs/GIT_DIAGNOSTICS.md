@@ -42,7 +42,7 @@ Pasta sem repositório, Git ausente, repositório bare e falhas têm mensagens p
 
 Formato baseado na [documentação do status porcelain](https://git-scm.com/docs/git-status); identificação conforme [rev-parse](https://git-scm.com/docs/git-rev-parse). A opção de leitura sem atualização opcional do índice segue [Git --no-optional-locks](https://git-scm.com/docs/git).
 
-Criação de worktrees por tarefa, revisão de diffs e integração verificada ainda estão pendentes. Escrita permanece serial no mesmo projeto. Uma worktree separa alterações, sem constituir um sandbox de segurança.
+[Criação de worktrees por tarefa](TASK_WORKTREES.md) está disponível na fila; revisão de diffs e integração verificada ainda estão pendentes. Escrita permanece serial no mesmo projeto. Uma worktree separa alterações, sem constituir um sandbox de segurança.
 
 ## Validação
 

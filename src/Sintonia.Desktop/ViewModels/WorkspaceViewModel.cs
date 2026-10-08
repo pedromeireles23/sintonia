@@ -36,6 +36,8 @@ public sealed class WorkspaceViewModel : ObservableObject
     private const string DefaultModel = "Padrão da instalação";
     private readonly IWorkspaceStore _store;
     private readonly WorkspaceChatService _chat;
+    private readonly TaskWorktreeService? _worktrees;
+    private readonly HashSet<Task> _gitJobs = [];
     private readonly Dispatcher _dispatcher;
     private readonly Func<string?> _pickDirectory;
     private readonly Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> _inspect;
@@ -63,9 +65,11 @@ public sealed class WorkspaceViewModel : ObservableObject
     private long _catalogRevision;
 
     public WorkspaceViewModel(IWorkspaceStore store, WorkspaceChatService chat, Dispatcher dispatcher,
-        Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect)
+        Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect,
+        TaskWorktreeService? worktrees = null)
     {
         _store = store; _chat = chat; _dispatcher = dispatcher; _pickDirectory = pickDirectory; _inspect = inspect;
+        _worktrees = worktrees;
         _function = Functions[0]; _access = AccessOptions[0];
         AddProjectCommand = new(AddPickedProjectAsync, ShowError, () => Ready && !_stopping);
         RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && Project is not null && CanConfigure);
@@ -428,6 +432,21 @@ public sealed class WorkspaceViewModel : ObservableObject
     }
     public void CancelTask(WorkspaceTask task) { if (_jobs.TryGetValue(task.ConversationId, out var job)) job.Stop.Cancel(); }
 
+    public bool CanPrepareWorktrees => _worktrees is not null && !_stopping;
+    public Task<TaskWorktree> PreviewTaskWorktreeAsync(WorkspaceProject project, WorkspaceTask task, CancellationToken token) =>
+        RunGitOperationAsync(stop => _worktrees!.PreviewAsync(project.Id, task.Id, stop), token);
+    public Task PrepareTaskWorktreeAsync(WorkspaceProject project, TaskWorktree preview, CancellationToken token) =>
+        RunGitOperationAsync(async stop => { await _worktrees!.PrepareAsync(project.Id, preview, stop); return true; }, token);
+    private async Task<T> RunGitOperationAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken token)
+    {
+        if (!CanPrepareWorktrees) throw new InvalidOperationException("A preparação não está disponível ou o aplicativo está encerrando.");
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, token);
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _gitJobs.Add(finished.Task);
+        try { return await operation(stop.Token); }
+        finally { finished.TrySetResult(); _gitJobs.Remove(finished.Task); }
+    }
+
     private async Task<bool> AskPermissionAsync(ConversationPermission permission, CancellationToken token)
     {
         await _permissionGate.WaitAsync(token).ConfigureAwait(false);
@@ -447,7 +466,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public async Task StopAsync()
     {
         _stopping = true; _lifetime.Cancel(); RefreshCommands();
-        var jobs = _jobs.Values.Select(j => j.Task).ToArray();
+        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).ToArray();
         await Task.WhenAll(jobs);
     }
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException ? "Operação cancelada ou prazo excedido." : exception.Message;

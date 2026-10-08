@@ -19,9 +19,10 @@ public partial class WorkspaceWindow : Window
     {
         InitializeComponent();
         var store = new SqliteWorkspaceStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sintonia", "workspace.db"));
+        var worktrees = new GitTaskWorktreeManager();
         DataContext = viewModel ?? new WorkspaceViewModel(store,
-            new WorkspaceChatService(store, [new CodexConversationProvider(), new ClaudeConversationProvider()]), Dispatcher,
-            PickDirectory, InspectAsync);
+            new WorkspaceChatService(store, [new CodexConversationProvider(), new ClaudeConversationProvider()], worktrees), Dispatcher,
+            PickDirectory, InspectAsync, new TaskWorktreeService(store, worktrees));
         Loaded += async (_, _) => await ViewModel.InitializeAsync();
         Closing += CloseAsync;
     }
@@ -74,7 +75,8 @@ public partial class WorkspaceWindow : Window
         await Task.Yield();
         try
         {
-            await Task.WhenAll(OwnedWindows.OfType<GitDiagnosticsWindow>().Select(window => window.ViewModel.StopAsync()).Append(ViewModel.StopAsync()));
+            await Task.WhenAll(OwnedWindows.OfType<GitDiagnosticsWindow>().Select(window => window.ViewModel.StopAsync())
+                .Concat(OwnedWindows.OfType<TaskQueueWindow>().Select(window => window.ViewModel.StopAsync())).Append(ViewModel.StopAsync()));
         }
         finally { _closed = true; Close(); }
     }
