@@ -11,6 +11,8 @@ A fila trabalha com qualquer projeto suportado pelos provedores e uma pasta cada
 
 Antes da primeira tentativa com escrita, a aba **Pasta de trabalho** permite preparar uma worktree explicitamente. Pasta, branch e base ficam persistidas; tentativas/ajustes usam o mesmo checkout e sessão. Confira configurações e arquivos disponíveis antes de executar. [Fluxo, recuperação e limites](TASK_WORKTREES.md).
 
+Com a worktree pronta e a tarefa parada, use **Revisar diffs** na mesma aba. Selecione arquivo e comparação desde a base, índice ou pasta; confira renomeações, exclusões, arquivos novos e conflitos. A janela permanece vinculada à tarefa ao navegar. [Fluxo, atualização e limites](TASK_DIFFS.md).
+
 Planos encaminhados são preservados e não aceitam edição. Um plano entra na fila uma única vez; repetir o encaminhamento não duplica tarefas. Para outro planejamento, gere uma nova proposta.
 
 ## Estado e revisão
@@ -31,7 +33,7 @@ O pedido de uma tarefa contém objetivo, função/instruções, acesso recomenda
 - Schema 3 acrescenta task_batches/work_tasks, preservando projetos, propostas e histórico anteriores. Reserva e run, assim como término e estado da tarefa, são gravados em transações.
 - Conversas de tarefas podem ser consultadas na central; envios e mudanças de contrato passam pela fila.
 
-Worktrees por tarefa estão disponíveis; diffs, integração Git, limites configuráveis/consumo e atualização automática do plano pela chefia permanecem pendentes. Entregas aprovadas em worktrees mantêm dependentes bloqueados neste incremento. Alterações externas nos arquivos não são fixadas por aprovação; integração verificável é o marco M3.
+Worktrees por tarefa e revisão de diffs estão disponíveis; integração Git, limites configuráveis/consumo e atualização automática do plano pela chefia permanecem pendentes. Entregas aprovadas em worktrees mantêm dependentes bloqueados neste incremento. Alterações externas nos arquivos não são fixadas por aprovação; integração verificável é o marco M3.
 
 ## Validação
 

@@ -107,6 +107,8 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     public Func<TaskWorktree, bool>? ConfirmWorktree { get; set; }
     public bool CanPrepareWorktree => !Busy && !_loading && Workspace.CanPrepareWorktrees && SelectedTask is { } task && SelectedBatch is { } batch
         && WorkspaceTaskPolicy.CanPrepareWorktree(task.Record, batch.Tasks);
+    public bool CanReviewDiffs => !Busy && !_loading && Workspace.CanReviewTaskDiffs && Session?.Running != true
+        && SelectedTask?.Record is { State: not WorkspaceTaskState.Running, Worktree.State: TaskWorktreeState.Ready };
     public string ReviewNote { get => _note; set { Set(ref _note, value); Refresh(); } }
     public string Notice { get => _notice; private set => Set(ref _notice, value); }
     public bool Busy { get => _busy; private set { Set(ref _busy, value); Refresh(); } }
@@ -246,6 +248,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     {
         Notify(nameof(CanChoose)); Notify(nameof(CanStart)); Notify(nameof(CanReview)); Notify(nameof(TaskDetails)); Notify(nameof(TaskStatus));
         Notify(nameof(CanPrepareWorktree)); Notify(nameof(WorktreeDetails));
+        Notify(nameof(CanReviewDiffs));
         ReloadCommand?.Refresh(); EnqueueCommand?.Refresh(); StartCommand?.Refresh(); CancelCommand?.Refresh(); ApproveCommand?.Refresh(); RequestChangesCommand?.Refresh();
         PrepareWorktreeCommand?.Refresh();
     }

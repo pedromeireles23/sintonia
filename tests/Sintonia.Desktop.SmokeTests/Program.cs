@@ -23,6 +23,7 @@ internal static class Program
         if (args.FirstOrDefault() == "--profiles") return FunctionProfileSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/profile-smoke");
         if (args.FirstOrDefault() == "--git") return GitDiagnosticsSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/git-smoke");
         if (args.FirstOrDefault() == "--worktrees") return TaskWorktreeSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/worktree-smoke");
+        if (args.FirstOrDefault() == "--diffs") return TaskDiffSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/diff-smoke");
         if (args.FirstOrDefault() == "--workspace-real") return WorkspaceRealSmoke.Run();
         var output = Path.GetFullPath(args.FirstOrDefault() ?? "artifacts/ui-smoke");
         Directory.CreateDirectory(output);

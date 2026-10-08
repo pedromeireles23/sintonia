@@ -1,6 +1,15 @@
 # Revisão de diffs por tarefa
 
-O núcleo M3 consulta a worktree e o commit de base registrados na tarefa, em leitura. Não aprova, integra, prepara arquivos para commit nem chama modelos. A conexão visual à fila entra no próximo incremento.
+O painel M3 consulta a worktree e o commit de base registrados na tarefa, em leitura. Não aprova, integra, prepara arquivos para commit nem chama modelos.
+
+## Usar na fila
+
+1. Selecione uma tarefa com **Worktree pronta** e sem tentativa em execução.
+2. Na aba **Pasta de trabalho**, use **Revisar diffs**. A lista é consultada ao abrir a janela.
+3. Selecione um arquivo e escolha **Desde o commit de base**, **Preparado para commit** ou **Na pasta, sem preparar**. Confira estado, caminho anterior e conteúdo.
+4. Use **Ler novamente** para repetir a comparação ou **Atualizar diffs** para renovar a lista após mudanças. **Cancelar consulta** aguarda o término e descarta respostas tardias.
+
+A janela conserva o projeto e a tarefa capturados, mesmo ao mudar a seleção na fila ou na central. Cabeçalho mostra pasta/base; lista mostra estado desde a base, no índice e na pasta, além de renomeações e conflitos. Binários, prévias excessivas e comparações sem diferença têm mensagens próprias. Consulta pendente retira a prévia anterior e bloqueia seleção; erro, mudança de estado ou cancelamento retira a lista e exige nova atualização. Fechar o painel ou a central cancela e aguarda suas leituras.
 
 ## Comparações
 
@@ -23,3 +32,9 @@ Arquivos não versionados oferecem conteúdo atual em UTF-8, até 64 KiB, nas co
 - Conflitos permanecem visíveis e preservados. Este incremento não tenta resolvê-los, descartar alterações ou criar commits.
 
 O formato NUL preserva espaços e acentos. Referência de sintaxe e comparações: [documentação oficial de git diff](https://git-scm.com/docs/git-diff).
+
+## Validação
+
+Testes automatizados com Git real em pastas temporárias verificam as três comparações, commits posteriores, renomeações sucessivas, exclusões, arquivos novos, conflitos, limites, caminhos literais e preservação de índice/lock/original. Cobrem ferramentas externas/filtros desabilitados, mudança de tarefa/status, cancelamento e timeout.
+
+O teste WPF `--diffs` abre o painel pelo botão da fila, confere conteúdo desde base/índice/pasta, UTF-8/binários/grandes, renomeação/exclusão e conflito real. Verifica navegação com projeto/tarefa fixos, invalidação após mudança, cancelamento com resposta tardia e fechamento do painel/central. Layout normal/mínimo revisado e zero erros de binding. Temporização usa componente de teste; nenhum modelo é chamado. Integração verificada continua pendente.

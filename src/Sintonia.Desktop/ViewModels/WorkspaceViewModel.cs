@@ -37,6 +37,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private readonly IWorkspaceStore _store;
     private readonly WorkspaceChatService _chat;
     private readonly TaskWorktreeService? _worktrees;
+    private readonly TaskDiffService? _diffs;
     private readonly HashSet<Task> _gitJobs = [];
     private readonly Dispatcher _dispatcher;
     private readonly Func<string?> _pickDirectory;
@@ -66,10 +67,11 @@ public sealed class WorkspaceViewModel : ObservableObject
 
     public WorkspaceViewModel(IWorkspaceStore store, WorkspaceChatService chat, Dispatcher dispatcher,
         Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect,
-        TaskWorktreeService? worktrees = null)
+        TaskWorktreeService? worktrees = null, TaskDiffService? diffs = null)
     {
         _store = store; _chat = chat; _dispatcher = dispatcher; _pickDirectory = pickDirectory; _inspect = inspect;
         _worktrees = worktrees;
+        _diffs = diffs;
         _function = Functions[0]; _access = AccessOptions[0];
         AddProjectCommand = new(AddPickedProjectAsync, ShowError, () => Ready && !_stopping);
         RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && Project is not null && CanConfigure);
@@ -433,6 +435,12 @@ public sealed class WorkspaceViewModel : ObservableObject
     public void CancelTask(WorkspaceTask task) { if (_jobs.TryGetValue(task.ConversationId, out var job)) job.Stop.Cancel(); }
 
     public bool CanPrepareWorktrees => _worktrees is not null && !_stopping;
+    public bool CanReviewTaskDiffs => _diffs is not null && !_stopping;
+    public TaskDiffViewModel CreateTaskDiffReview(WorkspaceProject project, WorkspaceTask task)
+    {
+        if (!CanReviewTaskDiffs) throw new InvalidOperationException("A revisão de diffs não está disponível ou o aplicativo está encerrando.");
+        return new(project, task, _diffs!);
+    }
     public Task<TaskWorktree> PreviewTaskWorktreeAsync(WorkspaceProject project, WorkspaceTask task, CancellationToken token) =>
         RunGitOperationAsync(stop => _worktrees!.PreviewAsync(project.Id, task.Id, stop), token);
     public Task PrepareTaskWorktreeAsync(WorkspaceProject project, TaskWorktree preview, CancellationToken token) =>

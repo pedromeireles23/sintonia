@@ -16,4 +16,9 @@ public partial class TaskQueueWindow : Window
         Closing += (_, e) => { if (ViewModel.Busy) e.Cancel = true; };
         Closed += (_, _) => ViewModel.Dispose();
     }
+    private void OpenDiffs(object sender, RoutedEventArgs e)
+    {
+        if (!ViewModel.CanReviewDiffs || ViewModel.SelectedTask is not { } task) return;
+        new TaskDiffWindow(ViewModel.Workspace.CreateTaskDiffReview(ViewModel.Project, task.Record)) { Owner = Owner ?? this }.Show();
+    }
 }
