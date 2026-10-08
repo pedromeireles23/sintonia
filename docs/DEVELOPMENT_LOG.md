@@ -111,6 +111,14 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 ## 08/10/2026 — Persistência de perfis reutilizáveis
 
 - Schema 4 acrescenta biblioteca local de perfis com nome, função, provedor/modelo, instruções e revisão. Nomes normalizados são únicos; atualização/exclusão compara revisão e mantém edições concorrentes. Perfis não armazenam permissões nem alteram sessões já copiadas.
-- Validação de campos, enums, tamanhos e preservação literal das instruções. Limite da chefia compartilha a composição do contrato usada no serviço; instrucões adicionais não ultrapassam os 8.000 caracteres do pedido completo.
+- Validação de campos, enums, tamanhos e preservação literal das instruções. Limite da chefia compartilha a composição do contrato usada no serviço; instruções adicionais não ultrapassam os 8.000 caracteres do pedido completo.
 - Validação: build sem avisos/erros, 141 testes xUnit (62 Core + 79 Infrastructure). Quinze casos novos cobrem limites, nomes Unicode/case, persistência, revisão obsoleta, exclusão, cópia de conversa e migração do schema 3 com fila/proposta/run preservados. Sem chamadas de modelos.
 - Próximo incremento: editor da biblioteca e aplicação explícita a novas conversas na central. Persistência ainda não representa fluxo visual pronto.
+
+## 08/10/2026 — Biblioteca visual de perfis e fechamento do M2
+
+- Perfis de função permite criar, editar, reverter e excluir configurações reutilizáveis entre projetos. Nomes/funções personalizados, provedor, modelo opcional e instruções ficam no SQLite. Rascunhos protegidos contra troca/descarte e exclusão confirmada; revisões concorrentes recusadas sem perder a edição local.
+- Nova com perfil prepara outra conversa em leitura e preserva a mensagem digitada, sem enviar pedidos ou modificar/interromper sessões existentes. Edição/exclusão mantém os parâmetros de conversas/tarefas copiadas. Funções personalizadas conservam o nome na retomada/reabertura; a chefia mantém contrato e acesso de leitura.
+- Validação: build sem avisos/erros, 141 testes xUnit (62 Core + 79 Infrastructure), fluxos WPF de central, planos, fila e perfis com zero erros de binding. Biblioteca testada em dois projetos, com retomada, histórico, exclusão, revisão concorrente, edição/aplicação durante execução ativa e reabertura. A verificação de retomada aguardou o fim do carregamento do projeto antes de enviar. Provedores de teste; nenhuma chamada real de modelo neste incremento. Captura mínima revisada e identificada no README.
+- M2 concluído. Release local atualizado em artifacts/app e abertura/encerramento conferidos. Limitações de provedores e de acompanhamento automático permanecem documentadas.
+- Próximo incremento M3: diagnóstico Git por projeto em leitura, mostrando repositório, branch e alterações locais antes de preparar worktrees. Projetos sem Git permanecem utilizáveis; escrita continua serial até integração verificada.

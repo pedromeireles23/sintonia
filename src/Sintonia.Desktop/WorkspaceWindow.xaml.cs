@@ -47,6 +47,17 @@ public partial class WorkspaceWindow : Window
         try { new TaskQueueWindow(await ViewModel.LoadTaskQueueAsync()) { Owner = this }.Show(); }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Fila de tarefas", MessageBoxButton.OK, MessageBoxImage.Information); }
     }
+    private async void OpenFunctionProfiles(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var library = await ViewModel.LoadFunctionProfileLibraryAsync(profile => MessageBox.Show(this,
+                $"Excluir o perfil {profile.Name}? Conversas e tarefas existentes preservam seus parâmetros.", "Perfis de função",
+                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes);
+            new FunctionProfileLibraryWindow(library) { Owner = this }.Show();
+        }
+        catch (Exception exception) { MessageBox.Show(this, exception.Message, "Perfis de função", MessageBoxButton.OK, MessageBoxImage.Information); }
+    }
     private async void CloseAsync(object? sender, CancelEventArgs e)
     {
         if (_closed) return;

@@ -31,11 +31,11 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 ## M2 — Primeiro produto utilizável
 
-Estado: central real utilizável, com autorizações, chefia editável e fila persistente com início explícito, revisão e ajustes das entregas. Perfis reutilizáveis de função ainda pendentes. Escrita serial no mesmo projeto.
+Estado: concluído. Central real utilizável, com autorizações, chefia editável, fila persistente com início explícito/revisão/ajustes e biblioteca de perfis reutilizáveis. Validação: 141 testes xUnit e fluxos WPF de central, planos, fila e perfis; integração nativa tem as provas finitas documentadas. Escrita serial no mesmo projeto; limites de M1/M3/M4 permanecem explícitos.
 
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
-- [ ] Atribuir funções com provedor/modelo padrão e instruções adicionais.
+- [x] Atribuir funções com provedor/modelo padrão e instruções adicionais.
 - [x] Enviar tarefas para sessões novas ou retomadas.
 - [x] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.
 - [x] Mostrar mensagens, ferramentas utilizadas e resultados em tempo real.
@@ -46,6 +46,8 @@ Estado: central real utilizável, com autorizações, chefia editável e fila pe
 Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo disponível, acompanha uma tarefa real do Claude e outra do Codex e abre/retoma suas sessões no Sintonia, com resultados revisáveis e histórico local. Abertura nos aplicativos originais depende de prova separada, conforme [o escopo do produto](docs/PRODUCT_SCOPE.md).
 
 ## M3 — Trabalho paralelo com Git
+
+Próximo incremento: diagnóstico Git por projeto em leitura, identificando repositório, branch e alterações existentes antes de preparar worktrees. Projetos sem Git continuam disponíveis na central e na fila.
 
 - [ ] Criar ou reutilizar worktrees adequadas por tarefa de escrita.
 - [ ] Entregar especificações, contratos e resumos entre sessões.

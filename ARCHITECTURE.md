@@ -4,7 +4,7 @@
 
 C# com .NET 10, interface WPF em MVVM e SQLite para o histórico real. A primeira versão é local e focada no Windows.
 
-Estrutura atual (M0 e adaptadores reais do M1):
+Estrutura atual (M0, adaptadores reais do M1 e central persistente do M2):
 
 ```text
 Sintonia.sln
@@ -38,7 +38,9 @@ O contrato `IProviderAdapter` cobre o fluxo de tarefas do M0. O chat real usa `I
 
 ## Modelo de domínio
 
-`WorkspaceFunctionProfile` é um perfil reutilizável da biblioteca local: nome, função, provedor/modelo padrão, instruções e revisão. A biblioteca é compartilhada entre projetos na mesma instalação. Não guarda permissões nem altera configurações globais dos provedores. Nomes têm normalização Unicode/case para unicidade; revisão protege edição/exclusão concorrente. Conversas e tarefas mantêm cópias de seus parâmetros; nenhuma chave mutável liga suas instruções ao perfil. `FunctionProfile` anterior permanece no cenário demonstrativo M0. O editor da biblioteca ainda entra no próximo incremento.
+`WorkspaceFunctionProfile` é um perfil reutilizável da biblioteca local: nome, função, provedor/modelo padrão, instruções e revisão. A biblioteca é compartilhada entre projetos na mesma instalação. Não guarda permissões nem altera configurações globais dos provedores. Nomes têm normalização Unicode/case para unicidade; revisão protege edição/exclusão concorrente. Conversas e tarefas mantêm cópias de seus parâmetros; nenhuma chave mutável liga suas instruções ao perfil. `FunctionProfile` anterior permanece no cenário demonstrativo M0.
+
+`FunctionProfileLibraryWindow`/`FunctionProfileLibraryViewModel` apresentam criação, edição, reversão e exclusão confirmada. Alterações locais bloqueiam troca/atualização para não descartar o rascunho; fechar solicita descarte quando necessário. A central atualiza somente a biblioteca após salvar. Nova com perfil relê a revisão e preenche um novo rascunho em leitura, preservando a mensagem digitada e sessões existentes, inclusive ativas. O modelo vazio usa o padrão da instalação; disponibilidade é conferida pelo provedor ao enviar. Funções personalizadas são preservadas ao carregar conversas. A chefia usa o nome exato Chefe do projeto e reserva espaço para seu contrato no limite total de 8.000 caracteres. Fluxo em [docs/FUNCTION_PROFILES.md](docs/FUNCTION_PROFILES.md).
 
 | Modelo | Responsabilidade |
 | --- | --- |

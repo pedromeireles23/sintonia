@@ -26,6 +26,7 @@
                     <TextBlock Text="Codex e Claude Code instalados nesta máquina." Foreground="#A8C6B6" FontSize="12" Margin="0,4,0,18" />
                     <Button Content="Revisar planos" Click="OpenProposals" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ReviewPlans" />
                     <Button Content="Fila de tarefas" Click="OpenTasks" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="TaskQueue" />
+                    <Button Content="Perfis de função" Click="OpenFunctionProfiles" IsEnabled="{Binding CanManageFunctionProfiles}" Margin="0,0,0,8" AutomationProperties.AutomationId="ManageFunctionProfiles" />
                     <Button Content="Abrir demonstração" Click="OpenDemo" Background="#2D5642" Foreground="White" />
                 </StackPanel>
             </Grid>
@@ -45,13 +46,19 @@
             </Grid>
             <Expander Grid.Row="2" Header="Função e permissões" Margin="0,0,0,12">
                 <Border Style="{StaticResource Card}" Margin="0,8,0,0" Padding="12">
-                    <StackPanel IsEnabled="{Binding CanEditFunction}">
-                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                            <ComboBox ItemsSource="{Binding Functions}" SelectedItem="{Binding Function}" DisplayMemberPath="Name" Padding="7" Margin="0,0,10,0" />
-                            <ComboBox Grid.Column="1" ItemsSource="{Binding AccessOptions}" SelectedItem="{Binding Access}" DisplayMemberPath="Name" Padding="7" IsEnabled="{Binding CanEditAccess}" />
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <ComboBox ItemsSource="{Binding FunctionProfiles}" SelectedItem="{Binding SelectedFunctionProfile}" DisplayMemberPath="Name" IsEnabled="{Binding CanManageFunctionProfiles}" Padding="7" Margin="0,0,10,0" ToolTip="Escolha um perfil da biblioteca local." AutomationProperties.AutomationId="SavedFunctionProfiles" />
+                            <Button Grid.Column="1" Content="Nova com perfil" Command="{Binding ApplyFunctionProfileCommand}" ToolTip="Aplicar o perfil a uma nova conversa em leitura, preservando a conversa atual." AutomationProperties.AutomationId="ApplyFunctionProfile" />
                         </Grid>
-                        <TextBox Text="{Binding Instructions, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MaxLength="8000" Height="70" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" Padding="8" />
-                        <TextBlock Text="Chefia propõe tarefas para revisão. Codex e Claude podem pedir autorização por ação neste painel. Regras e hooks da instalação continuam aplicáveis." Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                        <StackPanel IsEnabled="{Binding CanEditFunction}">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <ComboBox ItemsSource="{Binding Functions}" SelectedItem="{Binding Function}" DisplayMemberPath="Name" Padding="7" Margin="0,0,10,0" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AccessOptions}" SelectedItem="{Binding Access}" DisplayMemberPath="Name" Padding="7" IsEnabled="{Binding CanEditAccess}" />
+                            </Grid>
+                            <TextBox Text="{Binding Instructions, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MaxLength="8000" Height="70" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" Padding="8" />
+                            <TextBlock Text="Chefia propõe tarefas para revisão. Codex e Claude podem pedir autorização por ação neste painel. Regras e hooks da instalação continuam aplicáveis." Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Expander>

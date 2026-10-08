@@ -53,6 +53,8 @@ public sealed class WorkspaceViewModel : ObservableObject
     private string _instructions = "";
     private FunctionOption _function;
     private AccessOption _access;
+    private WorkspaceFunctionProfile? _profile;
+    private long _profileRevision;
     private string _notice = "Adicione uma pasta de projeto para começar.";
     private bool _ready;
     private bool _stopping;
@@ -72,13 +74,17 @@ public sealed class WorkspaceViewModel : ObservableObject
         CancelCommand = new(() => { if (SelectedConversation is { } current && _jobs.TryGetValue(current.Record.Id, out var job)) job.Stop.Cancel(); }, () => SelectedConversation?.Running == true);
         AllowPermissionCommand = new(() => _permissionAnswer?.TrySetResult(true), () => Permission is not null);
         DenyPermissionCommand = new(() => _permissionAnswer?.TrySetResult(false), () => Permission is not null);
+        ApplyFunctionProfileCommand = new(ApplyFunctionProfileAsync, ShowError, () => CanApplyFunctionProfile);
+        RefreshFunctionProfilesCommand = new(RefreshFunctionProfilesAsync, ShowError, () => CanManageFunctionProfiles);
     }
 
     public ObservableCollection<WorkspaceProject> Projects { get; } = [];
     public ObservableCollection<ConversationViewModel> Conversations { get; } = [];
     public ObservableCollection<string> Models { get; } = [DefaultModel];
+    public ObservableCollection<WorkspaceFunctionProfile> FunctionProfiles { get; } = [];
+    public WorkspaceFunctionProfile? SelectedFunctionProfile { get => _profile; set { Set(ref _profile, value); RefreshCommands(); } }
     public IReadOnlyList<ProviderKind> Providers { get; } = Enum.GetValues<ProviderKind>();
-    public IReadOnlyList<FunctionOption> Functions { get; } =
+    public ObservableCollection<FunctionOption> Functions { get; } =
     [
         new("Conversa", ""),
         new("Chefe do projeto", "Atue como chefe deste projeto. Delimite tarefas pequenas com critérios verificáveis, dependências e indicação de Codex ou Claude. Proponha um plano para revisão; não execute nem delegue automaticamente e não aprove entregas pelo usuário."),
@@ -111,7 +117,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             {
                 _provider = value.Record.Provider; _model = value.Record.Model ?? DefaultModel;
                 _instructions = value.Record.Instructions;
-                _function = Functions.FirstOrDefault(f => f.Name == value.Record.FunctionName) ?? Functions[^1];
+                _function = FindFunction(value.Record.FunctionName);
                 _access = AccessOptions.Single(a => a.Value == value.Record.Access);
                 Notify(nameof(Provider)); Notify(nameof(Model)); Notify(nameof(Instructions)); Notify(nameof(Function)); Notify(nameof(Access));
                 _ = LoadConversationAsync(value);
@@ -146,6 +152,8 @@ public sealed class WorkspaceViewModel : ObservableObject
     public int ActiveCount => _jobs.Count;
     public bool CanConfigure => SelectedConversation is null && !_stopping && !_loadingProject;
     public bool CanReviewProposals => Ready && Project is not null && !_stopping;
+    public bool CanManageFunctionProfiles => Ready && !_stopping;
+    public bool CanApplyFunctionProfile => CanManageFunctionProfiles && Project is not null && !_loadingProject && SelectedFunctionProfile is not null;
     public bool CanEditFunction => SelectedConversation?.Running != true && SelectedConversation?.Record.IsTask != true && !_stopping && !_loadingProject;
     public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && SelectedConversation?.Running != true
         && SelectedConversation?.Record.IsTask != true
@@ -162,6 +170,8 @@ public sealed class WorkspaceViewModel : ObservableObject
     public DelegateCommand CancelCommand { get; }
     public DelegateCommand AllowPermissionCommand { get; }
     public DelegateCommand DenyPermissionCommand { get; }
+    public AsyncCommand ApplyFunctionProfileCommand { get; }
+    public AsyncCommand RefreshFunctionProfilesCommand { get; }
 
     public async Task InitializeAsync()
     {
@@ -169,6 +179,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         {
             await _store.InitializeAsync();
             await _store.RecoverInterruptedRunsAsync();
+            await RefreshFunctionProfilesAsync();
             foreach (var project in await _store.GetProjectsAsync()) Projects.Add(project);
             Ready = true;
             Project = Projects.FirstOrDefault();
@@ -246,6 +257,40 @@ public sealed class WorkspaceViewModel : ObservableObject
         Models.Clear(); Models.Add(DefaultModel);
         if (Provider == ProviderKind.Claude) { Models.Add("opus"); Models.Add("sonnet"); Models.Add("fable"); }
         if (Model != DefaultModel && !Models.Contains(Model)) Models.Add(Model);
+    }
+    private FunctionOption FindFunction(string name)
+    {
+        var function = Functions.FirstOrDefault(f => f.Name == name);
+        if (function is not null) return function;
+        function = new(name, ""); Functions.Add(function); return function;
+    }
+    public async Task RefreshFunctionProfilesAsync()
+    {
+        var revision = ++_profileRevision; var profiles = await _store.GetFunctionProfilesAsync();
+        if (revision != _profileRevision || _stopping) return;
+        var id = SelectedFunctionProfile?.Id;
+        FunctionProfiles.Clear(); foreach (var profile in profiles) FunctionProfiles.Add(profile);
+        SelectedFunctionProfile = profiles.FirstOrDefault(p => p.Id == id) ?? profiles.FirstOrDefault();
+    }
+    public async Task ApplyFunctionProfileAsync()
+    {
+        if (!CanApplyFunctionProfile || SelectedFunctionProfile is not { } selected) return;
+        var projectId = Project!.Id;
+        var current = (await _store.GetFunctionProfilesAsync()).SingleOrDefault(p => p.Id == selected.Id);
+        if (_stopping || Project?.Id != projectId || SelectedFunctionProfile?.Id != selected.Id) return;
+        if (current is null || current.Revision != selected.Revision)
+        {
+            await RefreshFunctionProfilesAsync(); Notice = "O perfil foi alterado ou excluído. Confira a lista atualizada antes de aplicar."; return;
+        }
+        var prompt = Prompt; NewConversation(); Provider = current.Provider; Model = current.Model ?? DefaultModel;
+        Function = FindFunction(current.FunctionName); Instructions = current.Instructions; Access = AccessOptions[0];
+        Prompt = prompt; ResetModels();
+        Notice = $"Perfil {current.Name} aplicado à nova conversa em leitura. Confira o modelo e as instruções antes de enviar.";
+    }
+    public async Task<FunctionProfileLibraryViewModel> LoadFunctionProfileLibraryAsync(Func<WorkspaceFunctionProfile, bool> confirmDelete)
+    {
+        var library = new FunctionProfileLibraryViewModel(_store, RefreshFunctionProfilesAsync, confirmDelete);
+        await library.InitializeAsync(); return library;
     }
     private async Task RefreshModelsAsync()
     {
@@ -409,8 +454,10 @@ public sealed class WorkspaceViewModel : ObservableObject
     private void RefreshCommands()
     {
         Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanEditAccess)); Notify(nameof(CanSend)); Notify(nameof(CanReviewProposals));
+        Notify(nameof(CanManageFunctionProfiles)); Notify(nameof(CanApplyFunctionProfile));
         AddProjectCommand?.Refresh(); RefreshModelsCommand?.Refresh(); NewConversationCommand?.Refresh(); SendCommand?.Refresh(); CancelCommand?.Refresh();
         AllowPermissionCommand?.Refresh(); DenyPermissionCommand?.Refresh();
+        ApplyFunctionProfileCommand?.Refresh(); RefreshFunctionProfilesCommand?.Refresh();
     }
     private static string StateText(ChatRunState? state) => state switch
     {
