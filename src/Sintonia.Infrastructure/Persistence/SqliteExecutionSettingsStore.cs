@@ -25,6 +25,8 @@ public sealed partial class SqliteWorkspaceStore
                 """, ("$project", saved.ProjectId), ("$limit", saved.MaxConcurrentSessions), ("$revision", saved.Revision));
             Execute(connection, transaction, "INSERT INTO project_execution_limits(project_id,max_attempts,max_seconds) VALUES($project,$attempts,$seconds) ON CONFLICT(project_id) DO UPDATE SET max_attempts=$attempts,max_seconds=$seconds",
                 ("$project", saved.ProjectId), ("$attempts", saved.MaxAttempts), ("$seconds", saved.MaxExecutionSeconds));
+            Execute(connection, transaction, "INSERT INTO project_token_limits(project_id,max_tokens,reservation) VALUES($project,$limit,$reservation) ON CONFLICT(project_id) DO UPDATE SET max_tokens=$limit,reservation=$reservation",
+                ("$project", saved.ProjectId), ("$limit", saved.MaxReportedTokens), ("$reservation", saved.TokenReservation));
             transaction.Commit(); return saved;
         });
     }
@@ -33,13 +35,15 @@ public sealed partial class SqliteWorkspaceStore
     {
         using var command = connection.CreateCommand(); command.Transaction = transaction;
         command.CommandText = """
-            SELECT COALESCE(s.revision,0),COALESCE(s.session_limit,3),COALESCE(l.max_attempts,3),COALESCE(l.max_seconds,300) FROM projects p
-            LEFT JOIN project_execution_settings s ON s.project_id=p.id LEFT JOIN project_execution_limits l ON l.project_id=p.id WHERE p.id=$project
+            SELECT COALESCE(s.revision,0),COALESCE(s.session_limit,3),COALESCE(l.max_attempts,3),COALESCE(l.max_seconds,300),b.max_tokens,COALESCE(b.reservation,1000) FROM projects p
+            LEFT JOIN project_execution_settings s ON s.project_id=p.id LEFT JOIN project_execution_limits l ON l.project_id=p.id
+            LEFT JOIN project_token_limits b ON b.project_id=p.id WHERE p.id=$project
             """;
         command.Parameters.AddWithValue("$project", projectId);
         using var reader = command.ExecuteReader();
         if (!reader.Read()) throw new InvalidOperationException("Projeto não encontrado.");
-        var result = new ProjectExecutionSettings(projectId, reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3)); result.Validate(); return result;
+        var result = new ProjectExecutionSettings(projectId, reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3),
+            reader.IsDBNull(4) ? null : reader.GetInt64(4), reader.GetInt64(5)); result.Validate(); return result;
     }
 
     private static WorkspaceExecutionSlot ReadExecutionScope(SqliteConnection connection, SqliteTransaction transaction,

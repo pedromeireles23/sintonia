@@ -20,6 +20,7 @@ public interface IWorkspaceStore
     Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null, WorkspaceExecutionSlot? expectedSlot = null, ProposedTask? expectedDefinition = null, ProjectExecutionSettings? expectedSettings = null);
     Task<ProjectExecutionSettings> GetProjectExecutionSettingsAsync(string projectId);
     Task<ProjectExecutionSettings> SaveProjectExecutionSettingsAsync(ProjectExecutionSettings settings);
+    Task<ProjectTokenBudget> GetProjectTokenBudgetAsync(string projectId);
     Task CheckpointRunAsync(ChatRun run, WorkspaceConversation conversation);
     Task FinishRunAsync(ChatRun run, WorkspaceConversation conversation, IReadOnlyList<ChatEvent> events);
     Task RecoverInterruptedRunsAsync();

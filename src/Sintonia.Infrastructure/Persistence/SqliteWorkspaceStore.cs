@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 14) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 15) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -86,7 +86,10 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 4), finished_at TEXT, error TEXT);
             CREATE UNIQUE INDEX IF NOT EXISTS one_archived_worktree ON task_worktree_cleanups(task_id) WHERE state=1;
             CREATE TABLE IF NOT EXISTS run_token_usage(run_id TEXT PRIMARY KEY REFERENCES runs(id), definition TEXT NOT NULL);
-            PRAGMA user_version=14;
+            CREATE TABLE IF NOT EXISTS project_token_limits(project_id TEXT PRIMARY KEY REFERENCES projects(id),
+                max_tokens INTEGER CHECK(max_tokens BETWEEN 1 AND 1000000000000), reservation INTEGER NOT NULL CHECK(reservation BETWEEN 1 AND 1000000000000));
+            CREATE TABLE IF NOT EXISTS run_token_reservations(run_id TEXT PRIMARY KEY REFERENCES runs(id), tokens INTEGER NOT NULL CHECK(tokens>=0));
+            PRAGMA user_version=15;
             """);
         transaction.Commit();
         return true;
@@ -192,11 +195,15 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         var slot = ReserveExecutionScope(connection, transaction, run, expectedWorktree, expectedSlot);
         if (expectedSettings is not null && ReadExecutionSettings(connection, transaction, slot.ProjectId) != expectedSettings)
             throw new InvalidOperationException("Os limites mudaram antes da reserva. Atualize e confira antes de executar.");
+        var budget = ReadProjectTokenBudget(connection, transaction, slot.ProjectId);
+        if (!budget.CanAdmit(out var budgetReason)) throw new InvalidOperationException(budgetReason);
         ReserveTask(connection, transaction, run, taskId, expectedWorktree, expectedDefinition);
         Execute(connection, transaction, "INSERT INTO runs(id,conversation_id,prompt,state,started_at) VALUES($id,$conversation,$prompt,$state,$started)",
             ("$id", run.Id), ("$conversation", run.ConversationId), ("$prompt", run.Prompt), ("$state", (int)ChatRunState.Running), ("$started", run.StartedAt.ToString("O")));
         Execute(connection, transaction, "INSERT INTO run_execution_scopes(run_id,definition) VALUES($id,$definition)",
             ("$id", run.Id), ("$definition", System.Text.Json.JsonSerializer.Serialize(slot)));
+        Execute(connection, transaction, "INSERT INTO run_token_reservations(run_id,tokens) VALUES($id,$tokens)",
+            ("$id", run.Id), ("$tokens", budget.Settings.MaxReportedTokens is null ? 0 : budget.Settings.TokenReservation));
         if (taskId is not null) Execute(connection, transaction, "UPDATE work_tasks SET last_run_id=$run WHERE id=$task", ("$run", run.Id), ("$task", taskId));
         transaction.Commit();
         return true;
