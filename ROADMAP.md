@@ -53,6 +53,8 @@ Estado: diagnóstico Git, worktrees, diffs, commit revisado, combinação separa
 
 Validação atual: build sem avisos/erros, 69 testes Core, sete novos de publicação e 26 regressões de validação/fila/concorrência aprovados. WPF --publication/--validation/--sessions aprovados, zero erros de binding, capturas revisadas. Nenhum modelo chamado neste incremento.
 
+Fechamento M3/M4: 270 testes verificados, incluindo reexecução aprovada do único teste com expectativa antiga de schema futuro. WPF --chief-plan/--queue/--proposals também aprovados. Release atualizado e abertura/encerramento normal conferidos; [registro completo](docs/DEVELOPMENT_LOG.md).
+
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
 - [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
 - [x] Entregar especificações, contratos e resumos entre sessões, incluindo resultado/revisão e commit/árvore publicados.

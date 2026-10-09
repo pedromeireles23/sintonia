@@ -90,6 +90,8 @@ M4 assistido conectado no schema 12: Chefia e plano prepara no chat o estado/res
 
 Próximo incremento concreto M3: limpeza assistida de worktrees encerradas, com prévia/recusa diante de arquivos locais ou necessários e preservação do histórico. Atualmente todas as pastas são conservadas. Escrita direta permanece exclusiva; projetos sem Git continuam usando chat/fila. Negativas reais de Bash/Edit/MCP, interações especiais e acompanhamento de background no Claude permanecem parciais. M4 não tem rodadas automáticas ou quotas estimadas.
 
+Fechamento desta sessão: 270 testes verificados (69 Core + 201 Infrastructure). A rodada geral teve 269 aprovados e uma expectativa antiga de schema futuro; o teste foi corrigido para consultar a versão atual + 1 e passou novamente em Debug/Release. Build final sem avisos/erros, Release local atualizado e abertura/encerramento normal conferidos. M3 validação/publicação e M4 acompanhamento/revisão/limites estão commitados e sincronizados com `origin/main`; cronologia em `git log`.
+
 ## Critério da primeira versão útil
 
 Selecionar a pasta de um projeto, atribuir uma tarefa ao Claude e outra ao Codex, ver ambos executando e revisar suas entregas no mesmo painel. A integração segura das mudanças paralelas também precisa de worktrees, revisão e teste do conjunto.
