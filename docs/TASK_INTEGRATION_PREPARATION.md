@@ -37,6 +37,14 @@ A recuperação tenta a trava de integração e deixa uma preparação viva inta
 
 Antes/depois, confere raiz, Git comum, HEAD destacado e bloqueio da worktree, além da identidade/limpeza de origem/destino. Inspeciona as árvores de destino, entrega, base registrada e bases efetivas do merge. Recusa submódulos, links simbólicos e filtros de checkout ou drivers personalizados de merge. Filtros e hooks ficam desativados nos processos; driver padrão é o `text` interno, sem mudar configuração persistente. Estratégia, ausência de autostash, assinatura e rerere são explícitas. Regras de confiança continuam aplicadas; não consulta rede ou ignora permissões globalmente.
 
+### Diretórios redirecionados no Windows
+
+Em aplicativos desktop empacotados, o caminho lógico `%LOCALAPPDATA%/Sintonia/integrations` pode apontar para uma pasta física em `LocalCache`. O Git informa o caminho físico, enquanto a intenção mantém o caminho lógico. Quando os nomes divergem, `GitDirectoryIdentity` abre as duas pastas existentes para consulta de metadados e compara o número de série do volume e o identificador de arquivo de 128 bits. Só reconhece a equivalência quando os dois handles identificam o mesmo diretório. Não substitui prefixos nem presume o nome de um pacote.
+
+A recusa de links/junções nos caminhos é mantida antes/depois da consulta; a abertura não segue um reparse point final. Pasta ausente ou falha da consulta nativa não comprova equivalência. HEAD, branch destacada, bloqueio e Git comum continuam sendo conferidos. O caminho registrado permanece inalterado, inclusive ao reabrir/validar/publicar; não há migração de banco nem repetição de operações em atenção. Uma preparação interrompida anterior conserva sua pasta e precisa de uma nova preparação explícita.
+
+Contrato nativo: [FILE_ID_INFO](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_id_info), [GetFileInformationByHandleEx](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getfileinformationbyhandleex) e [abertura de diretórios](https://learn.microsoft.com/en-us/windows/win32/fileio/obtaining-a-handle-to-a-directory). A equivalência física nova se aplica à conferência da combinação; outros gerenciadores de diretório conservam seus contratos.
+
 Prazo total de 60 segundos para o executor, streams assíncronos limitados a 64 Ki caracteres e cancelamento com encerramento da árvore do processo. Listas extensas/incompletas são recusadas; no máximo 1.000 caminhos de conflito persistidos. A integração não recebe comandos arbitrários de modelos nem presume uma stack específica.
 
 Índices, commits, branches, arquivos locais e ignorados de origem/destino ficam preservados. Ignorados não são copiados para a combinação; configurações e dependências necessárias aos testes ainda precisarão de um fluxo explícito. Worktrees compartilham objetos/configuração Git e não constituem um sandbox. Processos externos podem modificar arquivos após as conferências: `Combined` é um estado salvo da preparação, não uma prova permanente de que a pasta continua idêntica.
@@ -44,6 +52,8 @@ Prazo total de 60 segundos para o executor, streams assíncronos limitados a 64 
 ## Validação e próximos passos
 
 Testes usam Git real em pastas temporárias e runs/temporização simulados, sem chamar modelos. Conferem combinação, conflitos, árvores/HEAD/índices, ignorados, configurações/hooks, caminhos existentes, prévia obsoleta, filtros/submódulos, cancelamento com resposta tardia, reservas vivas, recuperação sem repetição e migração do schema 6.
+
+`GitDirectoryIdentityTests` também usa o diretório padrão real, incluindo o redirecionamento observado neste ambiente. Prepara a combinação, reabre o SQLite, executa um verificador de teste e publica no repositório exclusivo. Confere arquivo/árvore publicados, histórico e liberação da dependência sem outro run; Git comum diferente e bloqueio alterado são recusados. Testes de identidade distinguem diretórios com mesmo nome/conteúdo, caminhos estendidos Windows, ausências/dispositivos e junções. Os diretórios únicos criados por esses testes são removidos após a verificação, sem atingir combinações anteriores.
 
 Teste WPF `--combinations` percorre registro exigido, botão, recusa/prévia obsoleta, combinação e conflito reais, original/índice/ignorado preservados, navegação/reabertura, cancelamento/resposta tardia e fechamento da central com efeitos parciais preservados. Layout normal/mínimo revisado, sem erros de binding; runs e temporização simulados. Regressões de registro/diffs também verificadas.
 

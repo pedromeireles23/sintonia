@@ -22,7 +22,9 @@ Limite de teste: 100.000 tokens informados, com reserva de 20.000 por início. A
 
 A primeira preparação recusou corretamente um vínculo divergente: neste ambiente do Codex desktop, a pasta lógica `%LOCALAPPDATA%/Sintonia/integrations` foi redirecionada para `AppData/Local/Packages/.../LocalCache/Local/Sintonia/integrations`. O Git informou o caminho físico. A pasta parcial e o registro NeedsAttention foram preservados.
 
-O diagnóstico passou a usar raiz explícita de combinações dentro da sua pasta exclusiva, como já fazem os testes Git. A entrega Codex já concluída foi retomada sem chamada adicional; depois ocorreu o único turno Claude. A prova não valida o caminho padrão de combinações sob esse redirecionamento. Compatibilidade do diretório padrão com esse ambiente exige incremento próprio; não houve flexibilização das conferências de identidade.
+O diagnóstico passou a usar raiz explícita de combinações dentro da sua pasta exclusiva, como já fazem os testes Git. A entrega Codex já concluída foi retomada sem chamada adicional; depois ocorreu o único turno Claude. Essa prova com modelos usou a raiz explícita, conservando as conferências de identidade.
+
+Incremento posterior corrigiu a conferência da combinação pelo identificador físico de diretórios Windows. Um teste separado, sem modelos, percorreu criação no diretório padrão real redirecionado, reabertura, validação em processo e publicação no repositório exclusivo. Caminhos registrados e operações antigas em atenção permanecem intactos, sem replay. [Contrato e verificação](TASK_INTEGRATION_PREPARATION.md#diretórios-redirecionados-no-windows).
 
 ## Reprodução manual
 

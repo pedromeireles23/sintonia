@@ -65,13 +65,13 @@ public sealed class GitTaskIntegrationPreparer(GitTaskWorktreeManager manager, s
     {
         GitTaskWorktreeManager.CheckPath(intent.CheckoutDirectory);
         var list = await RunAsync(intent.CheckoutDirectory, token, "worktree", "list", "--porcelain", "-z").ConfigureAwait(false); RequireSuccess(list);
-        var entry = GitWorktreeListParser.Parse(list.StandardOutput).SingleOrDefault(e => SamePath(e.Directory, intent.CheckoutDirectory));
+        var entry = GitWorktreeListParser.Parse(list.StandardOutput).SingleOrDefault(e => GitDirectoryIdentity.Same(e.Directory, intent.CheckoutDirectory));
         if (entry is null || entry.Head != intent.Reservation.Target.Commit || entry.Branch is not null || entry.LockReason != LockReason(intent) || entry.Prunable)
             throw new InvalidOperationException("O vínculo da pasta de combinação mudou. Confira HEAD, bloqueio e diretório.");
         var root = await RunAsync(intent.CheckoutDirectory, token, "rev-parse", "--show-toplevel").ConfigureAwait(false); RequireSuccess(root);
         var common = await RunAsync(intent.CheckoutDirectory, token, "rev-parse", "--path-format=absolute", "--git-common-dir").ConfigureAwait(false); RequireSuccess(common);
-        if (!SamePath(root.StandardOutput.TrimEnd('\r', '\n'), intent.CheckoutDirectory)
-            || !SamePath(common.StandardOutput.TrimEnd('\r', '\n'), intent.Reservation.Target.CommonGitDirectory))
+        if (!GitDirectoryIdentity.Same(root.StandardOutput.TrimEnd('\r', '\n'), intent.CheckoutDirectory)
+            || !GitDirectoryIdentity.Same(common.StandardOutput.TrimEnd('\r', '\n'), intent.Reservation.Target.CommonGitDirectory))
             throw new InvalidOperationException("A pasta da combinação foi redirecionada para outro repositório.");
     }
     private async Task<GitRepositoryDiagnostic> StatusAsync(TaskIntegrationPreparation intent, CancellationToken token)
@@ -80,7 +80,6 @@ public sealed class GitTaskIntegrationPreparer(GitTaskWorktreeManager manager, s
         RequireSuccess(status); return GitStatusParser.Parse(intent.CheckoutDirectory, intent.CheckoutDirectory, status.StandardOutput);
     }
     private static string LockReason(TaskIntegrationPreparation intent) => "Sintonia: combinação " + intent.Reservation.Id;
-    private static bool SamePath(string first, string second) => string.Equals(Path.GetFullPath(first), Path.GetFullPath(second), StringComparison.OrdinalIgnoreCase);
     private static void RequireSuccess(ProcessProbeResult result)
     { if (result.ExitCode != 0) throw new InvalidOperationException($"O Git recusou a combinação (código {result.ExitCode}). Confira a pasta preservada; nenhum arquivo original foi sobrescrito."); }
 }

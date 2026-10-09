@@ -128,6 +128,8 @@ Autenticação permanece nos mecanismos suportados dos provedores e de suas ferr
 
 `TaskIntegrationPreparationService` adquire a trava nativa antes da reserva, persiste intenção e chama `GitTaskIntegrationPreparer` para combinar numa nova worktree bloqueada/destacada. Merge ort sem commit/fast-forward preserva HEAD de referência; resultado guarda árvore ou caminhos conflitantes. Término e liberação são atômicos; cancelamento/interrupção conservam pastas parciais. Não publica, executa testes do projeto ou libera dependentes. Detalhes em [docs/TASK_INTEGRATION_PREPARATION.md](docs/TASK_INTEGRATION_PREPARATION.md).
 
+Na conferência da combinação, `GitDirectoryIdentity` reconhece caminhos Windows distintos somente quando handles das pastas existentes têm o mesmo volume/identificador de arquivo de 128 bits. Isso suporta LocalAppData redirecionado por aplicativos empacotados sem reescrever intenções ou relaxar vínculos Git/recusas de links/junções. Falha de consulta não comprova equivalência; estados antigos em atenção não são repetidos. Schema permanece 15.
+
 Português, com projetos, funções, tarefas, sessões e revisão. Modo demonstrativo precisa estar visível. O estado da execução pertence ao serviço, e não ao controle visual. Evitar bloquear a thread da interface com processos, banco ou Git.
 
 Central para várias pastas de projeto, com chat, escolha de provedor/modelo e navegação de sessões. O histórico local vincula conversas ao identificador nativo, modelo, função e diretório; trocar de provedor cria outra conversa. Abrir a conversa no Sintonia é diferente de abrir/controlar uma janela do aplicativo original; esta segunda capacidade depende de interface verificada.
