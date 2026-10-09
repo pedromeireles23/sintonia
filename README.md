@@ -94,7 +94,7 @@ Abra **Fila de tarefas**, escolha um plano aprovado e use **Encaminhar à fila**
 
 ![Fila e revisão em tamanho mínimo — dados de teste com provedores simulados](docs/images/sintonia-fila.png)
 
-Cada tarefa respeita o limite salvo de tentativas explícitas. **Chefia e plano** prepara estado/resultados/revisões/commits no chat da chefia. Revise e envie; confirme a nova proposta em **Revisar planos** e use **Conferir e atualizar este plano** na fila. Apenas tarefas ainda não iniciadas e sem worktree podem mudar; sessões/resultados/histórico ficam preservados. [Acompanhamento](docs/PLAN_UPDATES.md) e [fila](docs/TASK_QUEUE.md). A prova real finita da fila fez um turno de leitura por provedor e conferiu contexto/reabertura; escrita e permissões visuais têm testes simulados e provas separadas dos adaptadores.
+Cada tarefa respeita o limite salvo de tentativas explícitas. **Chefia e plano** prepara estado/resultados/revisões/commits no chat da chefia. Revise e envie; confirme a nova proposta em **Revisar planos** e use **Conferir e atualizar este plano** na fila. Apenas tarefas ainda não iniciadas e sem worktree podem mudar; sessões/resultados/histórico ficam preservados. [Acompanhamento](docs/PLAN_UPDATES.md) e [fila](docs/TASK_QUEUE.md). A [prova real finita com Git](docs/REAL_COLLABORATION.md) fez um turno de escrita por provedor: JSON Codex integrado antes da conferência Markdown Claude, com diffs, revisão, validação/publicação e tokens preservados. Fluxos visuais têm testes WPF separados com provedores simulados.
 
 ![Chefia e plano após revisão da fila — dados de teste e provedores simulados, sem chamadas de modelos](docs/images/sintonia-chefia.png)
 

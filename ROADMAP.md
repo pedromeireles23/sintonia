@@ -91,6 +91,8 @@ Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sess�
 
 ## M6 — Fluxos para projetos gerais
 
+Prova real finita de JSON + documentação Markdown concluída entre Codex/Claude, com diffs, revisão, validação, publicação e contadores reais. Não representa exemplos completos de stacks/projetos distintos nem validação de todas as extensões. [Evidência e limitações](docs/REAL_COLLABORATION.md).
+
 - [x] Permitir configurar comandos de validação e critérios adequados à stack ou ao tipo de projeto, com editor e execução/histórico WPF.
 - [ ] Integrar entregas de código, documentação, análise e arquivos conforme o projeto.
 - [ ] Preparar exemplos de projetos distintos que combinem entregas das duas ferramentas.

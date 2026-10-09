@@ -27,6 +27,8 @@ Testes de protocolo usam processos simulados: vários passos, repetições, turn
 
 ## Exibição WPF
 
+Posteriormente, a [prova real de colaboração](REAL_COLLABORATION.md) confirmou emissão e persistência: 41.715 tokens parciais Codex e 97.617 do turno principal Claude. Reabertura preservou os valores e o agregado 139.332, sem repetir calls ou somar componentes de cache/raciocínio novamente. As lacunas e escopos acima continuam válidos.
+
 Respostas do chat e da fila mostram os tokens do próprio run, incluindo contagens parciais e indisponibilidade explícita. Reabrir conserva a medição salva. Atualização visual tardia não substitui a medição recebida no resultado. Na aba **Tentativas**, a medição acompanha a tentativa selecionada; não soma tentativas nem herda dados de outra resposta. Textos extensos ficam acessíveis por rolagem no tamanho mínimo.
 
 WPF `--tokens` valida chat, provedores misturados, medição informada/parcial, ausência de campos, cancelamento, navegação e reabertura. `--queue` verifica consumos distintos das tentativas antigas/atuais, dependências, revisão e reabertura. Dados/provedores simulados, capturas normal/mínima revisadas, zero erros de binding e nenhum modelo chamado. Regressões `--usage` e `--chief-plan` aprovadas.

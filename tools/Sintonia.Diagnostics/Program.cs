@@ -4,10 +4,25 @@ using Sintonia.Infrastructure.Diagnostics;
 using Sintonia.Infrastructure.Providers;
 
 Console.OutputEncoding = Encoding.UTF8;
-using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan.FromSeconds(25) : TimeSpan.FromMinutes(3));
+using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan.FromSeconds(25)
+    : args.FirstOrDefault() is "collaboration" or "collaboration-resume" ? TimeSpan.FromMinutes(6) : TimeSpan.FromMinutes(3));
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["verify-collaboration", var stage, var marker])
+    {
+        if (stage is not ("data" or "complete")) throw new ProviderException("Etapa de verificação inválida.");
+        WorkspaceCollaborationProbe.VerifyFiles(Environment.CurrentDirectory, marker, stage == "complete");
+        Console.WriteLine("PASS: arquivos da colaboração conferidos sem modelos."); return 0;
+    }
+    if (args is ["collaboration"])
+    {
+        await WorkspaceCollaborationProbe.RunAsync(cancellation.Token); return 0;
+    }
+    if (args is ["collaboration-resume", var probeDirectory])
+    {
+        await WorkspaceCollaborationProbe.ResumeAsync(probeDirectory, cancellation.Token); return 0;
+    }
     if (args is ["usage", var usageName] && Enum.TryParse<ProviderKind>(usageName, true, out var usageProvider) && Enum.IsDefined(usageProvider))
     {
         IProviderUsageReader reader = usageProvider == ProviderKind.Codex ? new CodexConversationProvider() : new ClaudeConversationProvider();
@@ -124,7 +139,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude | plan Codex/Claude | queue"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>
@@ -141,6 +156,8 @@ try
 }
 catch (OperationCanceledException) { Console.Error.WriteLine("Diagnóstico cancelado ou prazo excedido."); return 2; }
 catch (ProviderException exception) { Console.Error.WriteLine(exception.Message); return 1; }
+catch (Exception exception) when (args.FirstOrDefault() is "collaboration" or "collaboration-resume")
+{ Console.Error.WriteLine("Prova interrompida; entregas preservadas e nenhum reenvio automático. " + exception.Message); return 1; }
 
 sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
 {
