@@ -9,6 +9,24 @@ using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["extensions", var extensionName] && Enum.TryParse<ProviderKind>(extensionName, true, out var extensionProvider) && Enum.IsDefined(extensionProvider))
+    {
+        IProviderExtensionReader reader = extensionProvider == ProviderKind.Codex ? new CodexConversationProvider() : new ClaudeConversationProvider();
+        try
+        {
+            var snapshot = await reader.ReadExtensionsAsync(Environment.CurrentDirectory, cancellation.Token);
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(snapshot, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            }));
+            Console.WriteLine("Inventário de metadados encerrado; nenhum prompt ou turno de modelo enviado. Nomes/estados projetados, sem configurações, credenciais ou stderr.");
+            return 0;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Console.Error.WriteLine("Inventário de extensões não concluído; detalhes internos omitidos. Nenhum prompt foi enviado."); return 1;
+        }
+    }
     if (args is ["verify-collaboration", var stage, var marker])
     {
         if (stage is not ("data" or "complete")) throw new ProviderException("Etapa de verificação inválida.");
@@ -139,7 +157,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>

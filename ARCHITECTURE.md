@@ -26,6 +26,8 @@ tools/
 docs/
 ```
 
+O inventário de extensões usa `IProviderExtensionReader`, com metadados projetados e avisos sobre categorias indisponíveis. Codex compartilha a consulta paginada MCP com seu diagnóstico de capacidades; Claude consulta instalações, inicialização stdio e estado MCP sem enviar prompt. Não persiste configuração nem usa contratos experimentais de plugins Codex. Comparação e limites em [docs/PROVIDER_EXTENSIONS.md](docs/PROVIDER_EXTENSIONS.md).
+
 O Core não depende de WPF ou dos executáveis dos provedores. Infrastructure implementa contratos do Core. Desktop apresenta dados e compõe os serviços; não executa regras de negócio dentro de eventos visuais. Começar com apenas os projetos necessários ao incremento.
 
 No M0, `SchedulingPolicy` decide admissões e valida o grafo; `TaskCoordinator` aplica reservas e transições sob uma trava curta, executando os adaptadores fora dela. Slots cancelados permanecem reservados até a tentativa parar. Snapshots e eventos entregues à UI são cópias de leitura; os ViewModels despacham atualizações para a thread WPF.

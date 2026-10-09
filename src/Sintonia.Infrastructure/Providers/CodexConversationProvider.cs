@@ -37,19 +37,11 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
                     model.GetProperty("displayName").GetString()!, model.GetProperty("isDefault").GetBoolean()));
             cursor = page.TryGetProperty("nextCursor", out var next) ? next.GetString() : null;
         } while (cursor is not null && models.Count < 500);
-        var extensions = new List<string>();
-        var warnings = new List<string>();
-        var skills = await rpc.RequestAsync("skills/list", new { cwds = new[] { directory } }, cancellationToken).ConfigureAwait(false);
-        foreach (var entry in skills.GetProperty("data").EnumerateArray())
-        {
-            foreach (var skill in entry.GetProperty("skills").EnumerateArray())
-                if (skill.GetProperty("enabled").GetBoolean()) extensions.Add("Skill: " + skill.GetProperty("name").GetString());
-            foreach (var error in entry.GetProperty("errors").EnumerateArray()) warnings.Add("Uma skill não carregou: " + error.GetProperty("message").GetString());
-        }
-        var mcp = await rpc.RequestAsync("mcpServerStatus/list", new { limit = 100 }, cancellationToken).ConfigureAwait(false);
-        foreach (var server in mcp.GetProperty("data").EnumerateArray())
-            extensions.Add("MCP: " + server.GetProperty("name").GetString());
-        return new(Kind, models, extensions, warnings);
+        var snapshot = await ReadExtensionsAsync(rpc, directory, cancellationToken).ConfigureAwait(false);
+        var extensions = snapshot.Extensions.Where(e => e.Kind != ProviderExtensionKind.Skill || e.Enabled == true)
+            .Select(e => e.Kind == ProviderExtensionKind.Skill ? "Skill: " + e.Name
+                : $"MCP: {e.Name} — {ConnectionDescription(e.Status)}; autenticação {AuthenticationDescription(e.AuthStatus)}; ferramentas {e.ToolCount?.ToString() ?? "indisponível"}").ToArray();
+        return new(Kind, models, extensions, snapshot.Warnings);
     }
 
     public async Task<ConversationResult> SendAsync(ConversationRequest request, IProgress<ConversationEvent> progress,

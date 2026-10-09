@@ -6,6 +6,7 @@ internal static class ProtocolFixture
     public static async Task<int> RunCodexAsync(string scenario)
     {
         string? pendingTurn = null;
+        var metadataPage = 0;
         while (await Console.In.ReadLineAsync() is { } line)
         {
             using var document = JsonDocument.Parse(line);
@@ -23,6 +24,28 @@ internal static class ProtocolFixture
             switch (method.GetString())
             {
                 case "initialize": Reply(id, new { userAgent = "fixture" }); break;
+                case "model/list": Reply(id, new { data = new[] { new { model = "fixture-model", displayName = "Teste", isDefault = true, hidden = false } } }); break;
+                case "skills/list":
+                    if (!parameters.GetProperty("forceReload").GetBoolean()) return 20;
+                    Reply(id, new { data = new[] { new { skills = new[]
+                    {
+                        new { name = "active-skill", enabled = true, scope = "user", pluginId = (string?)"example-plugin" },
+                        new { name = "disabled-skill", enabled = false, scope = "repo", pluginId = (string?)null }
+                    }, errors = new[] { new { message = "SEGREDO erro interno", path = "SEGREDO caminho" } } } } }); break;
+                case "mcpServerStatus/list":
+                    if (scenario == "rpc-extensions-wait") { await Task.Delay(TimeSpan.FromMinutes(1)); break; }
+                    if (scenario == "rpc-extensions-exit") return 7;
+                    if (scenario == "rpc-extensions-error") { Emit(new { id, error = new { code = -32601, message = "SEGREDO servidor" } }); break; }
+                    if (scenario == "rpc-extensions-invalid") { Reply(id, new { data = "SEGREDO inválido" }); break; }
+                    if (parameters.GetProperty("detail").GetString() != "toolsAndAuthOnly") return 21;
+                    var firstPage = parameters.GetProperty("cursor").ValueKind == JsonValueKind.Null;
+                    Reply(id, new { data = new[] { new
+                    {
+                        name = firstPage ? "first-server" : "second-server", runtimeStatus = scenario == "rpc-extensions-future" ? "SEGREDO estado futuro" : firstPage ? (string?)null : "authenticationRequired",
+                        authStatus = scenario == "rpc-extensions-future" ? "SEGREDO autenticação futura" : firstPage ? "unsupported" : "notLoggedIn", pluginId = "example-plugin",
+                        tools = new Dictionary<string, object> { ["example"] = new { description = "SEGREDO descrição", inputSchema = new { secret = "SEGREDO" } } },
+                        toolsError = firstPage ? (string?)null : "SEGREDO erro", config = new { env = "SEGREDO ambiente", url = "SEGREDO URL" }
+                    } }, nextCursor = scenario == "rpc-extensions-many" ? "page-" + ++metadataPage : firstPage || scenario == "rpc-extensions-repeat" ? "page-2" : (string?)null }); break;
                 case "account/read": Reply(id, new { account = new { type = scenario == "rpc-api" ? "apiKey" : "chatgpt" } }); break;
                 case "account/rateLimits/read":
                     if (scenario == "rpc-usage-wait") { await Task.Delay(TimeSpan.FromMinutes(1)); break; }
@@ -37,6 +60,7 @@ internal static class ProtocolFixture
                 case "thread/read": Reply(id, new { thread = new { id = ThreadId, cwd = scenario == "rpc-wrong-directory" ? "C:\\elsewhere" : Environment.CurrentDirectory, modelProvider = "openai" } }); break;
                 case "thread/start":
                 case "thread/resume":
+                    if (scenario.StartsWith("rpc-extensions", StringComparison.Ordinal)) return 22;
                     if (method.GetString() == "thread/resume" && scenario == "rpc-tokens-baseline")
                         Tokens("previous-turn", Breakdown(1000, 200, 100, 20, 50));
                     if (scenario.StartsWith("rpc-usage-", StringComparison.Ordinal)) File.WriteAllText(Path.Combine(Environment.CurrentDirectory, "thread-started.txt"), "SIMULAÇÃO");
@@ -93,6 +117,7 @@ internal static class ProtocolFixture
             Emit(new { loggedIn = true, authMethod = args[0] == "claude-api" ? "api_key" : "claude.ai", apiProvider = "firstParty", subscriptionType = "pro" });
             return 0;
         }
+        if (args[0].StartsWith("claude-extensions", StringComparison.Ordinal)) return await RunClaudeExtensionsAsync(args);
         var index = Array.FindIndex(args, a => a is "--session-id" or "--resume");
         var session = args[index + 1];
         if (!args.Contains("--input-format") || !args.Contains("--permission-prompt-tool") || !args.Contains("stdio")
@@ -176,6 +201,49 @@ internal static class ProtocolFixture
             modelUsage = new { restored_history_and_subagents = new { inputTokens = 999999, outputTokens = 999999 } }, total_cost_usd = 99999,
             permission_denials = args[0] == "claude-denied" ? new[] { new { tool_name = "Write" } } : [] });
         if ((await Console.In.ReadToEndAsync()).Length != 0) return 16; // No late answer after withdrawal/terminal result.
+        return 0;
+    }
+
+    private static async Task<int> RunClaudeExtensionsAsync(string[] args)
+    {
+        if (args.Contains("plugin"))
+        {
+            Emit(new[] { new { id = "example@market", enabled = true, scope = "user", installPath = "SEGREDO caminho" },
+                new { id = "disabled@market", enabled = false, scope = "project", installPath = "SEGREDO caminho" } });
+            return 0;
+        }
+        if (!args.Contains("--no-session-persistence") || !args.Contains("manual") || !args.Contains("host")
+            || args.Any(a => a is "--bare" or "--safe-mode" or "--dangerously-skip-permissions" or "--system-prompt")) return 23;
+        while (await Console.In.ReadLineAsync() is { } line)
+        {
+            using var document = JsonDocument.Parse(line);
+            var root = document.RootElement;
+            if (root.GetProperty("type").GetString() == "control_response")
+            {
+                if (root.GetProperty("response").GetProperty("subtype").GetString() != "error") return 24;
+                continue;
+            }
+            if (root.GetProperty("type").GetString() != "control_request") return 25; // Never a user prompt.
+            var id = root.GetProperty("request_id").GetString();
+            var subtype = root.GetProperty("request").GetProperty("subtype").GetString();
+            if (subtype == "initialize")
+            {
+                if (args[0] == "claude-extensions-control") Emit(new { type = "control_request", request_id = "tool-1", request = new { subtype = "can_use_tool", tool_name = "Write", input = new { secret = "SEGREDO" } } });
+                Emit(new { type = "control_response", response = new { subtype = "success", request_id = id,
+                    response = new { commands = new[] { new { name = "example:review", description = "SEGREDO descrição" } }, account = "SEGREDO identidade" } } });
+            }
+            else if (subtype == "mcp_status")
+            {
+                if (args[0] == "claude-extensions-wait") { await Task.Delay(TimeSpan.FromMinutes(1)); continue; }
+                if (args[0] == "claude-extensions-exit") return 7;
+                if (args[0] == "claude-extensions-error") { Emit(new { type = "control_response", response = new { subtype = "error", request_id = id, error = "SEGREDO interno" } }); continue; }
+                if (args[0] == "claude-extensions-invalid") { Emit(new { type = "control_response", response = new { subtype = "success", request_id = id, response = new { mcpServers = "SEGREDO inválido" } } }); continue; }
+                Emit(new { type = "control_response", response = new { subtype = "success", request_id = id,
+                    response = new { mcpServers = new[] { new { name = "example-mcp", status = "needs-auth", scope = "user", error = "SEGREDO erro",
+                        tools = new[] { new { name = "example", description = "SEGREDO" } }, config = new { env = "SEGREDO", headers = "SEGREDO" } } } } } });
+            }
+            else return 26;
+        }
         return 0;
     }
 

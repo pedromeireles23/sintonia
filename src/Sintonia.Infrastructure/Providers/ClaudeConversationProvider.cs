@@ -6,7 +6,7 @@ using Sintonia.Infrastructure.Diagnostics;
 
 namespace Sintonia.Infrastructure.Providers;
 
-public sealed class ClaudeConversationProvider(ExecutableLaunch? executable = null) : IConversationProvider, IProviderUsageReader
+public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executable = null) : IConversationProvider, IProviderUsageReader
 {
     public ProviderKind Kind => ProviderKind.Claude;
     public Task<ProviderUsageSnapshot> ReadUsageAsync(string directory, CancellationToken token)

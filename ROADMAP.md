@@ -19,12 +19,12 @@ Aceite: a janela abre no Windows; as funções podem ser atribuídas aos dois pr
 
 ## M1 — Prova das duas integrações
 
-Estado: integração real de leitura/retomada/interrupção comprovada nos dois provedores; host Claude com recusa/autorização real de escrita comprovadas. Comparação completa de extensões e negativas reais de outras ferramentas ainda pendentes. Evidências em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md).
+Estado: integração real de leitura/retomada/interrupção comprovada nos dois provedores; host Claude com recusa/autorização real de escrita comprovadas. Comparação de contratos/catálogos registrada, com diferenças de descoberta, autenticações/falhas MCP e categorias indisponíveis explícitas; uso efetivo de extensões e negativas reais de outras ferramentas continuam parciais. Evidências em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md) e [docs/PROVIDER_EXTENSIONS.md](docs/PROVIDER_EXTENSIONS.md).
 
 - [x] Detectar executáveis e versões sem acessar credenciais.
 - [x] Validar handshake, eventos e interrupção do Codex App Server por stdio.
 - [x] Validar Claude CLI: saída estruturada, nova sessão e retomada explícita.
-- [ ] Comparar skills, plugins e MCPs esperados com capacidades disponíveis.
+- [x] Comparar skills, plugins e MCPs esperados com capacidades disponíveis, documentando categorias indisponíveis e diferenças sem presumir paridade desktop.
 - [ ] Validar o fluxo de permissões e negativas de cada provedor (Codex: negativa real de sandbox; Claude: recusa/autorização real de Write; demais ferramentas ainda parciais).
 - [x] Testar caminhos com espaços, acentos, prompts extensos e encerramento de processos filhos.
 - [x] Registrar versões e comportamentos efetivamente testados.
