@@ -25,4 +25,10 @@ Schema 14 acrescenta `run_token_usage`, vinculado ao run, sem alterar tentativas
 
 Testes de protocolo usam processos simulados: vários passos, repetições, turno alheio, retomada com/sem base, reset, nulos/campos incompatíveis/overflow, totais restaurados Claude excluídos, falha/cancelamento e persistência. Migração do schema 13, reabertura, recuperação, redução recusada e preservação quando o término não traz medição são verificadas. Nenhum modelo chamado; emissão desses contadores por um turno real ainda não foi exercitada neste incremento.
 
-Próximo passo: mostrar a medição no chat e no histórico das tentativas WPF. Limites agregados seguem pendentes: observações parciais, escopos distintos e uso ausente não sustentam promessa de teto integral de consumo. Tokens não representam saldo de assinatura.
+## Exibição WPF
+
+Respostas do chat e da fila mostram os tokens do próprio run, incluindo contagens parciais e indisponibilidade explícita. Reabrir conserva a medição salva. Atualização visual tardia não substitui a medição recebida no resultado. Na aba **Tentativas**, a medição acompanha a tentativa selecionada; não soma tentativas nem herda dados de outra resposta. Textos extensos ficam acessíveis por rolagem no tamanho mínimo.
+
+WPF `--tokens` valida chat, provedores misturados, medição informada/parcial, ausência de campos, cancelamento, navegação e reabertura. `--queue` verifica consumos distintos das tentativas antigas/atuais, dependências, revisão e reabertura. Dados/provedores simulados, capturas normal/mínima revisadas, zero erros de binding e nenhum modelo chamado. Regressões `--usage` e `--chief-plan` aprovadas.
+
+Limites agregados seguem pendentes: observações parciais, escopos distintos e uso ausente não sustentam promessa de teto integral de consumo. Próximo incremento: limite explícito sobre tokens informados, com soma por run e bloqueio de novos envios ao alcançar o teto observado, sempre indicando lacunas de medição. Tokens não representam saldo de assinatura.

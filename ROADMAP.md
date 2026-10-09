@@ -71,9 +71,11 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 
 ## M4 — Distribuição assistida
 
-Estado: fluxo assistido conectado. A chefia recebe estado/resultados pelo chat e sua proposta revisada pode atualizar tarefas ainda não iniciadas, com confirmação e revisão transacional. Tentativas (1–3), prazo (1–300s) e concorrência (3–7) configuráveis por projeto. Painel WPF de limites Codex conectado, com bloqueio antes do turno somente mediante indisponibilidade explícita do backend; quota Claude aparece indisponível por ausência de consulta verificada. Consumo por execução/limites agregados permanecem pendentes. Não há rodadas ou reenvios automáticos. [Fluxo e limites](docs/PLAN_UPDATES.md), [quota e fontes](docs/PROVIDER_USAGE.md).
+Estado: fluxo assistido conectado. A chefia recebe estado/resultados pelo chat e sua proposta revisada pode atualizar tarefas ainda não iniciadas, com confirmação e revisão transacional. Tentativas (1–3), prazo (1–300s) e concorrência (3–7) configuráveis por projeto. Painel WPF de limites Codex conectado, com bloqueio antes do turno somente mediante indisponibilidade explícita do backend; quota Claude aparece indisponível por ausência de consulta verificada. Tokens por execução no chat/tentativas, com escopo do agente principal e medição parcial/ausente explícita. Limites agregados permanecem pendentes. Não há rodadas ou reenvios automáticos. [Fluxo e limites](docs/PLAN_UPDATES.md), [quota](docs/PROVIDER_USAGE.md) e [contagem](docs/RUN_TOKEN_USAGE.md).
 
 Uso dos provedores: build Debug/Release sem avisos/erros; 69 Core e 93 casos selecionados de Infrastructure em Release aprovados, incluindo 18 novos de quota, 39 regressões de protocolo e 36 de workspace/fila/concorrência/revisão de planos. WPF --usage/--workspace/--chief-plan aprovados, zero erros de binding e capturas normal/mínima revisadas. Uma consulta real de metadados Codex confirmou o contrato sem iniciar modelos. A suíte contém 297 casos; testes não afetados não foram repetidos integralmente.
+
+Tokens por execução: build Debug/Release sem avisos/erros; 69 Core em Debug e 112 casos selecionados de Infrastructure em Release aprovados. WPF --tokens/--queue/--usage/--chief-plan passaram, zero erros de binding; Release local atualizado e abertura/encerramento conferidos. Dados e processos de teste, sem chamar modelos. A suíte agora contém 316 casos, sem repetição integral dos testes não afetados; emissão de tokens em turno real ainda não exercitada.
 
 - [x] Escolher uma função de chefe do projeto com provedor/modelo configurável.
 - [x] Transformar um objetivo em proposta estruturada de tarefas, validada e salva para revisão.
@@ -81,7 +83,8 @@ Uso dos provedores: build Debug/Release sem avisos/erros; 69 Core e 93 casos sel
 - [x] Permitir edição de função, provedor/modelo, escopo, dependências e critérios da proposta pelo usuário.
 - [x] Implementar limites configuráveis de tentativas, tempo e concorrência, com reserva compartilhada e configuração revisionada.
 - [x] Exibir quota Codex verificada e respeitar indisponibilidade explícita antes do envio; documentar consulta Claude indisponível, sem estimar saldo de assinatura.
-- [ ] Registrar consumo verificado por execução e implementar limites agregados compatíveis com os dados fornecidos; suporte Claude depende de contrato próprio.
+- [x] Registrar/exibir tokens informados por execução, com contratos próprios dos provedores, escopo/lacunas explícitos e histórico preservado.
+- [ ] Implementar limite agregado sobre tokens informados, sem prometer medição integral de subagentes/intervalos ausentes ou estimar quota da assinatura.
 - [x] Distinguir término de execução, aprovação da entrega e integração Git publicada.
 
 Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sessões das duas ferramentas, com plano revisável, dependências e limites controlados pelo aplicativo. Chefia não substitui permissões ou aprovação das entregas.

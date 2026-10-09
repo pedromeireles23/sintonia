@@ -36,6 +36,8 @@ Schema 12 guarda tentativas/prazo em `project_execution_limits`, com a mesma rev
 
 O painel **Uso dos provedores** consulta percentuais/janelas/renovação verificados da conta Codex; recusa explícita do backend interrompe novos envios antes da thread/turno. Quota Claude ainda não tem consulta verificada nesta integração e aparece indisponível. Os dados são compartilhados por conta e não representam orçamento do projeto. Não há limite agregado de créditos, tokens ou custo, nem estimativa apresentada como quota real. Limites de tempo, tentativas e concorrência estão implementados. [Contrato de consulta e admissão](PROVIDER_USAGE.md).
 
+Chat e Tentativas exibem tokens informados por execução, com escopo do agente principal, medição parcial/indisponível e histórico preservado. Contadores repetidos ou restaurados não são somados; cache/raciocínio já pertencem aos totais. Os dados não constituem medição integral de todos os agentes. [Contagem, persistência e lacunas](RUN_TOKEN_USAGE.md).
+
 ## Validação
 
 Seis testes novos de persistência cobrem preservação de sessões/resultados, mudanças pendentes, recusa de mudanças iniciadas, remoção conservadora, revisões obsoletas/concorrentes, contrato/limites obsoletos na reserva, migração e timeout com sucesso tardio. Regressões de fila/concorrência e 69 testes Core passaram.

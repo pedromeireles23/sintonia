@@ -79,7 +79,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
             _ = LoadSelectionAsync(); Refresh();
         }
     }
-    public TaskAttemptItem? SelectedAttempt { get => _attempt; set { Set(ref _attempt, value); Notify(nameof(HistoricalResponse)); Refresh(); } }
+    public TaskAttemptItem? SelectedAttempt { get => _attempt; set { Set(ref _attempt, value); Notify(nameof(HistoricalResponse)); Notify(nameof(HistoricalTokenUsage)); Refresh(); } }
     public ConversationViewModel? Session
     {
         get => _session;
@@ -98,6 +98,8 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         Refresh();
     }
     public string HistoricalResponse => SelectedAttempt?.Run.Response ?? "Ainda não há resultado nesta tentativa.";
+    public string HistoricalTokenUsage => SelectedAttempt is null ? "Selecione uma tentativa para consultar o consumo informado."
+        : SelectedAttempt.Run.TokenUsage?.Describe() ?? "Consumo de tokens indisponível nesta tentativa.";
     public string TaskDetails => SelectedTask is not { } item ? "Selecione uma tarefa." :
         $"{item.Record.Definition.FunctionName} · {item.Record.Definition.Model ?? "Modelo padrão"} · {(item.Record.Definition.Access == ConversationAccess.ReadOnly ? "Leitura" : "Alterações")}\n"
         + $"Escopo: {string.Join(", ", item.Record.Definition.Scope)}\nDependências: {string.Join(", ", item.Record.Definition.Dependencies.DefaultIfEmpty("Nenhuma"))}\n"

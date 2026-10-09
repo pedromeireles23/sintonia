@@ -12,7 +12,7 @@ namespace Sintonia.Desktop.SmokeTests;
 
 internal static class WorkspaceSmoke
 {
-    public static int Run(string outputPath)
+    public static int Run(string outputPath, bool verifyTokenUsage = false)
     {
         var output = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(output);
@@ -24,8 +24,8 @@ internal static class WorkspaceSmoke
         PresentationTraceSources.DataBindingSource.Listeners.Add(listener);
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
         var app = new App(); app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        var codex = new FixtureProvider(ProviderKind.Codex);
-        var claude = new FixtureProvider(ProviderKind.Claude);
+        var codex = new FixtureProvider(ProviderKind.Codex) { IncludeUsage = verifyTokenUsage };
+        var claude = new FixtureProvider(ProviderKind.Claude) { IncludeUsage = verifyTokenUsage };
         var store = new SqliteWorkspaceStore(database);
         WorkspaceViewModel MakeViewModel() => new(store, new(store, [codex, claude]), app.Dispatcher, () => projectA,
             (provider, _, _) => Task.FromResult(new ProviderCapabilities(provider, [new("modelo-teste", "Modelo de teste", true)], [], [])));
@@ -71,6 +71,7 @@ internal static class WorkspaceSmoke
                 vm.AllowPermissionCommand.Execute(null);
                 await Until(() => vm.ActiveCount == 0 && !vm.HasPermission);
                 Require(cancelled.State == "Concluída", "Autorização Claude não concluiu.");
+                if (verifyTokenUsage) Require(cancelled.Messages.Last(m => m.ShowUsage).TokenUsage is { IsPartial: false, TotalTokens: 60 }, "Resultado Claude perdeu escopo/contagem ou recebeu atualização tardia parcial.");
                 vm.Prompt = "recusar"; vm.SendCommand.Execute(null);
                 await Until(() => vm.HasPermission);
                 vm.DenyPermissionCommand.Execute(null);
@@ -81,6 +82,7 @@ internal static class WorkspaceSmoke
                 vm.CancelCommand.Execute(null);
                 await Until(() => vm.ActiveCount == 0 && !vm.HasPermission);
                 Require(cancelled.State == "Cancelada", "Cancelamento deixou autorização pendente.");
+                if (verifyTokenUsage) Require(cancelled.Messages.Last(m => m.ShowUsage).TokenUsage is { IsPartial: true, TotalTokens: 60 }, "Cancelamento perdeu tokens já informados.");
                 vm.Access = vm.AccessOptions.Single(a => a.Value == ConversationAccess.ReadOnly);
                 window.Width = 1320; window.Height = 860; window.UpdateLayout();
                 vm.SelectedConversation = first;
@@ -96,10 +98,17 @@ internal static class WorkspaceSmoke
                 vm.Provider = ProviderKind.Claude; vm.Prompt = "Outra pasta."; vm.SendCommand.Execute(null);
                 await Until(() => vm.ActiveCount == 0);
                 Require(vm.Conversations.Count == 1 && claude.Requests[^1].WorkingDirectory == projectB, "Projeto não foi isolado.");
+                if (verifyTokenUsage)
+                {
+                    vm.Prompt = "sem-tokens: SIMULAÇÃO de dados ausentes"; vm.SendCommand.Execute(null); await Until(() => vm.ActiveCount == 0);
+                    var missing = vm.SelectedConversation!.Messages.Last(m => m.ShowUsage);
+                    Require(missing.TokenUsage is null && missing.TokenUsageText.Contains("indisponível"), "Ausência virou zero ou herdou consumo anterior.");
+                }
                 vm.Project = original;
                 await Until(() => vm.Conversations.Count == 3 && vm.SelectedConversation is not null);
                 vm.SelectedConversation = first;
                 Require(first.Messages.Count == 6, "Histórico duplicado ou perdido ao navegar.");
+                if (verifyTokenUsage) Require(first.Messages.Where(m => m.ShowUsage).All(m => m.TokenUsage is { TotalTokens: 30, IsPartial: true }), "Navegação somou ou perdeu medições dos runs Codex.");
                 window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
                 Capture(window, Path.Combine(output, "04-minimum.png"));
                 await vm.StopAsync(); window.Close();
@@ -109,11 +118,12 @@ internal static class WorkspaceSmoke
                 restored.SelectedConversation = restored.Conversations.Single(c => c.Record.Id == first.Record.Id);
                 await Until(() => restored.SelectedConversation?.Loaded == true);
                 Require(restored.SelectedConversation!.Record.NativeSessionId == nativeId && restored.Messages?.Count == 6, "Histórico não sobreviveu à reabertura.");
+                if (verifyTokenUsage) Require(restored.Messages!.Where(m => m.ShowUsage).All(m => m.TokenUsage is { TotalTokens: 30, IsPartial: true }), "Reabertura perdeu as medições do chat.");
                 Capture(reopened, Path.Combine(output, "05-reopened.png"));
                 Require(listener.Errors.Count == 0, "Erros de binding: " + string.Join("\n", listener.Errors));
                 await restored.StopAsync(); reopened.Close();
                 await Until(() => !reopened.IsVisible);
-                Console.WriteLine("PASS: central WPF, dois projetos, autorização Codex/Claude, recusa, cancelamento de decisão, retomada e reabertura SQLite; zero erros de binding. Provedores de teste; nenhuma chamada real.");
+                Console.WriteLine("PASS: central WPF, dois projetos, autorização Codex/Claude, recusa, cancelamento de decisão, retomada e reabertura SQLite; zero erros de binding. Provedores de teste; nenhuma chamada real." + (verifyTokenUsage ? " Tokens de teste: parcial/informado/indisponível, cancelamento, runs separados e reabertura conferidos." : ""));
                 exitCode = 0;
             }
             catch (Exception exception) { Console.Error.WriteLine(exception); }
@@ -146,12 +156,15 @@ internal static class WorkspaceSmoke
     private sealed class FixtureProvider(ProviderKind kind) : IConversationProvider
     {
         public ProviderKind Kind => kind;
+        public bool IncludeUsage { get; init; }
         public List<ConversationRequest> Requests { get; } = [];
         public async Task<ConversationResult> SendAsync(ConversationRequest request, IProgress<ConversationEvent> progress, CancellationToken cancellationToken)
         {
             Requests.Add(request);
             var id = request.NativeSessionId ?? Guid.NewGuid().ToString();
             progress.Report(new(ConversationEventKind.Session, "SIMULAÇÃO: sessão de teste.", id, "modelo-teste"));
+            var usage = IncludeUsage && !request.Prompt.Contains("sem-tokens", StringComparison.Ordinal) ? new RunTokenUsage(kind, kind == ProviderKind.Codex ? 20 : 40, kind == ProviderKind.Codex ? 10 : 20, kind == ProviderKind.Codex ? 30 : 60, 5, 0) : null;
+            if (usage is not null) progress.Report(new(ConversationEventKind.TokenUsage, "SIMULAÇÃO: tokens", TokenUsage: usage));
             if (kind == ProviderKind.Codex && request.NativeSessionId is null && request.PermissionHandler is not null)
             {
                 var approved = await request.PermissionHandler(new(kind, "command", "SIMULAÇÃO: leitura de uma amostra. Nenhum comando será executado.", request.WorkingDirectory), cancellationToken);
@@ -165,7 +178,7 @@ internal static class WorkspaceSmoke
             progress.Report(new(ConversationEventKind.TextDelta, "SIMULAÇÃO: resposta recebida em partes."));
             if (request.Prompt == "cancelar") await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             else await Task.Delay(request.Prompt == "paralelo" ? 500 : 120, cancellationToken);
-            return new(id, "modelo-teste", "SIMULAÇÃO DE TESTE. A central salvou a resposta, o modelo e a sessão nativa fictícia. Reabrir esta conversa preserva o histórico; continuar encaminha o mesmo identificador ao provedor de teste.", ConversationOutcome.Completed, []);
+            return new(id, "modelo-teste", "SIMULAÇÃO DE TESTE. A central salvou a resposta, o modelo e a sessão nativa fictícia. Reabrir esta conversa preserva o histórico; continuar encaminha o mesmo identificador ao provedor de teste.", ConversationOutcome.Completed, [], usage is null ? null : usage with { IsPartial = kind == ProviderKind.Codex });
         }
     }
     private sealed class BindingErrors : TraceListener

@@ -7,13 +7,17 @@ namespace Sintonia.Desktop.ViewModels;
 public sealed record FunctionOption(string Name, string Instructions);
 public sealed record AccessOption(string Name, ConversationAccess Value);
 
-public sealed class ChatMessageViewModel(string author, string text, string state = "") : ObservableObject
+public sealed class ChatMessageViewModel(string author, string text, string state = "", bool showUsage = false) : ObservableObject
 {
     private string _text = text;
     private string _state = state;
+    private RunTokenUsage? _tokenUsage;
     public string Author => author;
     public string Text { get => _text; set => Set(ref _text, value); }
     public string State { get => _state; set => Set(ref _state, value); }
+    public bool ShowUsage => showUsage;
+    public RunTokenUsage? TokenUsage { get => _tokenUsage; set { Set(ref _tokenUsage, value); Notify(nameof(TokenUsageText)); } }
+    public string TokenUsageText => TokenUsage?.Describe() ?? "Consumo de tokens indisponível nesta execução.";
 }
 
 public sealed class ConversationViewModel(WorkspaceConversation record) : ObservableObject
@@ -318,7 +322,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             foreach (var run in runs)
             {
                 session.Messages.Add(new("Você", run.Prompt));
-                session.Messages.Add(new(session.Record.Provider.ToString(), run.Response ?? "", StateText(run.State)));
+                session.Messages.Add(new(session.Record.Provider.ToString(), run.Response ?? "", StateText(run.State), showUsage: true) { TokenUsage = run.TokenUsage });
                 if (run.Error is not null) session.Messages.Add(new("Sintonia", run.Error));
             }
             foreach (var ev in events.TakeLast(200)) session.Events.Add(ev.Text);
@@ -417,10 +421,12 @@ public sealed class WorkspaceViewModel : ObservableObject
     {
         await Task.Yield();
         var isChief = taskId is null && session.Record.FunctionName == PlanProposalFormat.ChiefFunctionName;
-        var answer = new ChatMessageViewModel(session.Record.Provider.ToString(), "", "Executando");
+        var answer = new ChatMessageViewModel(session.Record.Provider.ToString(), "", "Executando", showUsage: true);
+        var finished = false;
         session.Messages.Add(new("Você", prompt)); session.Messages.Add(answer);
         var progress = new Progress<ConversationEvent>(ev =>
         {
+            if (ev.Kind == ConversationEventKind.TokenUsage && !finished) answer.TokenUsage = ev.TokenUsage;
             if (ev.Kind == ConversationEventKind.Session)
             {
                 session.Record = session.Record with { NativeSessionId = ev.NativeSessionId, Model = ev.Model };
@@ -438,6 +444,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             await _store.SaveConversationAsync(session.Record);
             var run = taskId is null ? await _chat.SendAsync(project, session.Record, prompt, progress, stop.Token, AskPermissionAsync)
                 : await _chat.SendTaskAsync(project.Id, taskId, progress, stop.Token, AskPermissionAsync);
+            finished = true; answer.TokenUsage = run.TokenUsage;
             answer.Text = run.Response ?? ""; answer.State = session.State = StateText(run.State);
             if (run.Error is not null) session.Messages.Add(new("Sintonia", run.Error));
             var saved = (await _store.GetConversationsAsync(project.Id)).Single(c => c.Id == session.Record.Id);

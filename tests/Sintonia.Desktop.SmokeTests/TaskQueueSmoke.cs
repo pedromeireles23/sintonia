@@ -47,6 +47,7 @@ internal static class TaskQueueSmoke
                 Require(!queue.StartCommand.CanExecute(null), "Clique duplicado habilitado durante execução.");
                 vm.AllowPermissionCommand.Execute(null); await execution;
                 Require(queue.CanReview && queue.SelectedTask!.Record.State == WorkspaceTaskState.AwaitingReview, "Término aprovou automaticamente.");
+                Require(queue.SelectedAttempt!.Run.TokenUsage?.TotalTokens == 120 && queue.HistoricalTokenUsage.Contains("parcial"), "Primeira tentativa perdeu tokens ou escopo.");
                 vm.SelectedConversation = queue.Session; vm.Prompt = "desviar pelo chat";
                 Require(!vm.CanSend && !vm.CanEditFunction, "Chat permite alterar tarefa da fila.");
                 queue.ReviewNote = "Incluir instruções acessíveis e conferir o envio."; await queue.ReviewAsync(false);
@@ -57,12 +58,15 @@ internal static class TaskQueueSmoke
                     "Ajuste perdeu a sessão nativa.");
                 Require(queue.Attempts.Count == 2, "Histórico perdeu a primeira tentativa.");
                 queue.SelectedAttempt = queue.Attempts[0]; Require(!queue.CanReview, "Tentativa antiga pode ser aprovada.");
+                Require(queue.HistoricalTokenUsage.Contains("120 tokens"), "Seleção antiga mostrou consumo de outra tentativa.");
                 queue.SelectedAttempt = queue.Attempts[1]; queue.ReviewNote = "Critérios conferidos pelo usuário.";
+                Require(queue.HistoricalTokenUsage.Contains("240 tokens"), "Ajuste somou ou perdeu tokens do run atual.");
                 ((System.Windows.Controls.TabControl)window.FindName("TaskTabs")).SelectedIndex = 1;
                 Capture(window, Path.Combine(output, "02-queue-review-minimum.png"));
                 await queue.ReviewAsync(true);
                 queue.SelectedTask = queue.Tasks.Single(t => t.Record.Id == second.Id); await Until(() => queue.CanStart);
                 await queue.StartAsync(); Require(queue.CanReview && claude.Requests.Count == 1, "Tarefa dependente não concluiu.");
+                Require(queue.HistoricalTokenUsage.Contains("Uso informado do turno principal") && queue.SelectedAttempt!.Run.TokenUsage?.TotalTokens == 120, "Uso Claude não ficou distinto da observação parcial.");
                 Require(claude.Requests[0].Prompt.Contains(first.LastRunId ?? "approvedDependencies"), "Contexto da dependência ausente.");
                 await queue.ReviewAsync(true);
                 queue.SelectedTask = queue.Tasks.Single(t => t.Record.Id == third.Id); await Until(() => queue.CanStart);
@@ -76,6 +80,9 @@ internal static class TaskQueueSmoke
                 var reopened = new TaskQueueViewModel(reopenedStore, vm, project); await reopened.InitializeAsync();
                 Require(reopened.Tasks.Count == 3 && reopened.Tasks[0].Record.State == WorkspaceTaskState.Approved
                     && reopened.Tasks[0].Record.Attempts == 2, "Reabertura perdeu entregas ou tentativas.");
+                await Until(() => reopened.Attempts.Count == 2); reopened.SelectedAttempt = reopened.Attempts[0];
+                Require(reopened.HistoricalTokenUsage.Contains("120 tokens"), "Reabertura perdeu consumo da primeira tentativa.");
+                reopened.SelectedAttempt = reopened.Attempts[1]; Require(reopened.HistoricalTokenUsage.Contains("240 tokens"), "Reabertura acumulou tentativas indevidamente.");
                 Require((await store.EnqueueProposalAsync(project.Id, proposal.Id, proposal.Revision)).Id == queue.SelectedBatch!.Id,
                     "Encaminhamento duplicou o plano.");
                 queue.SelectedTask = queue.Tasks.Single(t => t.Record.Id == third.Id); await Until(() => queue.CanStart);
@@ -137,6 +144,8 @@ internal static class TaskQueueSmoke
         {
             var native = request.NativeSessionId ?? Guid.NewGuid().ToString(); request = request with { NativeSessionId = native }; Requests.Add(request);
             progress.Report(new(ConversationEventKind.Session, "SIMULAÇÃO: sessão de tarefa", native, "modelo-teste"));
+            var usage = new RunTokenUsage(kind, Requests.Count * 100, Requests.Count * 20, Requests.Count * 120, Requests.Count * 10, 0);
+            progress.Report(new(ConversationEventKind.TokenUsage, "SIMULAÇÃO: tokens", TokenUsage: usage));
             if (request.Prompt.Contains("WAIT"))
             {
                 try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
@@ -151,7 +160,7 @@ internal static class TaskQueueSmoke
             var text = "SIMULAÇÃO: entrega para revisão. Formulário com rótulos acessíveis e validação de campos.\n"
                 + "Validação de teste: navegação por teclado e mensagens de erro conferidas pelo provedor simulado. Nenhum arquivo foi modificado.";
             progress.Report(new(ConversationEventKind.TextDelta, text)); await Task.Delay(50, token);
-            return new(native, "modelo-teste", text, ConversationOutcome.Completed, []);
+            return new(native, "modelo-teste", text, ConversationOutcome.Completed, [], usage with { IsPartial = kind == ProviderKind.Codex });
         }
     }
     private sealed class BindingErrors : TraceListener

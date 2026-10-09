@@ -87,6 +87,7 @@
                                     <StackPanel>
                                         <DockPanel><TextBlock Text="{Binding State}" DockPanel.Dock="Right" Style="{StaticResource Caption}" HorizontalAlignment="Right" /><TextBlock Text="{Binding Author}" FontWeight="SemiBold" Foreground="{StaticResource Accent}" /></DockPanel>
                                         <TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="Transparent" BorderThickness="0" Padding="0" Margin="0,8,0,0" Foreground="{StaticResource Ink}" />
+                                        <TextBlock Text="{Binding TokenUsageText}" Style="{StaticResource Caption}" Margin="0,10,0,0" Visibility="{Binding ShowUsage, Converter={StaticResource BoolVisibility}}" />
                                     </StackPanel>
                                 </Border>
                             </DataTemplate></ItemsControl.ItemTemplate>

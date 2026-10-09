@@ -43,16 +43,18 @@
                                             <TextBlock Text="{Binding Author}" FontWeight="SemiBold" Foreground="{StaticResource Accent}" />
                                             <TextBlock Text="{Binding State}" Style="{StaticResource Caption}" Margin="0,3,0,6" />
                                             <TextBox Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="Transparent" BorderThickness="0" />
+                                            <TextBlock Text="{Binding TokenUsageText}" Style="{StaticResource Caption}" Margin="0,8,0,0" Visibility="{Binding ShowUsage, Converter={StaticResource BoolVisibility}}" />
                                         </StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
                             </ScrollViewer>
                         </TabItem>
                         <TabItem Header="Tentativas">
-                            <Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                            <Grid Margin="14"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                                 <ComboBox ItemsSource="{Binding Attempts}" SelectedItem="{Binding SelectedAttempt}" DisplayMemberPath="Label" IsEnabled="{Binding CanChoose}" Padding="7" />
                                 <TextBlock Grid.Row="1" Text="{Binding SelectedAttempt.Run.Error}" Style="{StaticResource Caption}" Margin="0,8,0,8" />
-                                <TextBox Grid.Row="2" Text="{Binding HistoricalResponse, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" BorderThickness="0" />
+                                <ScrollViewer Grid.Row="2" MaxHeight="112" VerticalScrollBarVisibility="Auto" Margin="0,0,0,12"><TextBlock Text="{Binding HistoricalTokenUsage}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="HistoricalTokenUsage" /></ScrollViewer>
+                                <TextBox Grid.Row="3" Text="{Binding HistoricalResponse, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" BorderThickness="0" />
                             </Grid>
                         </TabItem>
                         <TabItem Header="Atividade"><ListBox ItemsSource="{Binding Session.Events}" BorderThickness="0" Margin="14" ScrollViewer.HorizontalScrollBarVisibility="Disabled"><ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ListBox.ItemTemplate></ListBox></TabItem>
