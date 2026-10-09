@@ -83,6 +83,13 @@ internal static class TaskWorktreeSmoke
                 Require(queue.SelectedTask!.Record.Worktree?.State == TaskWorktreeState.NeedsAttention && queue.SelectedTask.Record.Attempts == 0,
                     "Cancelamento perdeu efeitos ou consumiu tentativa.");
                 Require(queue.CanPrepareWorktree && !queue.CanStart, "Preparação parcial liberou modelo.");
+                // Closing now cancels and awaits preparation. Reopen a fresh panel before retrying;
+                // the previous ViewModel belongs to the window that is finishing its close.
+                await Until(() => !window.IsVisible);
+                queue = new TaskQueueViewModel(store, vm, project); await queue.InitializeAsync();
+                queue.ConfirmWorktree = _ => true;
+                window = new(queue) { Owner = main }; window.Show();
+                queue.SelectedTask = queue.Tasks[2]; await Until(() => queue.CanPrepareWorktree);
                 manager.Started = false; preparation = queue.PrepareWorktreeAsync(); await Until(() => manager.Started);
                 main.Close(); await preparation; await Until(() => !main.IsVisible);
                 Require(!window.IsVisible && !queue.Busy && queue.SelectedTask!.Record.Worktree?.State == TaskWorktreeState.NeedsAttention,

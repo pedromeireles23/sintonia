@@ -18,7 +18,7 @@ O M3 permite preparar uma worktree para uma tarefa com escrita antes da primeira
 
 `Ready` permite executar na subpasta correspondente da worktree. Antes de cada tentativa, o serviço confere diretório real, registro, Git comum, branch, bloqueio e ancestralidade do commit de base. Alterações/commits produzidos por uma tentativa permanecem para a próxima, junto à mesma sessão nativa. Um vínculo alterado impede a chamada ao provedor sem consumir tentativa. O banco compara o vínculo esperado ao reservar o run, evitando que uma leitura anterior à preparação execute na pasta original.
 
-Tarefas que não prepararam worktree continuam usando o projeto original. Escrita segue exclusiva no mesmo projeto lógico, mesmo com checkouts diferentes. Aprovar uma entrega numa worktree não integra seus arquivos: dependentes continuam bloqueados neste incremento. [Revisão de diffs](TASK_DIFFS.md) está disponível; integração verificada entra a seguir.
+Tarefas que não prepararam worktree continuam usando o projeto original, onde escrita permanece exclusiva. Tarefas independentes com worktrees prontas e validadas em raízes distintas admitem escrita paralela, respeitando as [3–7 vagas](SESSION_CONCURRENCY.md). Aprovar uma entrega numa worktree não integra seus arquivos: dependentes continuam bloqueados neste incremento. [Revisão de diffs](TASK_DIFFS.md) está disponível; publicação integrada ainda está em desenvolvimento.
 
 ## Validação
 
@@ -28,7 +28,7 @@ Testes com Git nativo em pastas temporárias verificam preservação do original
 
 1. Encaminhe um plano aprovado e selecione uma tarefa disponível com escrita, sem tentativas anteriores.
 2. Abra **Pasta de trabalho** e use **Preparar worktree**. Confira pasta, branch e base na confirmação; recusar não cria arquivos nem grava intenção.
-3. Aguarde **Worktree pronta**, confira os arquivos/configurações e use **Iniciar tentativa** separadamente. Autorizações mostram a pasta efetiva da tarefa.
+3. Aguarde **Worktree pronta**, confira os arquivos/configurações e use **Iniciar tentativa** separadamente ou prepare as worktrees das outras tarefas e use **Iniciar tarefas disponíveis**. Autorizações mostram a pasta efetiva de cada tarefa.
 4. Se houver interrupção, confira o estado e os arquivos antes de usar **Preparar worktree** novamente. **Cancelar** aguarda o registro do estado; fechar a central cancela e aguarda preparação e execução.
 
 O painel conserva o projeto ao navegar na central. Mostra estado, pasta efetiva, checkout, branch, base, origem e diagnóstico. Seleção/início/revisão ficam bloqueados enquanto a preparação está ativa. Entrega e ajustes usam o fluxo existente da fila; a aprovação em worktree informa que dependentes aguardam integração. Não há remoção automática de worktrees.

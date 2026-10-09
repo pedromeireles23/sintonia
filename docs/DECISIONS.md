@@ -61,3 +61,11 @@ Usar entrada e saída stream-json e o canal stdio do CLI, sem adicionar runtime 
 Preservar configuração/extensões/hooks, plan para leitura e manual para escrita. O host decide somente pedidos que chegam a ele, pois regras/hooks podem resolver chamadas antes. Recusas locais bloqueiam a execução mesmo se omitidas no resultado. Sem suporte específico, AskUserQuestion/ExitPlanMode são recusadas. O escopo cobre um turno limitado, sem acompanhamento de trabalho autônomo após o resultado terminal.
 
 Contrato conferido contra a [referência do CLI](https://code.claude.com/docs/en/cli-reference) e o [protocolo do SDK oficial](https://github.com/anthropics/claude-agent-sdk-python/blob/main/src/claude_agent_sdk/_internal/query.py). Implementação C# própria; comportamento real provado no Claude Code `2.1.277`, sem assumir compatibilidade de qualquer versão futura.
+
+## 010 — Três a sete sessões no mesmo projeto
+
+Data: 09/10/2026. Estado: implementada no núcleo e no WPF.
+
+O usuário definiu mínimo de 3 e máximo de 7 vagas por projeto, com sessões Codex/Claude misturadas e tarefas atribuídas pelo chefe. O padrão é 3; contam somente execuções ativas, inclusive o chefe. Chat e fila compartilham teto global de 7 no banco, sem exclusividade por provedor.
+
+O chefe propõe um plano revisável e o aplicativo distribui uma rodada das tarefas disponíveis quando o usuário inicia o grupo. Escrita direta no original é exclusiva; tarefas independentes em worktrees prontas e validadas podem escrever juntas. Cancelamento segura as vagas até encerramento e persistência. Permissões, revisão e publicação mantêm seus controles; acompanhamento automático do chefe e publicação Git concluída ainda estão pendentes. [Contrato e evidências](SESSION_CONCURRENCY.md).

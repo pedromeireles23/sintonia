@@ -20,8 +20,18 @@ Worktrees separam alterações e compartilham objetos/configuração Git; não s
 
 O chefe já produz um plano estruturado com função, provedor/modelo, escopo, dependências e critérios. Revisar e confirmar o plano cria as sessões na fila, sem iniciar modelos. O início das tarefas continua sendo uma ação separada, com permissões e revisão das entregas preservadas.
 
-Neste incremento, configuração e admissão são do núcleo. Seletor WPF de 3–7 e início em grupo das tarefas disponíveis são o próximo incremento. O chefe ainda não acompanha ou modifica automaticamente o plano após cada resultado.
+A central oferece o seletor em **Função, permissões e sessões**. Escolha 3–7 e use **Aplicar limite**; a escolha em rascunho ainda não muda a reserva. A contagem mostra execuções no projeto e na central.
+
+Na fila, **Iniciar tarefas disponíveis** lê novamente o plano e o limite salvos e distribui uma rodada nas vagas livres. Cada tarefa conserva o provedor/modelo e sua sessão. Dependências indisponíveis, tarefas em revisão, tentativas esgotadas e pastas incompatíveis ficam aguardando. Não há repetição automática, aprovação automática ou loop de modelos. Prepare as worktrees de escrita antes de iniciar o grupo.
+
+**Cancelar** interrompe o grupo iniciado por esse painel; uma tarefa iniciada separadamente conserva seu controle. Fechar a fila cancela e aguarda suas execuções/preparações; fechar a central aguarda todos os seus processos. A fila e seu contador continuam vinculados ao projeto capturado, mesmo ao navegar na central. Sessões podem ser consultadas pela lista da central durante a execução do grupo. Seleção/revisão na fila ficam disponíveis ao terminar a rodada.
+
+O chefe ainda não acompanha ou modifica automaticamente o plano após cada resultado. O fluxo atual é objetivo → proposta do chefe → revisão/confirmação → fila → início individual ou em grupo → revisão das entregas.
 
 ## Validação
 
-Build completo sem avisos/erros; 69 testes Core e 31 testes selecionados de Infrastructure aprovados. Cobertura de limites 3/5/7 com provedores misturados e repetidos, oitava sessão recusada, cancelamento aguardando o executor, concorrência entre stores, redução do limite, escopo congelado, pastas sobrepostas e migração do schema 9. Git real verifica dois escritores em checkouts validados distintos e original preservado. Provedores simulados; não foi exercitado um grupo de sete modelos reais nem consumida quota neste incremento.
+Build completo sem avisos/erros, suíte completa com 257 testes aprovados (69 Core + 188 Infrastructure); núcleo e testes WPF usam provedores simulados e Git real. Cobertura de limites 3/5/7 com provedores misturados e repetidos, oitava sessão recusada, cancelamento aguardando o executor, concorrência entre stores, redução do limite, escopo congelado, pastas sobrepostas e migração do schema 9. Git real verifica escritores em checkouts validados distintos e original preservado.
+
+WPF `--sessions` percorre chefia/plano/fila, sete sessões misturadas com três tarefas de escrita (duas Codex e uma Claude), aplicação/redução do limite, edição concorrente recusada com rascunho preservado, preservação de outra tarefa ao cancelar o grupo, projeto fixo, reabertura e fechamento aguardando os sete executores. Capturas normal/mínima revisadas; zero erros de binding. Regressões de central, propostas, perfis, fila e worktrees aprovadas. Não foi exercitado um grupo de sete modelos reais nem consumida quota neste incremento.
+
+Release local atualizado em artifacts/app; abertura e encerramento do executável normal conferidos.

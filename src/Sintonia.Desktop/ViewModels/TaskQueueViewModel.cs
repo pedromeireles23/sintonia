@@ -29,6 +29,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     private ConversationViewModel? _session;
     private bool _busy, _loading;
     private CancellationTokenSource? _preparationStop;
+    private CancellationTokenSource? _dispatchStop;
     private Task _preparationTask = Task.CompletedTask, _executionTask = Task.CompletedTask;
     private long _selectionRevision;
     private string _note = "", _notice = "Confirme um plano na revisão e encaminhe para esta fila.";
@@ -38,11 +39,12 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         ReloadCommand = new(InitializeAsync, ShowError, () => !Busy);
         EnqueueCommand = new(EnqueueAsync, ShowError, () => !Busy && SelectedProposal is not null);
         StartCommand = new(StartAsync, ShowError, () => CanStart);
-        CancelCommand = new(() => { _preparationStop?.Cancel(); if (SelectedTask is { } task) Workspace.CancelTask(task.Record); },
-            () => Busy && (_preparationStop is not null || Session?.Running == true));
+        StartAvailableCommand = new(StartAvailableAsync, ShowError, () => CanStartAvailable);
+        CancelCommand = new(Cancel, () => Busy && (_preparationStop is not null || _dispatchStop is not null || Session?.Running == true));
         PrepareWorktreeCommand = new(PrepareWorktreeAsync, ShowError, () => CanPrepareWorktree);
         ApproveCommand = new(() => ReviewAsync(true), ShowError, () => CanReview);
         RequestChangesCommand = new(() => ReviewAsync(false), ShowError, () => CanReview && !string.IsNullOrWhiteSpace(ReviewNote));
+        Workspace.PropertyChanged += WorkspaceChanged;
     }
     public WorkspaceViewModel Workspace { get; }
     public WorkspaceProject Project { get; }
@@ -104,7 +106,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         : $"{WorktreeStateText(worktree.State)}\n\nBranch: {worktree.Branch}\nCommit de base: {worktree.BaseCommit}\n\nPasta usada nas tentativas:\n{worktree.WorkingDirectory}\n\nCheckout:\n{worktree.CheckoutDirectory}\n\nRepositório original:\n{worktree.RepositoryDirectory}"
             + (worktree.Error is { } error ? "\n\n" + error : "")
             + (SelectedTask.Record.Delivery is { } delivery ? $"\n\nCommit registrado da entrega:\n{delivery.Commit}\nIntegração pendente." : "");
-    public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nA escrita continua serial no projeto. Aprovar uma entrega não integra seus arquivos; dependentes aguardam a integração Git, ainda em desenvolvimento.";
+    public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nTarefas independentes em worktrees distintas podem escrever em paralelo. Escrita direta no original é exclusiva. Aprovar uma entrega não integra seus arquivos; dependentes aguardam a integração Git, ainda em desenvolvimento.";
     public Func<TaskWorktree, bool>? ConfirmWorktree { get; set; }
     public bool CanPrepareWorktree => !Busy && !_loading && Workspace.CanPrepareWorktrees && SelectedTask is { } task && SelectedBatch is { } batch
         && WorkspaceTaskPolicy.CanPrepareWorktree(task.Record, batch.Tasks);
@@ -115,12 +117,16 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     public bool Busy { get => _busy; private set { Set(ref _busy, value); Refresh(); } }
     public bool CanChoose => !Busy;
     public bool CanStart => !Busy && !_loading && SelectedTask is { } item && SelectedBatch is { } batch
-        && WorkspaceTaskPolicy.CanStart(item.Record, batch.Tasks);
+        && WorkspaceTaskPolicy.CanStart(item.Record, batch.Tasks) && Workspace.CanStartTask(Project, item.Record);
+    public bool CanStartAvailable => !Busy && !_loading && SelectedBatch is { } batch
+        && Workspace.SelectAvailableTasks(Project, batch).Count > 0;
+    public string SessionUsage => Workspace.SessionUsageFor(Project.Id);
     public bool CanReview => !Busy && !_loading && SelectedTask?.Record.State == WorkspaceTaskState.AwaitingReview
         && SelectedAttempt?.Run.Id == SelectedTask.Record.LastRunId;
     public AsyncCommand ReloadCommand { get; }
     public AsyncCommand EnqueueCommand { get; }
     public AsyncCommand StartCommand { get; }
+    public AsyncCommand StartAvailableCommand { get; }
     public AsyncCommand PrepareWorktreeCommand { get; }
     public DelegateCommand CancelCommand { get; }
     public AsyncCommand ApproveCommand { get; }
@@ -130,9 +136,8 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     {
         if (Busy) return;
         Busy = true;
-        try { await ReloadAsync(); }
+        try { await ReloadAsync(); await LoadSelectionAsync(); }
         finally { Busy = false; }
-        await LoadSelectionAsync();
     }
     private async Task ReloadAsync()
     {
@@ -173,9 +178,9 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
             var batch = await _store.EnqueueProposalAsync(Project.Id, proposal.Id, proposal.Revision);
             _batch = batch; _task = null; await ReloadAsync();
             Notice = "Plano encaminhado. Selecione uma tarefa e inicie uma tentativa; nenhuma execução é automática.";
+            await LoadSelectionAsync();
         }
         finally { Busy = false; }
-        await LoadSelectionAsync();
     }
     public Task StartAsync() => CanStart ? _executionTask = StartCoreAsync() : Task.CompletedTask;
     private async Task StartCoreAsync()
@@ -189,9 +194,48 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
             await Task.Yield(); Refresh();
             await execution;
             await ReloadAsync(); Notice = "Tentativa encerrada. Confira o resultado e os arquivos; dependências exigem aprovação e, quando houver worktree, integração Git.";
+            await LoadSelectionAsync();
         }
         finally { Busy = false; }
-        await LoadSelectionAsync();
+    }
+
+    public Task StartAvailableAsync() => CanStartAvailable ? _executionTask = StartAvailableCoreAsync() : Task.CompletedTask;
+    private async Task StartAvailableCoreAsync()
+    {
+        if (!CanStartAvailable || SelectedBatch is not { } selected) return;
+        Busy = true; _dispatchStop = new(); Refresh();
+        try
+        {
+            var batch = (await _store.GetTaskBatchesAsync(Project.Id)).Single(b => b.Id == selected.Id);
+            await Workspace.RefreshExecutionSettingsAsync(Project);
+            _dispatchStop.Token.ThrowIfCancellationRequested();
+            var ready = Workspace.SelectAvailableTasks(Project, batch);
+            if (ready.Count == 0) { Notice = "Nenhuma tarefa disponível nas vagas e pastas atuais."; return; }
+            Notice = $"Distribuindo {ready.Count} tarefas para suas sessões Codex/Claude. As demais aguardam novo início; não há repetição automática.";
+            var executions = ready.Select(task => Workspace.StartTaskAsync(Project, task, _dispatchStop.Token)).ToArray();
+            await Task.WhenAll(executions);
+            Notice = "Grupo encerrado. Confira os resultados antes de aprovar; outras tarefas aguardam novo início.";
+        }
+        catch (Exception exception) { ShowError(exception); }
+        finally
+        {
+            _dispatchStop.Dispose(); _dispatchStop = null;
+            try { await ReloadAsync(); await LoadSelectionAsync(); }
+            finally { Busy = false; }
+        }
+    }
+
+    private void Cancel()
+    {
+        if (_dispatchStop is not null) { _dispatchStop.Cancel(); return; }
+        _preparationStop?.Cancel();
+        if (Busy && SelectedTask is { } task) Workspace.CancelTask(task.Record);
+    }
+    private void WorkspaceChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (nameof(WorkspaceViewModel.ActiveCount) or nameof(WorkspaceViewModel.SavedSessionLimit))) return;
+        foreach (var task in Tasks) task.Running = Workspace.IsTaskRunning(task.Record);
+        Refresh();
     }
     public async Task ReviewAsync(bool approve)
     {
@@ -204,9 +248,9 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
                 ? "Entrega aprovada. Dependências liberadas para início explícito."
                 : "Entrega aprovada na worktree. Dependentes aguardam integração Git, ainda em desenvolvimento; arquivos preservados na pasta da tarefa."
                 : "Ajustes registrados. Inicie outra tentativa quando estiver pronto; o pedido será enviado à mesma sessão.";
+            await LoadSelectionAsync();
         }
         finally { Busy = false; }
-        await LoadSelectionAsync();
     }
     public Task PrepareWorktreeAsync() => CanPrepareWorktree ? _preparationTask = PrepareWorktreeCoreAsync() : Task.CompletedTask;
     private async Task PrepareWorktreeCoreAsync()
@@ -227,31 +271,33 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         finally
         {
             _preparationStop.Dispose(); _preparationStop = null;
-            try { await ReloadAsync(); }
+            try { await ReloadAsync(); await LoadSelectionAsync(); }
             finally { Busy = false; }
-            await LoadSelectionAsync();
         }
     }
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException
-        ? "Preparação ou consulta cancelada. Confira o estado e possíveis arquivos antes de retomar." : exception.Message;
+        ? "Operação cancelada. Confira o estado e possíveis arquivos antes de retomar." : exception.Message;
     public async Task StopAsync()
     {
-        _preparationStop?.Cancel();
-        await Task.WhenAll(_preparationTask, _executionTask);
+        Cancel();
+        try { await Task.WhenAll(_preparationTask, _executionTask); }
+        catch (Exception exception) { ShowError(exception); }
     }
     public void Dispose()
     {
         _selectionRevision++;
-        _preparationStop?.Cancel();
+        Cancel(); Workspace.PropertyChanged -= WorkspaceChanged;
         if (_session is not null) _session.PropertyChanged -= SessionChanged;
     }
     private void Refresh()
     {
         Notify(nameof(CanChoose)); Notify(nameof(CanStart)); Notify(nameof(CanReview)); Notify(nameof(TaskDetails)); Notify(nameof(TaskStatus));
+        Notify(nameof(CanStartAvailable)); Notify(nameof(SessionUsage));
         Notify(nameof(CanPrepareWorktree)); Notify(nameof(WorktreeDetails));
         Notify(nameof(CanReviewDiffs));
         ReloadCommand?.Refresh(); EnqueueCommand?.Refresh(); StartCommand?.Refresh(); CancelCommand?.Refresh(); ApproveCommand?.Refresh(); RequestChangesCommand?.Refresh();
         PrepareWorktreeCommand?.Refresh();
+        StartAvailableCommand?.Refresh();
     }
     private static string WorktreeStateText(TaskWorktreeState state) => state switch
     { TaskWorktreeState.Preparing => "Preparação em andamento", TaskWorktreeState.Ready => "Worktree pronta", _ => "Preparação precisa de conferência" };

@@ -17,6 +17,8 @@ O Sintonia é uma central geral de trabalho com Codex e Claude Code: desenvolvim
 
 As sessões dos dois provedores pertencem ao mesmo projeto lógico. Quando escreverem em paralelo, o fluxo de Git deve separar as alterações e integrar de forma serial. Adicionar outra pasta não deve misturar instruções ou histórico entre projetos.
 
+Pedido atualizado em 09/10/2026: limite configurável de **3 a 7 sessões simultâneas por projeto**, padrão 3, incluindo o chefe enquanto executa. Provedores podem repetir e misturar livremente. Chat e fila compartilham até sete execuções globais. Seletor WPF e início em grupo do plano aprovado implementados; escrita paralela requer worktrees distintas e validadas. [Fluxo e limites](SESSION_CONCURRENCY.md).
+
 ## Chat central e conversas nativas
 
 O chat é uma interface do Sintonia sobre as sessões nativas dos provedores. Cada sessão mantém seu identificador, histórico, modelo, função e diretório compatível. O Sintonia conserva os vínculos e as mensagens necessárias ao acompanhamento, sem assumir memória compartilhada entre Codex e Claude.

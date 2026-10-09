@@ -21,9 +21,9 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 ## Estado atual
 
-**M2 concluído; M3 com diagnóstico, worktrees, diffs, registro de commits e combinação em pasta separada.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico, perfis, pastas e entregas sobrevivem à reabertura. Consulte o painel Git, prepare uma worktree pela fila, revise seus diffs, registre a entrega aprovada e prepare sua combinação com o destino confirmado. Resultado/conflitos ficam persistidos numa nova pasta, preservando o original. O núcleo já executa validações configuráveis e registra a árvore/comandos/resultados; editor e execução visual são o próximo incremento. Publicação no projeto e liberação de dependentes permanecem pendentes. O núcleo permite 3–7 sessões por projeto (padrão 3), até sete globalmente, com Codex/Claude misturados; escrita paralela usa worktrees validadas distintas. Seletor e início em grupo WPF são o próximo incremento. [Regras](docs/SESSION_CONCURRENCY.md).
+**M2 concluído; M3 com diagnóstico, worktrees, diffs, registro de commits e combinação em pasta separada.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico, perfis, pastas e entregas sobrevivem à reabertura. Consulte o painel Git, prepare uma worktree pela fila, revise seus diffs, registre a entrega aprovada e prepare sua combinação com o destino confirmado. Resultado/conflitos ficam persistidos numa nova pasta, preservando o original. O núcleo já executa validações configuráveis e registra a árvore/comandos/resultados; editor e execução visual são o próximo incremento. Publicação no projeto e liberação de dependentes permanecem pendentes. A central permite 3–7 sessões por projeto (padrão 3), até sete globalmente, com Codex/Claude misturados; escrita paralela usa worktrees validadas distintas. Seletor e início em grupo estão conectados ao WPF. [Regras](docs/SESSION_CONCURRENCY.md).
 
-Build sem avisos/erros, 247 testes xUnit verificados e fluxo WPF de combinação validado sem erros de binding. Testes novos usam Git real e processos/runs simulados, sem chamadas de modelos; [evidências e limites](docs/PROJECT_VALIDATION.md).
+Build sem avisos/erros, suíte completa com 257 testes xUnit aprovados e fluxo WPF de sete sessões validado sem erros de binding. Testes novos usam Git real e processos/runs simulados, sem chamadas de modelos; [evidências e limites](docs/PROJECT_VALIDATION.md).
 
 Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. Integração Git está pendente.
 
@@ -81,7 +81,9 @@ Para planejar, selecione **Chefe do projeto** em **Função e permissões** e de
 
 O [formato de propostas e seus limites](docs/PLAN_PROPOSALS.md) descreve validação e histórico. Propostas inválidas não viram tarefas; a resposta original do chat permanece disponível. Planos são separados por projeto e edições simultâneas não sobrescrevem revisões mais novas.
 
-Abra **Fila de tarefas**, escolha um plano aprovado e use **Encaminhar à fila**. Essa ação preserva a revisão e cria as tarefas, sem executar modelos. Selecione uma tarefa disponível e use **Iniciar tentativa**. Confira resposta, arquivos e critérios; **Aprovar entrega** registra sua decisão e **Solicitar ajustes** registra o pedido para uma nova tentativa na mesma sessão. Dependências exigem aprovação e, quando a entrega usa worktree, integração Git. Autorizações aparecem no próprio painel. Cancelar não desfaz arquivos já alterados; confira o projeto antes de tentar novamente.
+Abra **Fila de tarefas**, escolha um plano aprovado e use **Encaminhar à fila**. Essa ação preserva a revisão e cria as tarefas, sem executar modelos. Ajuste o limite de 3–7 em **Função, permissões e sessões** na central e use **Aplicar limite**. Selecione uma tarefa e use **Iniciar tentativa**, ou use **Iniciar tarefas disponíveis** para distribuir uma rodada do plano nas vagas livres. Confira resposta, arquivos e critérios; **Aprovar entrega** registra sua decisão e **Solicitar ajustes** registra o pedido para uma nova tentativa na mesma sessão. Dependências exigem aprovação e, quando a entrega usa worktree, integração Git. Autorizações aparecem no próprio painel. Cancelar não desfaz arquivos já alterados; confira o projeto antes de tentar novamente.
+
+![Sete sessões de tarefas no mesmo projeto — provedores simulados e worktrees Git reais](docs/images/sintonia-sessoes.png)
 
 ![Fila e revisão em tamanho mínimo — dados de teste com provedores simulados](docs/images/sintonia-fila.png)
 
@@ -113,6 +115,7 @@ Verificação da janela real no Windows (abre, percorre o fluxo e fecha a janela
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --workspace
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --proposals
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --sessions
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --queue
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --profiles
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --git

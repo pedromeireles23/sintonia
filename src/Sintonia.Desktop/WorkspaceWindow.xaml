@@ -21,7 +21,7 @@
                     <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextWrapping="Wrap" ToolTip="{Binding Directory}" /></DataTemplate></ListBox.ItemTemplate>
                 </ListBox>
                 <StackPanel Grid.Row="3">
-                    <TextBlock Foreground="#A8C6B6" Margin="0,0,0,14"><Run Text="{Binding ActiveCount, Mode=OneWay}" /><Run Text=" conversas executando" /></TextBlock>
+                    <TextBlock Text="{Binding SessionUsage}" Foreground="#A8C6B6" Margin="0,0,0,14" TextWrapping="Wrap" />
                     <TextBlock Text="Logins por assinatura" Foreground="White" FontWeight="SemiBold" />
                     <TextBlock Text="Codex e Claude Code instalados nesta máquina." Foreground="#A8C6B6" FontSize="12" Margin="0,4,0,18" />
                     <Button Content="Revisar planos" Click="OpenProposals" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ReviewPlans" />
@@ -45,9 +45,15 @@
                 <Button Grid.Column="2" Content="Modelos" Command="{Binding RefreshModelsCommand}" Margin="10,0,0,0" ToolTip="Consultar opções da instalação. O provedor confirma o acesso ao enviar." />
                 <Button Grid.Column="3" Content="Nova conversa" Command="{Binding NewConversationCommand}" Margin="10,0,0,0" AutomationProperties.AutomationId="NewConversation" />
             </Grid>
-            <Expander Grid.Row="2" Header="Função e permissões" Margin="0,0,0,12">
+            <Expander Grid.Row="2" Header="Função, permissões e sessões" Margin="0,0,0,12">
                 <Border Style="{StaticResource Card}" Margin="0,8,0,0" Padding="12">
-                    <StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240"><StackPanel>
+                        <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Sessões simultâneas no projeto" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding SessionLimits}" SelectedItem="{Binding SessionLimit}" IsEnabled="{Binding CanEditSessionLimit}" Padding="7" AutomationProperties.AutomationId="ProjectSessionLimit" />
+                            <Button Grid.Column="2" Content="Aplicar limite" Command="{Binding SaveSessionLimitCommand}" Margin="10,0,0,0" AutomationProperties.AutomationId="SaveSessionLimit" />
+                        </Grid>
+                        <TextBlock Text="Codex e Claude podem ocupar várias vagas. O chefe conta enquanto executa. Escrita paralela exige worktrees distintas." Style="{StaticResource Caption}" Margin="0,0,0,10" />
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <ComboBox ItemsSource="{Binding FunctionProfiles}" SelectedItem="{Binding SelectedFunctionProfile}" DisplayMemberPath="Name" IsEnabled="{Binding CanManageFunctionProfiles}" Padding="7" Margin="0,0,10,0" ToolTip="Escolha um perfil da biblioteca local." AutomationProperties.AutomationId="SavedFunctionProfiles" />
                             <Button Grid.Column="1" Content="Nova com perfil" Command="{Binding ApplyFunctionProfileCommand}" ToolTip="Aplicar o perfil a uma nova conversa em leitura, preservando a conversa atual." AutomationProperties.AutomationId="ApplyFunctionProfile" />
@@ -60,7 +66,7 @@
                             <TextBox Text="{Binding Instructions, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MaxLength="8000" Height="70" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" Padding="8" />
                             <TextBlock Text="Chefia propõe tarefas para revisão. Codex e Claude podem pedir autorização por ação neste painel. Regras e hooks da instalação continuam aplicáveis." Style="{StaticResource Caption}" Margin="0,8,0,0" />
                         </StackPanel>
-                    </StackPanel>
+                    </StackPanel></ScrollViewer>
                 </Border>
             </Expander>
             <Border Grid.Row="3" Style="{StaticResource Card}" Padding="16">

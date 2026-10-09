@@ -45,7 +45,11 @@ public sealed class WorkspaceViewModel : ObservableObject
     private readonly Func<string?> _pickDirectory;
     private readonly Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> _inspect;
     private readonly Dictionary<string, ConversationViewModel> _sessions = [];
-    private readonly Dictionary<string, (CancellationTokenSource Stop, Task Task)> _jobs = [];
+    private readonly Dictionary<string, (CancellationTokenSource Stop, Task Task, WorkspaceExecutionSlot Slot)> _jobs = [];
+    private readonly Dictionary<string, ProjectExecutionSettings> _executionSettings = [];
+    private int _sessionLimit = ProjectExecutionSettings.Minimum;
+    private bool _savingSessionLimit;
+    private Task _settingsSave = Task.CompletedTask;
     private readonly SemaphoreSlim _permissionGate = new(1);
     private readonly CancellationTokenSource _lifetime = new();
     private TaskCompletionSource<bool>? _permissionAnswer;
@@ -87,6 +91,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         DenyPermissionCommand = new(() => _permissionAnswer?.TrySetResult(false), () => Permission is not null);
         ApplyFunctionProfileCommand = new(ApplyFunctionProfileAsync, ShowError, () => CanApplyFunctionProfile);
         RefreshFunctionProfilesCommand = new(RefreshFunctionProfilesAsync, ShowError, () => CanManageFunctionProfiles);
+        SaveSessionLimitCommand = new(SaveSessionLimitAsync, ShowError, () => CanEditSessionLimit && SessionLimit != SavedSessionLimit);
     }
 
     public ObservableCollection<WorkspaceProject> Projects { get; } = [];
@@ -161,6 +166,17 @@ public sealed class WorkspaceViewModel : ObservableObject
     public string Notice { get => _notice; private set => Set(ref _notice, value); }
     public bool Ready { get => _ready; private set { Set(ref _ready, value); RefreshCommands(); } }
     public int ActiveCount => _jobs.Count;
+    public IReadOnlyList<int> SessionLimits { get; } = [3, 4, 5, 6, 7];
+    public int SessionLimit { get => _sessionLimit; set { Set(ref _sessionLimit, value); RefreshCommands(); } }
+    public int SavedSessionLimit => Project is { } project ? LimitFor(project.Id) : ProjectExecutionSettings.Minimum;
+    public string SessionUsage => Project is { } project
+        ? SessionUsageFor(project.Id)
+        : $"{ActiveCount}/7 na central";
+    public string SessionUsageFor(string projectId) =>
+        $"{_jobs.Values.Count(j => j.Slot.ProjectId == projectId)}/{LimitFor(projectId)} no projeto · {ActiveCount}/7 na central";
+    public bool CanEditSessionLimit => Ready && Project is not null && !_loadingProject && !_savingSessionLimit && !_stopping;
+    private int LimitFor(string projectId) => _executionSettings.TryGetValue(projectId, out var settings)
+        ? settings.MaxConcurrentSessions : ProjectExecutionSettings.Minimum;
     public bool CanConfigure => SelectedConversation is null && !_stopping && !_loadingProject;
     public bool CanReviewProposals => Ready && Project is not null && !_stopping;
     public bool CanManageFunctionProfiles => Ready && !_stopping;
@@ -168,9 +184,10 @@ public sealed class WorkspaceViewModel : ObservableObject
     public bool CanEditFunction => SelectedConversation?.Running != true && SelectedConversation?.Record.IsTask != true && !_stopping && !_loadingProject;
     public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && SelectedConversation?.Running != true
         && SelectedConversation?.Record.IsTask != true
-        && (SelectedConversation is null || SelectedConversation.Loaded) && _jobs.Count < 2
-        && !_jobs.Keys.Any(id => _sessions[id].Record.Provider == Provider)
-        && !_jobs.Keys.Any(id => _sessions[id].Record.ProjectId == Project.Id && (Access.Value == ConversationAccess.WorkspaceWrite || _sessions[id].Record.Access == ConversationAccess.WorkspaceWrite))
+        && (SelectedConversation is null || SelectedConversation.Loaded)
+        && WorkspaceExecutionPolicy.CanAdmit(WorkspaceExecutionSlot.Create(Project,
+            new(SelectedConversation?.Record.Id ?? "new", Project.Id, "", Provider, Model, null, Function.Name, Instructions, Access.Value)),
+            _jobs.Values.Select(j => j.Slot).ToArray(), LimitFor(Project.Id), out _)
         && !string.IsNullOrWhiteSpace(Prompt);
     public ConversationPermission? Permission { get => _permission; private set { Set(ref _permission, value); Notify(nameof(HasPermission)); RefreshCommands(); } }
     public bool HasPermission => Permission is not null;
@@ -183,6 +200,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public DelegateCommand DenyPermissionCommand { get; }
     public AsyncCommand ApplyFunctionProfileCommand { get; }
     public AsyncCommand RefreshFunctionProfilesCommand { get; }
+    public AsyncCommand SaveSessionLimitCommand { get; }
 
     public async Task InitializeAsync()
     {
@@ -217,6 +235,9 @@ public sealed class WorkspaceViewModel : ObservableObject
         if (project is null) { _loadingProject = false; RefreshCommands(); return; }
         try
         {
+            var settings = await _store.GetProjectExecutionSettingsAsync(project.Id);
+            if (revision != _projectRevision || _stopping) return;
+            _executionSettings[project.Id] = settings; SessionLimit = settings.MaxConcurrentSessions;
             var records = await _store.GetConversationsAsync(project.Id);
             if (revision != _projectRevision || _stopping) return;
             foreach (var record in records)
@@ -235,6 +256,37 @@ public sealed class WorkspaceViewModel : ObservableObject
         }
         catch (Exception exception) { ShowError(exception); }
         finally { if (revision == _projectRevision) { _loadingProject = false; RefreshCommands(); } }
+    }
+
+    public Task SaveSessionLimitAsync() => _settingsSave = SaveSessionLimitCoreAsync();
+    private async Task SaveSessionLimitCoreAsync()
+    {
+        if (!CanEditSessionLimit || Project is not { } project) return;
+        var settings = _executionSettings[project.Id] with { MaxConcurrentSessions = SessionLimit };
+        _savingSessionLimit = true; RefreshCommands();
+        try
+        {
+            var saved = await _store.SaveProjectExecutionSettingsAsync(settings);
+            _executionSettings[project.Id] = saved;
+            if (Project?.Id == project.Id && !_stopping)
+            {
+                SessionLimit = saved.MaxConcurrentSessions;
+                Notice = $"Limite salvo: {saved.MaxConcurrentSessions} sessões no projeto. Sessões já ativas continuam até encerrar.";
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            var current = await _store.GetProjectExecutionSettingsAsync(project.Id);
+            _executionSettings[project.Id] = current;
+            throw new InvalidOperationException($"Não foi possível aplicar o limite. Em vigor: {current.MaxConcurrentSessions}. Confira a escolha antes de aplicar novamente. " + exception.Message, exception);
+        }
+        finally { _savingSessionLimit = false; RefreshCommands(); }
+    }
+
+    public async Task RefreshExecutionSettingsAsync(WorkspaceProject project)
+    {
+        _executionSettings[project.Id] = await _store.GetProjectExecutionSettingsAsync(project.Id);
+        RefreshCommands();
     }
 
     private async Task LoadConversationAsync(ConversationViewModel session)
@@ -336,9 +388,10 @@ public sealed class WorkspaceViewModel : ObservableObject
         session.Running = true; session.State = "Executando";
         var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         // Reserve the view immediately so rapid clicks cannot launch the same conversation twice.
-        _jobs.Add(session.Record.Id, (stop, Task.CompletedTask));
+        var slot = WorkspaceExecutionSlot.Create(project, session.Record);
+        _jobs.Add(session.Record.Id, (stop, Task.CompletedTask, slot));
         var task = SendCoreAsync(project, session, prompt, stop);
-        _jobs[session.Record.Id] = (stop, task);
+        _jobs[session.Record.Id] = (stop, task, slot);
         RefreshCommands();
     }
 
@@ -425,19 +478,45 @@ public sealed class WorkspaceViewModel : ObservableObject
         await LoadConversationAsync(session); return session;
     }
 
-    public async Task StartTaskAsync(WorkspaceProject project, WorkspaceTask task)
+    public async Task StartTaskAsync(WorkspaceProject project, WorkspaceTask task, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (_stopping) throw new InvalidOperationException("O aplicativo está encerrando.");
         var session = await GetTaskConversationAsync(project, task);
+        cancellationToken.ThrowIfCancellationRequested();
         if (_stopping || _jobs.ContainsKey(session.Record.Id)) throw new InvalidOperationException("A conversa já está executando ou o aplicativo está encerrando.");
+        var slot = WorkspaceExecutionSlot.Create(project, session.Record, task.Worktree);
+        if (!WorkspaceExecutionPolicy.CanAdmit(slot, _jobs.Values.Select(j => j.Slot).ToArray(), LimitFor(project.Id), out var reason))
+            throw new InvalidOperationException(reason);
         session.Running = true; session.State = "Executando";
-        var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        _jobs.Add(session.Record.Id, (stop, Task.CompletedTask));
+        var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, cancellationToken);
+        _jobs.Add(session.Record.Id, (stop, Task.CompletedTask, slot));
         var execution = SendCoreAsync(project, session, "Executar tarefa: " + task.Definition.Title, stop, task.Id);
-        _jobs[session.Record.Id] = (stop, execution); RefreshCommands();
+        _jobs[session.Record.Id] = (stop, execution, slot); RefreshCommands();
         await execution;
     }
     public void CancelTask(WorkspaceTask task) { if (_jobs.TryGetValue(task.ConversationId, out var job)) job.Stop.Cancel(); }
+    public bool IsTaskRunning(WorkspaceTask task) => _jobs.ContainsKey(task.ConversationId);
+
+    public bool CanStartTask(WorkspaceProject project, WorkspaceTask task) => !_stopping
+        && WorkspaceExecutionPolicy.CanAdmit(TaskSlot(project, task), _jobs.Values.Select(j => j.Slot).ToArray(), LimitFor(project.Id), out _);
+
+    private static WorkspaceExecutionSlot TaskSlot(WorkspaceProject project, WorkspaceTask task) =>
+        WorkspaceExecutionSlot.Create(project, new(task.ConversationId, project.Id, task.Definition.Title, task.Definition.Provider,
+            task.Definition.Model, null, task.Definition.FunctionName, task.Definition.Instructions, task.Definition.Access, true), task.Worktree);
+
+    public IReadOnlyList<WorkspaceTask> SelectAvailableTasks(WorkspaceProject project, WorkspaceTaskBatch batch)
+    {
+        if (_stopping || batch.ProjectId != project.Id) return [];
+        var slots = _jobs.Values.Select(j => j.Slot).ToList(); var selected = new List<WorkspaceTask>();
+        foreach (var task in batch.Tasks.Where(t => WorkspaceTaskPolicy.CanStart(t, batch.Tasks)))
+        {
+            var slot = TaskSlot(project, task);
+            if (!WorkspaceExecutionPolicy.CanAdmit(slot, slots, LimitFor(project.Id), out _)) continue;
+            slots.Add(slot); selected.Add(task);
+        }
+        return selected;
+    }
 
     public bool CanPrepareWorktrees => _worktrees is not null && !_stopping;
     public bool CanReviewTaskDiffs => _diffs is not null && !_stopping;
@@ -479,17 +558,20 @@ public sealed class WorkspaceViewModel : ObservableObject
     public async Task StopAsync()
     {
         _stopping = true; _lifetime.Cancel(); RefreshCommands();
-        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).ToArray();
-        await Task.WhenAll(jobs);
+        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Append(_settingsSave).ToArray();
+        try { await Task.WhenAll(jobs); }
+        catch (Exception exception) { ShowError(exception); }
     }
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException ? "Operação cancelada ou prazo excedido." : exception.Message;
     private void RefreshCommands()
     {
         Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanEditAccess)); Notify(nameof(CanSend)); Notify(nameof(CanReviewProposals));
         Notify(nameof(CanManageFunctionProfiles)); Notify(nameof(CanApplyFunctionProfile));
+        Notify(nameof(CanEditSessionLimit)); Notify(nameof(SavedSessionLimit)); Notify(nameof(SessionUsage));
         AddProjectCommand?.Refresh(); RefreshModelsCommand?.Refresh(); NewConversationCommand?.Refresh(); SendCommand?.Refresh(); CancelCommand?.Refresh();
         AllowPermissionCommand?.Refresh(); DenyPermissionCommand?.Refresh();
         ApplyFunctionProfileCommand?.Refresh(); RefreshFunctionProfilesCommand?.Refresh();
+        SaveSessionLimitCommand?.Refresh();
     }
     private static string StateText(ChatRunState? state) => state switch
     {

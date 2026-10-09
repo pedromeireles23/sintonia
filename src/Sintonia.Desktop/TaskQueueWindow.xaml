@@ -82,6 +82,10 @@
                 </Grid>
             </Grid>
             <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                <WrapPanel Margin="0,0,0,8">
+                    <Button Content="Iniciar tarefas disponíveis" Command="{Binding StartAvailableCommand}" AutomationProperties.AutomationId="StartAvailableTasks" />
+                    <TextBlock Text="{Binding SessionUsage}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                </WrapPanel>
                 <ScrollViewer MaxHeight="52" VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding TaskStatus}" FontWeight="SemiBold" Foreground="{StaticResource Accent}" /></ScrollViewer>
                 <TextBlock Text="Nota da revisão / ajuste solicitado" Style="{StaticResource Caption}" Margin="0,6,0,4" />
                 <TextBox Text="{Binding ReviewNote, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanReview}" TextWrapping="Wrap" AcceptsReturn="True" Height="52" MaxLength="4000" VerticalScrollBarVisibility="Auto" Padding="8" AutomationProperties.AutomationId="TaskReviewNote" />

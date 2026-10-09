@@ -6,7 +6,7 @@ A fila trabalha com qualquer projeto suportado pelos provedores e uma pasta cada
 
 1. Gere um plano pela chefia, revise e confirme em **Revisar planos**.
 2. Em **Fila de tarefas**, escolha o plano aprovado e **Encaminhar à fila**. Isso salva sua revisão e cria tarefas/conversas, sem chamar modelos.
-3. Selecione uma tarefa disponível e **Iniciar tentativa**. Apenas essa tarefa é enviada; não há despacho automático das próximas.
+3. Selecione uma tarefa disponível e **Iniciar tentativa**, ou use **Iniciar tarefas disponíveis** para distribuir uma rodada do plano nas vagas livres. O grupo respeita o limite salvo, as dependências e as pastas; não inicia rodadas seguintes automaticamente. [Configuração de 3–7 sessões](SESSION_CONCURRENCY.md).
 4. Confira resposta, arquivos, eventos e critérios. **Solicitar ajustes** exige uma nota e permite nova tentativa na mesma sessão. **Aprovar entrega** registra a decisão; dependentes exigem aprovação e integração Git quando a entrega usa worktree.
 
 Antes da primeira tentativa com escrita, a aba **Pasta de trabalho** permite preparar uma worktree explicitamente. Pasta, branch e base ficam persistidas; tentativas/ajustes usam o mesmo checkout e sessão. Confira configurações e arquivos disponíveis antes de executar. [Fluxo, recuperação e limites](TASK_WORKTREES.md).
@@ -37,7 +37,7 @@ O pedido de uma tarefa contém objetivo, função/instruções, acesso recomenda
 - Schema 3 acrescenta task_batches/work_tasks, preservando projetos, propostas e histórico anteriores. Reserva e run, assim como término e estado da tarefa, são gravados em transações.
 - Conversas de tarefas podem ser consultadas na central; envios e mudanças de contrato passam pela fila.
 
-Worktrees por tarefa e revisão de diffs estão disponíveis; integração Git, limites configuráveis/consumo e atualização automática do plano pela chefia permanecem pendentes. Entregas aprovadas em worktrees mantêm dependentes bloqueados neste incremento. Alterações externas nos arquivos não são fixadas por aprovação; integração verificável é o marco M3.
+Worktrees por tarefa, revisão de diffs e limite configurável de sessões estão disponíveis; publicação Git, outros limites/consumo e atualização automática do plano pela chefia permanecem pendentes. Entregas aprovadas em worktrees mantêm dependentes bloqueados neste incremento. Alterações externas nos arquivos não são fixadas por aprovação; integração verificável é o marco M3.
 
 ## Validação
 

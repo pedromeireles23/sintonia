@@ -93,6 +93,8 @@ Eventos comuns podem incluir sessão iniciada, mensagem, ferramenta, pedido de p
 
 Uma política pura de agendamento decide admissões. A reserva e a criação da tentativa precisam ser aplicadas atomicamente pelo serviço de execução. Proteção contra disparos duplicados, persistência e recuperação entram antes de execução automática prolongada.
 
+O WPF mantém o limite salvo separado do rascunho e captura o projeto ao aplicar. `Iniciar tarefas disponíveis` relê lote/limite, seleciona uma rodada pela política compartilhada e inicia sessões nas vagas disponíveis. Jobs guardam seus escopos e tokens; cancelamento do grupo não cancela uma tarefa iniciada separadamente. A fila conserva seu projeto/contador e aguarda execução, recarga e histórico antes de liberar controles ou fechar. Rodadas posteriores e revisão permanecem explícitas.
+
 Para sessões reutilizadas, conferir provedor, projeto, função e diretório. Conversas não compartilham memória automaticamente: entregar especificações e resumos explícitos entre sessões.
 
 ## Persistência, Git e dados
