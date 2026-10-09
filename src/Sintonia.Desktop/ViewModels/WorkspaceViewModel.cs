@@ -41,6 +41,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private readonly TaskDeliveryService? _deliveries;
     private readonly TaskIntegrationPreparationService? _preparations;
     private readonly TaskIntegrationValidationService? _validations;
+    private readonly TaskPublicationService? _publications;
     private readonly HashSet<Task> _gitJobs = [];
     private readonly Dispatcher _dispatcher;
     private readonly Func<string?> _pickDirectory;
@@ -75,7 +76,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public WorkspaceViewModel(IWorkspaceStore store, WorkspaceChatService chat, Dispatcher dispatcher,
         Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect,
         TaskWorktreeService? worktrees = null, TaskDiffService? diffs = null, TaskDeliveryService? deliveries = null,
-        TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null)
+        TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null, TaskPublicationService? publications = null)
     {
         _store = store; _chat = chat; _dispatcher = dispatcher; _pickDirectory = pickDirectory; _inspect = inspect;
         _worktrees = worktrees;
@@ -83,6 +84,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         _deliveries = deliveries;
         _preparations = preparations;
         _validations = validations;
+        _publications = publications;
         _function = Functions[0]; _access = AccessOptions[0];
         AddProjectCommand = new(AddPickedProjectAsync, ShowError, () => Ready && !_stopping);
         RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && Project is not null && CanConfigure);
@@ -525,7 +527,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public TaskDiffViewModel CreateTaskDiffReview(WorkspaceProject project, WorkspaceTask task)
     {
         if (!CanReviewTaskDiffs) throw new InvalidOperationException("A revisão de diffs não está disponível ou o aplicativo está encerrando.");
-        return new(project, task, _diffs!, _deliveries, _preparations, _validations);
+        return new(project, task, _diffs!, _deliveries, _preparations, _validations, _publications);
     }
     public ProjectValidationViewModel CreateProjectValidation() => new(_store, Project ?? throw new InvalidOperationException("Selecione um projeto."));
     public Task<TaskWorktree> PreviewTaskWorktreeAsync(WorkspaceProject project, WorkspaceTask task, CancellationToken token) =>

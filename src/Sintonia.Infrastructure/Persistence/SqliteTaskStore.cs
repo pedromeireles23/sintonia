@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore
                 while (reader.Read()) tasks.Add(new(reader.GetString(0), batch.Id, batch.Definition.Tasks.Single(t => t.Id == reader.GetString(1)),
                     reader.GetString(2), (WorkspaceTaskState)reader.GetInt32(3), reader.GetInt32(4), Optional(reader, 5), Optional(reader, 6)));
             for (var j = 0; j < tasks.Count; j++) tasks[j] = tasks[j] with
-            { Worktree = ReadWorktree(connection, transaction, tasks[j].Id), Delivery = ReadDelivery(connection, transaction, tasks[j].Id) };
+            { Worktree = ReadWorktree(connection, transaction, tasks[j].Id), Delivery = ReadDelivery(connection, transaction, tasks[j].Id), Publication = ReadTaskPublication(connection, transaction, tasks[j].Id) };
             batches[i] = batch with { Tasks = tasks };
         }
         return batches;

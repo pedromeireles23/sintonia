@@ -99,14 +99,15 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         + (item.Record.ReviewNote is { Length: > 0 } note ? "\nÚltima revisão: " + note : "")
         + (SelectedBatch is { } batch && item.Record.State == WorkspaceTaskState.Pending && item.Record.Definition.Dependencies.Any(id => batch.Tasks.Any(t => t.Definition.Id == id && t.State != WorkspaceTaskState.Approved))
             ? "\nAguarda aprovação das dependências." : "")
-        + (SelectedBatch is { } current && item.Record.Definition.Dependencies.Any(id => current.Tasks.Any(t => t.Definition.Id == id && t.Worktree is not null))
-            ? "\nAguarda integração Git das dependências. Esta etapa ainda está em desenvolvimento." : "");
+        + (SelectedBatch is { } current && item.Record.Definition.Dependencies.Any(id => current.Tasks.Any(t => t.Definition.Id == id && t.Worktree is not null && t.Publication?.State != TaskPublicationState.Published))
+            ? "\nAguarda integração Git das dependências." : "");
     public string WorktreeDetails => SelectedTask?.Record.Worktree is not { } worktree
         ? $"Pasta usada nas tentativas: {Project.Directory}\n\nUma tarefa com escrita pode preparar outra pasta Git antes da primeira tentativa. A preparação é opcional e não chama modelos."
         : $"{WorktreeStateText(worktree.State)}\n\nBranch: {worktree.Branch}\nCommit de base: {worktree.BaseCommit}\n\nPasta usada nas tentativas:\n{worktree.WorkingDirectory}\n\nCheckout:\n{worktree.CheckoutDirectory}\n\nRepositório original:\n{worktree.RepositoryDirectory}"
             + (worktree.Error is { } error ? "\n\n" + error : "")
-            + (SelectedTask.Record.Delivery is { } delivery ? $"\n\nCommit registrado da entrega:\n{delivery.Commit}\nIntegração pendente." : "");
-    public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nTarefas independentes em worktrees distintas podem escrever em paralelo. Escrita direta no original é exclusiva. Aprovar uma entrega não integra seus arquivos; dependentes aguardam a integração Git, ainda em desenvolvimento.";
+            + (SelectedTask.Record.Delivery is { } delivery ? $"\n\nCommit registrado da entrega:\n{delivery.Commit}\n"
+                + (SelectedTask.Record.Publication is { State: TaskPublicationState.Published } publication ? $"Integrada no commit:\n{publication.Commit}" : "Integração pendente.") : "");
+    public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nTarefas independentes em worktrees distintas podem escrever em paralelo. Escrita direta no original é exclusiva. Dependentes de uma worktree exigem publicação registrada da combinação validada. As pastas são preservadas; não há limpeza automática.";
     public Func<TaskWorktree, bool>? ConfirmWorktree { get; set; }
     public bool CanPrepareWorktree => !Busy && !_loading && Workspace.CanPrepareWorktrees && SelectedTask is { } task && SelectedBatch is { } batch
         && WorkspaceTaskPolicy.CanPrepareWorktree(task.Record, batch.Tasks);
@@ -246,7 +247,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
             await _store.ReviewTaskAsync(Project.Id, item.Record.Id, attempt.Run.Id, approve, ReviewNote);
             await ReloadAsync(); Notice = approve ? item.Record.Worktree is null
                 ? "Entrega aprovada. Dependências liberadas para início explícito."
-                : "Entrega aprovada na worktree. Dependentes aguardam integração Git, ainda em desenvolvimento; arquivos preservados na pasta da tarefa."
+                : "Entrega aprovada na worktree. Registre o commit nos diffs, prepare/valide a combinação e publique para liberar dependentes."
                 : "Ajustes registrados. Inicie outra tentativa quando estiver pronto; o pedido será enviado à mesma sessão.";
             await LoadSelectionAsync();
         }

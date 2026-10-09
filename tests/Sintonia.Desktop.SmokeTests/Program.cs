@@ -28,6 +28,7 @@ internal static class Program
         if (args.FirstOrDefault() == "--deliveries") return TaskDeliverySmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/delivery-smoke");
         if (args.FirstOrDefault() == "--combinations") return TaskCombinationSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/combination-smoke");
         if (args.FirstOrDefault() == "--validation") return TaskCombinationSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/validation-smoke", validate: true);
+        if (args.FirstOrDefault() == "--publication") return TaskCombinationSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/publication-smoke", validate: true, publish: true);
         if (args.FirstOrDefault() == "--workspace-real") return WorkspaceRealSmoke.Run();
         var output = Path.GetFullPath(args.FirstOrDefault() ?? "artifacts/ui-smoke");
         Directory.CreateDirectory(output);

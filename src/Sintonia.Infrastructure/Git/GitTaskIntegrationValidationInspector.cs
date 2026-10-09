@@ -13,8 +13,17 @@ public sealed class GitTaskIntegrationValidationInspector(GitTaskWorktreeManager
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(60));
         var directory = preparation.CheckoutDirectory;
         await new GitTaskIntegrationPreparer(manager).ValidateCheckoutAsync(preparation, deadline.Token).ConfigureAwait(false);
-        await manager.CheckTreeAsync(directory, preparation.Tree!, deadline.Token, forIntegration: true).ConfigureAwait(false);
-        var tree = await RunAsync(directory, deadline.Token, "ls-tree", "--full-tree", "-r", "-z", preparation.Tree!).ConfigureAwait(false);
+        await VerifyContentAsync(directory, preparation.Tree!, deadline.Token).ConfigureAwait(false);
+        await new GitTaskIntegrationPreparer(manager).ValidateCheckoutAsync(preparation, deadline.Token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+    }
+    internal async Task VerifyContentAsync(string directory, string treeId, CancellationToken token)
+    {
+        directory = Path.GetFullPath(directory);
+        GitTaskWorktreeManager.CheckPath(directory);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(60));
+        await manager.CheckTreeAsync(directory, treeId, deadline.Token, forIntegration: true).ConfigureAwait(false);
+        var tree = await RunAsync(directory, deadline.Token, "ls-tree", "--full-tree", "-r", "-z", treeId).ConfigureAwait(false);
         var expected = Entries(tree).Select(e =>
         {
             if (!e[7..].StartsWith("blob ", StringComparison.Ordinal)) throw new FormatException("Objeto inválido na árvore combinada.");
@@ -46,7 +55,6 @@ public sealed class GitTaskIntegrationValidationInspector(GitTaskWorktreeManager
         }
         await VerifyIndexAsync(directory, expected, deadline.Token).ConfigureAwait(false);
         await VerifyStatusAsync(directory, deadline.Token).ConfigureAwait(false);
-        await new GitTaskIntegrationPreparer(manager).ValidateCheckoutAsync(preparation, deadline.Token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
     }
     private async Task VerifyIndexAsync(string directory, string[] expected, CancellationToken token)

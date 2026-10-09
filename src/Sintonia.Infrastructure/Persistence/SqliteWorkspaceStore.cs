@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 10) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 11) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -72,7 +72,11 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE TABLE IF NOT EXISTS project_execution_settings(project_id TEXT PRIMARY KEY REFERENCES projects(id),
                 session_limit INTEGER NOT NULL CHECK(session_limit BETWEEN 3 AND 7), revision INTEGER NOT NULL CHECK(revision>=0));
             CREATE TABLE IF NOT EXISTS run_execution_scopes(run_id TEXT PRIMARY KEY REFERENCES runs(id), definition TEXT NOT NULL);
-            PRAGMA user_version=10;
+            CREATE TABLE IF NOT EXISTS task_publications(id TEXT PRIMARY KEY REFERENCES task_integrations(id),
+                project_id TEXT NOT NULL REFERENCES projects(id), task_id TEXT NOT NULL REFERENCES work_tasks(id),
+                definition TEXT NOT NULL, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 4), finished_at TEXT, error TEXT);
+            CREATE UNIQUE INDEX IF NOT EXISTS one_published_delivery ON task_publications(task_id) WHERE state=1;
+            PRAGMA user_version=11;
             """);
         transaction.Commit();
         return true;
@@ -242,6 +246,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             }
             foreach (var id in abandoned)
             {
+                Execute(connection, transaction, "UPDATE task_publications SET state=3,finished_at=$finished,error=$error WHERE id=$id AND state=0",
+                    ("$id", id), ("$finished", DateTimeOffset.UtcNow.ToString("O")), ("$error", "Publicação interrompida. Confira o commit e o destino; nenhuma operação será repetida automaticamente."));
                 Execute(connection, transaction, "UPDATE task_integration_validations SET state=5,finished_at=$finished,error=$error WHERE id=$id AND state=0",
                     ("$id", id), ("$finished", DateTimeOffset.UtcNow.ToString("O")), ("$error", "O aplicativo encerrou durante a validação. Confira a pasta preservada; nenhum comando foi repetido."));
                 Execute(connection, transaction, "UPDATE task_integration_preparations SET state=3,error=$error WHERE id=$id AND state=0",

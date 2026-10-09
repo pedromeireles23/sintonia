@@ -38,6 +38,12 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             await worktrees.ValidateAsync(worktree, cancellationToken).ConfigureAwait(false);
             project = project with { Directory = worktree.WorkingDirectory };
         }
+        foreach (var dependency in batch.Tasks.Where(t => task.Definition.Dependencies.Contains(t.Definition.Id) && t.Publication is not null))
+        {
+            if (worktrees is not IGitTaskRevisionInspector revisions)
+                throw new InvalidOperationException("A conferência da revisão integrada não está disponível nesta instalação.");
+            await revisions.VerifyRevisionAsync(project.Directory, dependency.Publication!.Commit!, cancellationToken).ConfigureAwait(false);
+        }
         var conversation = (await store.GetConversationsAsync(projectId).ConfigureAwait(false)).Single(c => c.Id == task.ConversationId);
         return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, taskId, task.Worktree).ConfigureAwait(false);
     }

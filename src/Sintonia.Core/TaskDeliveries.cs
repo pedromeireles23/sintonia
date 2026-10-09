@@ -11,7 +11,7 @@ public sealed record TaskDelivery(string TaskId, string SourceRunId, TaskWorktre
             || !IsObjectId(Commit) || !IsObjectId(Tree) || Commit.Length != Tree.Length || Commit.Length != Worktree.BaseCommit.Length)
             throw new ArgumentException("Registro de entrega inválido.");
     }
-    internal static bool IsObjectId(string value) => value.Length is 40 or 64 && value.All(Uri.IsHexDigit);
+    public static bool IsObjectId(string value) => value.Length is 40 or 64 && value.All(Uri.IsHexDigit);
 }
 
 public sealed record TaskIntegrationTarget(string RepositoryDirectory, string CommonGitDirectory, string Branch, string Commit)

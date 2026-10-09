@@ -1,0 +1,15 @@
+# Publicação serial e revisão das dependências
+
+Depois de registrar a entrega, preparar a combinação e executar os critérios, selecione um resultado **Passou** em Validar combinação. **Publicar no projeto** consulta a revisão atual dos critérios e reconfirma pasta/branch/commit de origem e destino, árvore combinada, índice e conteúdo versionado. A prévia mostra o destino que receberá os arquivos, a entrega, a árvore e a revisão validada. Recusar conserva o destino.
+
+A publicação cria um commit com a árvore conferida e dois pais: destino confirmado e entrega registrada. O candidato é salvo no SQLite antes de aplicar arquivos. Git avança a branch local por fast-forward, sem force/reset/autostash, hooks ou filtros externos. Não faz push. Mudanças locais, divergência de branch ou colisão com arquivos ignorados recusam a operação. Worktrees da tarefa/combinação e arquivos ignorados sem colisão permanecem preservados; não existe limpeza automática.
+
+O schema 11 acrescenta intenção, candidato e resultado de publicação. Reserva transacional e trava por Git comum permanecem durante conferência, criação do commit, aplicação e persistência. Publicação concluída é única por entrega. Critérios alterados, resultados obsoletos e términos antigos são recusados. Recuperação conserva executores vivos e marca abandonados como interrompidos, com o candidato salvo; não repete checkout nem move refs automaticamente.
+
+Cancelar impede a aplicação enquanto a operação ainda está preparando/conferindo. Depois de iniciar a aplicação, o host aguarda sua operação Git limitada e registra o resultado real, mesmo se o cancelamento chegar tarde. Fechamento da central aguarda o painel. Falha durante/depois do checkout conserva o candidato e marca atenção: a branch pode ter avançado e exige inspeção. Nenhum rollback automático descarta arquivos ou commits.
+
+Somente **Published**, com entrega/run compatíveis, libera dependentes de uma worktree. O pedido do dependente inclui resumo, critérios, revisão humana e commit/árvore publicados. Antes de chamar o provedor, o host exige que a pasta efetiva contenha esse commit no histórico. Uma worktree anterior à integração não recebe início silencioso nem atualização automática. Tarefas sem dependência Git conservam seu fluxo existente.
+
+Limites: processos externos podem alterar arquivos/refs entre conferências; Git e SQLite não formam uma transação única. Falha de persistência ou alteração externa após aplicar exige atenção, preservando evidência e sem liberar dependentes. Arquivos ignorados, ferramentas, ambiente e dependências de validação não são imutáveis. Conflitos continuam visíveis na pasta separada e precisam de outra entrega/preparação; não há resolução automática.
+
+Validação usa Git real em pastas temporárias, comandos/processos de teste e provedores simulados, sem modelos. Casos incluem árvore/pais exatos, arquivos ignorados, alterações ocultas, revisão obsoleta, cancelamento antes/depois da aplicação, falha após checkout, reserva/recuperação/migração, publicação única e dependência com revisão ausente.

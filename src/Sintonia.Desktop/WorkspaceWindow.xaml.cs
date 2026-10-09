@@ -26,7 +26,8 @@ public partial class WorkspaceWindow : Window
             new WorkspaceChatService(store, [new CodexConversationProvider(), new ClaudeConversationProvider()], worktrees), Dispatcher,
             PickDirectory, InspectAsync, new TaskWorktreeService(store, worktrees), new TaskDiffService(store, new GitTaskDiffReader(worktrees)),
             deliveries, new TaskIntegrationPreparationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationPreparer(worktrees)),
-            new TaskIntegrationValidationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(worktrees), new ValidationCommandRunner()));
+            new TaskIntegrationValidationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(worktrees), new ValidationCommandRunner()),
+            new TaskPublicationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskPublisher(worktrees)));
         Loaded += async (_, _) => await ViewModel.InitializeAsync();
         Closing += CloseAsync;
     }

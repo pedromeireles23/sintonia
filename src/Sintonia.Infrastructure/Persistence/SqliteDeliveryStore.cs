@@ -75,6 +75,7 @@ public sealed partial class SqliteWorkspaceStore
             UPDATE task_integrations SET state=$state,error=$error WHERE id=$id AND state=0
             AND NOT EXISTS(SELECT 1 FROM task_integration_preparations p WHERE p.id=task_integrations.id AND p.state=0)
             AND NOT EXISTS(SELECT 1 FROM task_integration_validations v WHERE v.id=task_integrations.id AND v.state=0)
+            AND NOT EXISTS(SELECT 1 FROM task_publications p WHERE p.id=task_integrations.id AND p.state=0)
             """,
             ("$state", (int)(error is null ? TaskIntegrationState.Released : TaskIntegrationState.NeedsAttention)), ("$error", error), ("$id", reservationId)) != 1)
             throw new InvalidOperationException("Esta reserva já terminou ou tem uma combinação em andamento. Nenhuma reserva mais nova foi alterada.");

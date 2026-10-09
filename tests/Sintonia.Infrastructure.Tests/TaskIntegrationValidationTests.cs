@@ -14,9 +14,16 @@ public sealed class TaskIntegrationValidationTests
     private static TaskDeliveryService Deliveries(SqliteWorkspaceStore store, TaskWorktreeTests.Fixture fixture) => new(store, new GitTaskDeliveryInspector(fixture.Manager));
     private static TaskIntegrationValidationService Service(SqliteWorkspaceStore store, TaskWorktreeTests.Fixture fixture, IValidationCommandRunner? runner = null) =>
         new(store, Deliveries(store, fixture), new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(fixture.Manager), runner ?? new ValidationCommandRunner());
-    private static async Task<(SqliteWorkspaceStore Store, WorkspaceProject Project, WorkspaceTask Task, TaskIntegrationPreparation Preparation)> SeedAsync(TaskWorktreeTests.Fixture fixture)
+    internal static async Task<(SqliteWorkspaceStore Store, WorkspaceProject Project, WorkspaceTask Task, TaskIntegrationPreparation Preparation)> SeedAsync(TaskWorktreeTests.Fixture fixture, bool ignoredCollision = false)
     {
         var (store, project, task, review) = await TaskDeliveryTests.PrepareAsync(fixture);
+        if (ignoredCollision)
+        {
+            await File.WriteAllTextAsync(Path.Combine(task.Worktree!.CheckoutDirectory, "config.local"), "arquivo da entrega");
+            await fixture.GitAsync(task.Worktree.CheckoutDirectory, "add", "-f", "config.local");
+            await fixture.GitAsync(task.Worktree.CheckoutDirectory, "commit", "-m", "colisão ignorada de teste");
+            review = await new TaskDiffService(store, new GitTaskDiffReader(fixture.Manager)).ScanAsync(project.Id, task.Id, CancellationToken.None);
+        }
         await Deliveries(store, fixture).RegisterAsync(project.Id, review, CancellationToken.None);
         task = await fixture.CurrentAsync(store, project, task.Id);
         var service = new TaskIntegrationPreparationService(store, Deliveries(store, fixture), new RepositoryIntegrationLock(),

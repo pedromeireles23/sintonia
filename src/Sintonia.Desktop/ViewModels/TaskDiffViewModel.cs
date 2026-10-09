@@ -21,6 +21,7 @@ public sealed class TaskDiffViewModel : ObservableObject
     private readonly TaskDeliveryService? _deliveries;
     private readonly TaskIntegrationPreparationService? _preparations;
     private readonly TaskIntegrationValidationService? _validations;
+    private readonly TaskPublicationService? _publications;
     private TaskIntegrationPreparation? _preparation;
     private TaskDelivery? _delivery;
     private CancellationTokenSource? _stop;
@@ -32,11 +33,12 @@ public sealed class TaskDiffViewModel : ObservableObject
     private bool _busy, _stopping;
     private string _notice = "Atualize para consultar a pasta registrada desta tarefa.";
     public TaskDiffViewModel(WorkspaceProject project, WorkspaceTask task, TaskDiffService service, TaskDeliveryService? deliveries = null,
-        TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null)
+        TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null, TaskPublicationService? publications = null)
     {
         Project = project; TaskRecord = task; _service = service; _deliveries = deliveries; _delivery = task.Delivery; _comparison = Comparisons[0];
         _preparations = preparations;
         _validations = validations;
+        _publications = publications;
         RefreshCommand = new(RefreshAsync, ShowError, () => !Busy && !_stopping);
         ReadCommand = new(ReadSelectedAsync, ShowError, () => CanRead);
         CancelCommand = new(() => _stop?.Cancel(), () => Busy && !_stopping);
@@ -71,8 +73,9 @@ public sealed class TaskDiffViewModel : ObservableObject
             + (preparation.Tree is { } tree ? $"Árvore combinada: {tree}\n" : "")
             + (preparation.Conflicts is { Count: > 0 } conflicts ? "Conflitos: " + string.Join(" · ", conflicts) + "\n" : "")
             + (preparation.Error is { } error ? error + "\n" : "")
-            + "Estado salvo da preparação. Publicação, testes do projeto e liberação de dependentes continuam pendentes.";
-    public string DeliveryStatus => Delivery is { } delivery ? $"Commit registrado da entrega: {delivery.Commit}\nRegistrado em {delivery.RegisteredAt.ToLocalTime():dd/MM/yyyy HH:mm:ss}. A integração ainda está pendente."
+            + "Estado salvo da preparação. Consulte os resultados de validação e publicação no painel Validar combinação.";
+    public string DeliveryStatus => Delivery is { } delivery ? $"Commit registrado da entrega: {delivery.Commit}\nRegistrado em {delivery.RegisteredAt.ToLocalTime():dd/MM/yyyy HH:mm:ss}. "
+        + (Review?.Task.Publication is { State: TaskPublicationState.Published } publication ? $"Integrada no commit {publication.Commit}." : "A integração ainda está pendente.")
         : (Review?.Task ?? TaskRecord).State != WorkspaceTaskState.Approved ? "Para registrar um commit, aprove a entrega na fila e atualize os diffs."
         : Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent) ? "Salve as mudanças em um commit e atualize os diffs antes de registrar. Arquivos ignorados ficam fora da entrega."
         : "Confira a comparação desde a base e registre o commit revisado. O registro inclui toda a worktree e não integra a entrega.";
@@ -96,7 +99,7 @@ public sealed class TaskDiffViewModel : ObservableObject
         && !Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent);
     public bool CanValidateCombination => CanChoose && _validations is not null && Preparation is not null;
     public TaskValidationViewModel CreateValidationReview() => CanValidateCombination
-        ? new(Project, Preparation!, _validations!) : throw new InvalidOperationException("Atualize os diffs e prepare uma combinação antes de consultar sua validação.");
+        ? new(Project, Preparation!, _validations!, _publications) : throw new InvalidOperationException("Atualize os diffs e prepare uma combinação antes de consultar sua validação.");
     public AsyncCommand RefreshCommand { get; }
     public AsyncCommand ReadCommand { get; }
     public DelegateCommand CancelCommand { get; }

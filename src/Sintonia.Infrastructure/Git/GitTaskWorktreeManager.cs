@@ -4,7 +4,7 @@ using Sintonia.Infrastructure.Diagnostics;
 namespace Sintonia.Infrastructure.Git;
 
 /// <summary>Only creates owned checkouts. Never removes, resets, forces, commits, fetches or merges.</summary>
-public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
+public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager, IGitTaskRevisionInspector
 {
     private readonly string _root;
     private readonly ExecutableLaunch? _launch;
@@ -80,6 +80,13 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
             throw new InvalidOperationException("O vínculo Git da tarefa mudou. Confira registro, branch e bloqueio da worktree antes de executar.");
         var ancestry = await RunAsync(worktree.CheckoutDirectory, deadline.Token, "merge-base", "--is-ancestor", worktree.BaseCommit, "HEAD").ConfigureAwait(false);
         if (ancestry.ExitCode != 0) throw new InvalidOperationException("A branch da tarefa não contém mais o commit de base registrado.");
+    }
+    public async Task VerifyRevisionAsync(string directory, string commit, CancellationToken token)
+    {
+        if (!TaskDelivery.IsObjectId(commit)) throw new ArgumentException("Revisão integrada inválida.");
+        CheckPath(directory);
+        var ancestry = await RunAsync(directory, token, "merge-base", "--is-ancestor", commit, "HEAD").ConfigureAwait(false);
+        if (ancestry.ExitCode != 0) throw new InvalidOperationException("A pasta da tarefa não contém a revisão integrada da dependência. Prepare uma nova pasta a partir do destino atualizado.");
     }
 
     private async Task CheckSourceAsync(TaskWorktree worktree, CancellationToken token)

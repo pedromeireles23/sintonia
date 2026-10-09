@@ -43,6 +43,10 @@ public interface IWorkspaceStore
     Task SaveTaskIntegrationValidationAsync(TaskIntegrationValidation validation);
     Task FinishTaskIntegrationValidationAsync(TaskIntegrationValidation validation);
     Task<IReadOnlyList<TaskIntegrationValidation>> GetTaskIntegrationValidationsAsync(string projectId);
+    Task SaveTaskPublicationAsync(TaskPublication publication);
+    Task RecordTaskPublicationCommitAsync(TaskPublication publication);
+    Task FinishTaskPublicationAsync(TaskPublication publication);
+    Task<IReadOnlyList<TaskPublication>> GetTaskPublicationsAsync(string projectId);
     Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync();
     Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
     Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);

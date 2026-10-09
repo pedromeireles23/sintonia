@@ -5,7 +5,7 @@ namespace Sintonia.Core;
 
 public enum WorkspaceTaskState { Pending, Running, AwaitingReview, Approved, ChangesRequested, Blocked, Failed, Cancelled, Interrupted }
 public sealed record WorkspaceTask(string Id, string BatchId, ProposedTask Definition, string ConversationId,
-    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null, TaskDelivery? Delivery = null);
+    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null, TaskDelivery? Delivery = null, TaskPublication? Publication = null);
 public sealed record WorkspaceTaskBatch(string Id, string ProjectId, string ProposalId, int ProposalRevision,
     PlanProposal Definition, IReadOnlyList<WorkspaceTask> Tasks);
 
@@ -25,10 +25,11 @@ public static class WorkspaceTaskPolicy
         && (task.Worktree is null || task.Worktree.State == TaskWorktreeState.NeedsAttention) && DependenciesAvailable(task, tasks);
 
     // Delivery approval alone does not put changes from a separate checkout into the project.
-    // Git integration is the next increment; successors must wait for it.
     private static bool DependenciesAvailable(WorkspaceTask task, IReadOnlyList<WorkspaceTask> tasks) =>
         task.Definition.Dependencies.All(id => tasks.Any(t => t.Definition.Id == id
-            && t.State == WorkspaceTaskState.Approved && t.Worktree is null));
+            && t.State == WorkspaceTaskState.Approved && (t.Worktree is null
+                || t.Publication is { State: TaskPublicationState.Published } publication && publication.Reservation.Delivery == t.Delivery
+                && publication.Reservation.Delivery.SourceRunId == t.LastRunId)));
 
     public static WorkspaceTaskState FromRun(ChatRunState state) => state switch
     {
@@ -47,7 +48,8 @@ public static class WorkspaceTaskPolicy
         {
             var dependency = batch.Tasks.Single(t => t.Definition.Id == id);
             var run = dependencies.Single(r => r.Id == dependency.LastRunId && r.State == ChatRunState.Completed);
-            return new { taskId = id, runId = run.Id, response = Limit(run.Response, 4000), review = Limit(dependency.ReviewNote, 2000) };
+            return new { taskId = id, runId = run.Id, publishedCommit = dependency.Publication?.Commit,
+                publishedTree = dependency.Publication?.Validation.Preparation.Tree, response = Limit(run.Response, 4000), review = Limit(dependency.ReviewNote, 2000) };
         });
         return "Execute somente a tarefa abaixo neste projeto. Preserve o trabalho existente e respeite suas instruções e permissões. "
             + "Não delegue a outros agentes sem pedido explícito. Não aprove entregas nem inicie outras tarefas. "

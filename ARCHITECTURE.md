@@ -2,6 +2,8 @@
 
 ## Stack e organização
 
+Publicação implementada no schema 11: `TaskPublicationService`/`GitTaskPublisher` reconferem critérios, árvore e conteúdo de origem/destino. Intenção e commit candidato são salvos antes de aplicar fast-forward no destino confirmado. Commit tem árvore validada e pais destino/entrega. Reserva/trava duram até o resultado; cancelamento após iniciar aplicação aguarda sua operação limitada. Falha/interrupção conserva evidência sem rollback/repetição. `WorkspaceTaskPolicy` exige Published compatível e `IGitTaskRevisionInspector` confere a revisão na pasta efetiva antes da inferência. Contratos em [docs/TASK_PUBLICATION.md](docs/TASK_PUBLICATION.md).
+
 C# com .NET 10, interface WPF em MVVM e SQLite para o histórico real. A primeira versão é local e focada no Windows.
 
 O Sintonia é o canal de comunicação e coordenação entre sessões do Codex e do Claude em múltiplos projetos. Os agentes executam o trabalho usando suas ferramentas; os contratos do aplicativo cuidam de encaminhar contexto e resultados, preservar histórico e coordenar dependências, permissões e concorrência. Código, documentos e imagens são entregas desse fluxo geral. A retirada do módulo próprio de artes está registrada na decisão 011 de [docs/DECISIONS.md](docs/DECISIONS.md).

@@ -13,6 +13,8 @@ public partial class TaskValidationWindow : Window
     {
         InitializeComponent(); DataContext = viewModel;
         ViewModel.ConfirmValidation ??= preview => ActionConfirmation.Show(this, "Executar critérios de validação", Describe(preview), "Executar critérios");
+        ViewModel.ConfirmPublication ??= validation => ActionConfirmation.Show(this, "Publicar entrega no projeto",
+            $"Destino: {validation.Reservation.Target.RepositoryDirectory}\nBranch: {validation.Reservation.Target.Branch}\nCommit atual: {validation.Reservation.Target.Commit}\nEntrega: {validation.Reservation.Delivery.Commit}\nÁrvore validada: {validation.Preparation.Tree}\nCritérios: revisão {validation.Configuration.Revision}\n\nCriar um commit de integração e aplicar essa árvore no destino? As pastas de trabalho e os arquivos ignorados serão preservados. Dependentes serão liberados após a conferência e o registro do resultado.\n\nCancelar impede o início da aplicação. Depois dele, o aplicativo aguarda a operação limitada e salva seu resultado. Não haverá push para remotes.", "Publicar no projeto");
         Loaded += async (_, _) => await ViewModel.ReloadAsync();
         Closing += async (_, e) =>
         {

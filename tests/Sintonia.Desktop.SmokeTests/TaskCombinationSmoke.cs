@@ -16,7 +16,7 @@ namespace Sintonia.Desktop.SmokeTests;
 
 internal static class TaskCombinationSmoke
 {
-    public static int Run(string outputPath, bool validate = false)
+    public static int Run(string outputPath, bool validate = false, bool publish = false)
     {
         var output = Path.GetFullPath(outputPath); Directory.CreateDirectory(output);
         var root = Path.Combine(output, "run-" + Guid.NewGuid()); var original = Path.Combine(root, "Portal geral ação");
@@ -27,11 +27,12 @@ internal static class TaskCombinationSmoke
         var preparations = new TaskIntegrationPreparationService(store, deliveries, new RepositoryIntegrationLock(), preparer); var worker = new Worker();
         var runner = new ControlledRunner(new ValidationCommandRunner());
         var validations = new TaskIntegrationValidationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(manager), runner);
+        var publications = new TaskPublicationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskPublisher(manager));
         var app = new App(); app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var errors = new BindingErrors(); PresentationTraceSources.DataBindingSource.Listeners.Add(errors);
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
         var vm = new WorkspaceViewModel(store, new(store, [worker], manager), app.Dispatcher, () => directory,
-            (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])), new(store, manager), new(store, new GitTaskDiffReader(manager)), deliveries, preparations, validations);
+            (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])), new(store, manager), new(store, new GitTaskDiffReader(manager)), deliveries, preparations, validations, publications);
         var main = new WorkspaceWindow(vm); TaskDiffWindow? window = null; var exitCode = 1;
         main.Loaded += async (_, _) =>
         {
@@ -83,9 +84,10 @@ internal static class TaskCombinationSmoke
                 Require(((TextBox)window.FindName("DiffContent")).ActualHeight > 140 && prepare.IsVisible, "Conteúdo/ação inacessível no mínimo.");
                 if (validate)
                 {
-                    await ValidateUiAsync(output, main, window, store, runner, project, originalIndex, index);
+                    await ValidateUiAsync(output, main, window, store, runner, project, originalIndex, index, publish);
                     Require(worker.Calls == 0 && errors.Errors.Count == 0, "Modelos chamados ou erros de binding: " + string.Join("\n", errors.Errors));
-                    Console.WriteLine("PASS: editor/validação WPF, critérios literais/revisão, recusa/prévia obsoleta, Git e processos reais, histórico/logs/falha, cancelamento/tardio, navegação/reabertura e fechamento aguardado; zero erros de binding, nenhum modelo chamado. Capturas: " + output);
+                    Console.WriteLine(publish ? "PASS: publicação WPF com Git/processos reais, recusa/destino obsoleto, árvore/commit registrados, ignorados preservados, dependentes disponíveis, reabertura; zero erros de binding e nenhum modelo chamado. Capturas: " + output
+                        : "PASS: editor/validação WPF, critérios literais/revisão, recusa/prévia obsoleta, Git e processos reais, histórico/logs/falha, cancelamento/tardio, navegação/reabertura e fechamento aguardado; zero erros de binding, nenhum modelo chamado. Capturas: " + output);
                     exitCode = 0; return;
                 }
                 await File.WriteAllTextAsync(Path.Combine(directory, "portal.txt"), "Outra entrega concorrente\n");
@@ -125,7 +127,7 @@ internal static class TaskCombinationSmoke
     { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90)); while (diff.Busy) await Task.Delay(25, stop.Token); await Task.Delay(30); }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static async Task ValidateUiAsync(string output, WorkspaceWindow main, TaskDiffWindow diffWindow, SqliteWorkspaceStore store,
-        ControlledRunner runner, WorkspaceProject project, byte[] indexBefore, string indexPath)
+        ControlledRunner runner, WorkspaceProject project, byte[] indexBefore, string indexPath, bool publish)
     {
         var vm = main.ViewModel;
         var editor = new ProjectValidationWindow(vm.CreateProjectValidation()) { Owner = main }; editor.Show();
@@ -156,6 +158,27 @@ internal static class TaskCombinationSmoke
         Capture(validationWindow, Path.Combine(output, "05-validation-normal.png")); validationWindow.Width = validationWindow.MinWidth; validationWindow.Height = validationWindow.MinHeight;
         Capture(validationWindow, Path.Combine(output, "06-validation-minimum.png"));
         Require(((TextBox)validationWindow.FindName("ValidationDetails")).ActualHeight > 180, "Logs inacessíveis no mínimo.");
+        if (publish)
+        {
+            validation.ConfirmPublication = _ => false; await validation.PublishAsync();
+            Require((await store.GetTaskPublicationsAsync(project.Id)).Count == 0, "Recusa publicou entrega.");
+            var changed = Path.Combine(project.Directory, "posterior.txt");
+            validation.ConfirmPublication = _ => { File.WriteAllText(changed, "destino mudou após prévia"); return true; };
+            await validation.PublishAsync(); Require(validation.Publication is null && validation.Notice.Contains("alterações"), "Destino obsoleto publicado.");
+            File.Delete(changed); validation.ConfirmPublication = _ => true;
+            Button(validationWindow, "PublishTaskCombination").Command!.Execute(null); await Until(() => validation.Busy); await WaitValidationAsync(validation);
+            Require(validation.Publication?.State == TaskPublicationState.Published && !validation.CanPublish, "Publicação não registrada ou duplicação habilitada.");
+            var appliedText = await File.ReadAllTextAsync(Path.Combine(project.Directory, "portal.txt"));
+            Require(appliedText.Replace("\r\n", "\n") == "Formulário acessível\n", "Árvore validada não aplicada.");
+            Require(await File.ReadAllTextAsync(Path.Combine(project.Directory, "config.local")) == "arquivo original ignorado", "Ignorado original alterado.");
+            batch = (await store.GetTaskBatchesAsync(project.Id)).Single(); Require(WorkspaceTaskPolicy.CanStart(batch.Tasks[1], batch.Tasks), "Publicação não liberou dependente.");
+            Capture(validationWindow, Path.Combine(output, "07-published-minimum.png"));
+            validationWindow.Close(); await Until(() => !validationWindow.IsVisible);
+            validationWindow = new TaskValidationWindow(diffWindow.ViewModel.CreateValidationReview()) { Owner = main }; validationWindow.Show();
+            await Until(() => !validationWindow.ViewModel.Busy && validationWindow.ViewModel.Publication is not null);
+            Require(validationWindow.ViewModel.Publication?.State == TaskPublicationState.Published, "Reabertura perdeu publicação.");
+            main.Close(); await Until(() => !main.IsVisible && !validationWindow.IsVisible && !editor.IsVisible); return;
+        }
         saved = await store.GetProjectValidationAsync(project.Id);
         await store.SaveProjectValidationAsync(saved with { Commands = [saved.Commands[0] with { Arguments = ["-NoProfile", "-Command", "Write-Output 'falha conferida'; exit 9"] }, saved.Commands[0] with { Name = "Não executar" }] });
         await validation.ValidateAsync(); Require(validation.History.Last().Record.State == ValidationState.Failed && validation.History.Last().Record.Results?.Count == 1, "Falha não interrompeu sequência.");

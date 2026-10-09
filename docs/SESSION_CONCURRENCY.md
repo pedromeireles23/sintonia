@@ -14,7 +14,7 @@ O projeto admite de **3 a 7 sessões simultâneas**, com padrão de 3. Sessões 
 - Pastas sobrepostas com uma execução de escrita são recusadas, inclusive entre projetos cadastrados separadamente.
 - Preparações e integrações Git conservam suas reservas próprias. Prepare as worktrees antes de iniciar o grupo de tarefas.
 
-Worktrees separam alterações e compartilham objetos/configuração Git; não são um sandbox. Publicação continua serial e em desenvolvimento. Aprovação, combinação ou validação Passed não liberam dependentes de entregas ainda não integradas.
+Worktrees separam alterações e compartilham objetos/configuração Git; não são um sandbox. [Publicação](TASK_PUBLICATION.md) é serial, confirmada e registrada. Aprovação, combinação ou validação Passed não liberam dependentes de entregas ainda não integradas.
 
 ## Chefia e interface
 

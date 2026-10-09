@@ -49,19 +49,19 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 ## M3 — Trabalho paralelo com Git
 
-Estado: diagnóstico Git, worktrees, diffs, registro do commit revisado e preparação da combinação conectados à central/fila. Nova worktree separada/destacada conserva árvore ou conflitos, preservando original/índices/ignorados. Validação configurável registra intenção/resultados no schema 9, mantém reserva/trava, executa comandos limitados/canceláveis e confere índice/conteúdo/critério antes de salvar sucesso. Editor por projeto e execução/histórico WPF conectados, com prévia integral e fechamento aguardado. Recuperação preserva operações vivas e não repete comandos abandonados. Combinação/Passed não publicam nem liberam dependentes; próximo incremento é confirmação/publicação no destino. Projetos sem Git continuam disponíveis; escrita direta permanece exclusiva. Limite de 3–7 sessões e escrita paralela em worktrees validadas implementados no schema 10, com seletor WPF e despacho de uma rodada do plano aprovado. Git real e processos/runs de teste, sem chamadas de modelos neste incremento.
+Estado: diagnóstico Git, worktrees, diffs, commit revisado, combinação separada, critérios/execução/histórico WPF e publicação serial confirmada conectados. Schema 11 registra intenção/candidato/resultado; Published libera dependentes e a pasta efetiva precisa conter o commit integrado. Reserva/trava e recuperação preservam executores vivos/efeitos sem repetir operações. Limite 3–7 por projeto, teto global 7, provedores misturados e despacho de uma rodada aprovados. Projetos sem Git continuam usando chat/fila; escrita direta permanece exclusiva. Worktrees e arquivos são conservados; limpeza assistida ainda pendente.
 
-Validação atual: build sem avisos/erros, última suíte completa com 257 testes xUnit aprovados. WPF --validation e --sessions aprovados, zero erros de binding, capturas normal/mínima revisadas. O fluxo --combinations mantém sua validação anterior; a atualização do Release acompanha o próximo fechamento da sessão.
+Validação atual: build sem avisos/erros, 69 testes Core e sete novos de publicação aprovados. WPF --publication/--validation/--sessions aprovados, zero erros de binding, capturas revisadas. Última suíte completa anterior: 257 testes; regressões selecionadas adicionais em execução. Nenhum modelo chamado neste incremento. Release será atualizado ao fechar a sessão.
 
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
 - [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
-- [ ] Entregar especificações, contratos e resumos entre sessões.
-- [ ] Vincular tarefas à revisão correta do código de suas dependências.
+- [x] Entregar especificações, contratos e resumos entre sessões, incluindo resultado/revisão e commit/árvore publicados.
+- [x] Vincular tarefas à revisão correta do código de suas dependências, com conferência de ancestralidade antes da inferência.
 - [x] Mostrar diffs e conflitos antes de integrar.
 - [x] Registrar commit/árvore revisados e preparar reserva serial por repositório.
 - [x] Combinar entrega/destino numa pasta separada, preservando conflitos e resultados persistidos.
-- [ ] Integrar alterações de forma serial e testar o conjunto.
-- [ ] Preservar alterações locais e arquivos necessários ao limpar worktrees.
+- [x] Integrar alterações de forma serial após validar a combinação, com confirmação e publicação registrada.
+- [ ] Oferecer limpeza assistida preservando alterações locais e arquivos necessários; atualmente todas as worktrees são conservadas.
 
 Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nenhuma alteração é perdida; a versão combinada é verificada. Projeto sem Git não recebe escrita paralela por padrão.
 
@@ -72,7 +72,7 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 - [ ] Acompanhar resultados das sessões de trabalho e atualizar o plano pelo chat central.
 - [x] Permitir edição de função, provedor/modelo, escopo, dependências e critérios da proposta pelo usuário.
 - [ ] Implementar limites configuráveis de tentativas, tempo, concorrência e consumo disponível (concorrência 3–7 configurável na central; três tentativas por tarefa, prazo dos adaptadores e reserva compartilhada já aplicados).
-- [ ] Distinguir término de execução, aprovação da entrega e integração (término/aprovação separados; integração Git pendente).
+- [x] Distinguir término de execução, aprovação da entrega e integração Git publicada.
 
 Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sessões das duas ferramentas, com plano revisável, dependências e limites controlados pelo aplicativo. Chefia não substitui permissões ou aprovação das entregas.
 
