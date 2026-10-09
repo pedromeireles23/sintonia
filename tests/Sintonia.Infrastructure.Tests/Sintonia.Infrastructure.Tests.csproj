@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="../../tools/Sintonia.Diagnostics/ClaudeToolPermissionProbe.cs" Link="Diagnostics/ClaudeToolPermissionProbe.cs" />
   </ItemGroup>
 
   <ItemGroup>

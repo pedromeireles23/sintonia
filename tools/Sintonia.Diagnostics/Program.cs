@@ -5,10 +5,20 @@ using Sintonia.Infrastructure.Providers;
 
 Console.OutputEncoding = Encoding.UTF8;
 using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan.FromSeconds(25)
-    : args.FirstOrDefault() is "collaboration" or "collaboration-resume" ? TimeSpan.FromMinutes(6) : TimeSpan.FromMinutes(3));
+    : args.FirstOrDefault() is "collaboration" or "collaboration-resume" || args is ["permissions", "Claude", "BashEdit"]
+        ? TimeSpan.FromMinutes(6) : TimeSpan.FromMinutes(3));
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["verify-permissions", var permissionDirectory])
+    {
+        ClaudeToolPermissionProbe.VerifyFiles(Path.GetFullPath(permissionDirectory));
+        Console.WriteLine("PASS: evidência e arquivos Bash/Edit conferidos sem modelos."); return 0;
+    }
+    if (args is ["permissions", "Claude", "BashEdit"])
+    {
+        await ClaudeToolPermissionProbe.RunAsync(cancellation.Token); return 0;
+    }
     if (args is ["extensions", var extensionName] && Enum.TryParse<ProviderKind>(extensionName, true, out var extensionProvider) && Enum.IsDefined(extensionProvider))
     {
         IProviderExtensionReader reader = extensionProvider == ProviderKind.Codex ? new CodexConversationProvider() : new ClaudeConversationProvider();
@@ -157,7 +167,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude [BashEdit] | verify-permissions pasta | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>

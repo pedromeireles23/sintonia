@@ -22,7 +22,7 @@ tests/
   Sintonia.Infrastructure.Tests/  Detecção e ciclo de vida de processos
   Sintonia.ProcessFixture/  Processo auxiliar, sem modelos
 tools/
-  Sintonia.Diagnostics/   Consulta limitada de versão e ajuda
+  Sintonia.Diagnostics/   Versão/metadados e provas reais opt-in limitadas
 docs/
 ```
 
