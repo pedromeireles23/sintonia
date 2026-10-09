@@ -8,13 +8,15 @@ using Sintonia.Desktop;
 using Sintonia.Desktop.ViewModels;
 using Sintonia.Infrastructure.Git;
 using Sintonia.Infrastructure.Persistence;
+using Sintonia.Infrastructure.Validation;
+using System.Text.Json;
 using static Sintonia.Desktop.SmokeTests.TaskDiffSmoke;
 
 namespace Sintonia.Desktop.SmokeTests;
 
 internal static class TaskCombinationSmoke
 {
-    public static int Run(string outputPath)
+    public static int Run(string outputPath, bool validate = false)
     {
         var output = Path.GetFullPath(outputPath); Directory.CreateDirectory(output);
         var root = Path.Combine(output, "run-" + Guid.NewGuid()); var original = Path.Combine(root, "Portal geral ação");
@@ -23,11 +25,13 @@ internal static class TaskCombinationSmoke
         var deliveries = new TaskDeliveryService(store, new GitTaskDeliveryInspector(manager));
         var preparer = new ControlledPreparer(new GitTaskIntegrationPreparer(manager, Path.Combine(root, "combinações")));
         var preparations = new TaskIntegrationPreparationService(store, deliveries, new RepositoryIntegrationLock(), preparer); var worker = new Worker();
+        var runner = new ControlledRunner(new ValidationCommandRunner());
+        var validations = new TaskIntegrationValidationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(manager), runner);
         var app = new App(); app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var errors = new BindingErrors(); PresentationTraceSources.DataBindingSource.Listeners.Add(errors);
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
         var vm = new WorkspaceViewModel(store, new(store, [worker], manager), app.Dispatcher, () => directory,
-            (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])), new(store, manager), new(store, new GitTaskDiffReader(manager)), deliveries, preparations);
+            (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])), new(store, manager), new(store, new GitTaskDiffReader(manager)), deliveries, preparations, validations);
         var main = new WorkspaceWindow(vm); TaskDiffWindow? window = null; var exitCode = 1;
         main.Loaded += async (_, _) =>
         {
@@ -77,6 +81,13 @@ internal static class TaskCombinationSmoke
                 ((ScrollViewer)window.FindName("DiffSummaryScroll")).ScrollToBottom(); window.UpdateLayout();
                 Capture(window, Path.Combine(output, "02-combined-minimum.png"));
                 Require(((TextBox)window.FindName("DiffContent")).ActualHeight > 140 && prepare.IsVisible, "Conteúdo/ação inacessível no mínimo.");
+                if (validate)
+                {
+                    await ValidateUiAsync(output, main, window, store, runner, project, originalIndex, index);
+                    Require(worker.Calls == 0 && errors.Errors.Count == 0, "Modelos chamados ou erros de binding: " + string.Join("\n", errors.Errors));
+                    Console.WriteLine("PASS: editor/validação WPF, critérios literais/revisão, recusa/prévia obsoleta, Git e processos reais, histórico/logs/falha, cancelamento/tardio, navegação/reabertura e fechamento aguardado; zero erros de binding, nenhum modelo chamado. Capturas: " + output);
+                    exitCode = 0; return;
+                }
                 await File.WriteAllTextAsync(Path.Combine(directory, "portal.txt"), "Outra entrega concorrente\n");
                 await GitAsync(original, 0, "add", "."); await GitAsync(original, 0, "commit", "-m", "conflito de teste");
                 await diff.PrepareCombinationAsync(); Require(diff.Preparation?.State == TaskIntegrationPreparationState.Conflicted && diff.PreparationStatus.Contains("portal/portal.txt"), "Conflito real não mostrado.");
@@ -113,6 +124,73 @@ internal static class TaskCombinationSmoke
     private static async Task WaitIdleAsync(TaskDiffViewModel diff)
     { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90)); while (diff.Busy) await Task.Delay(25, stop.Token); await Task.Delay(30); }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
+    private static async Task ValidateUiAsync(string output, WorkspaceWindow main, TaskDiffWindow diffWindow, SqliteWorkspaceStore store,
+        ControlledRunner runner, WorkspaceProject project, byte[] indexBefore, string indexPath)
+    {
+        var vm = main.ViewModel;
+        var editor = new ProjectValidationWindow(vm.CreateProjectValidation()) { Owner = main }; editor.Show();
+        await Until(() => !editor.ViewModel.Busy); var config = editor.ViewModel;
+        config.AddCommand.Execute(null); var draft = config.Selected!;
+        draft.Name = "Conferir texto e eventos"; draft.Executable = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+        draft.Arguments = JsonSerializer.Serialize(new[] { "-NoProfile", "-Command", "[Console]::WriteLine('saída conferida'); [Console]::Error.WriteLine('evento de teste')" });
+        await config.SaveAsync(); Require(!config.IsDirty && (await store.GetProjectValidationAsync(project.Id)).Revision == 1, "Editor não salvou critérios.");
+        Capture(editor, Path.Combine(output, "03-editor-normal.png")); editor.Width = editor.MinWidth; editor.Height = editor.MinHeight;
+        Capture(editor, Path.Combine(output, "04-editor-minimum.png"));
+        var literal = new ProjectValidationCommand("Argumentos literais", draft.Executable, ["", "espaço ação", "aspas \"", "linha\nnova"]);
+        Require(ValidationCommandDraft.From(literal).ToCommand().Arguments.SequenceEqual(literal.Arguments), "Editor alterou argumentos literais.");
+        var saved = await store.GetProjectValidationAsync(project.Id);
+        await store.SaveProjectValidationAsync(saved); draft = config.Selected!; draft.Name = "Rascunho preservado"; await config.SaveAsync();
+        Require(config.IsDirty && draft.Name == "Rascunho preservado" && config.Notice.Contains("mudou"), "Edição obsoleta apagou rascunho.");
+        config.RevertCommand.Execute(null); await config.ReloadAsync();
+        var validationWindow = new TaskValidationWindow(diffWindow.ViewModel.CreateValidationReview()) { Owner = main }; validationWindow.Show();
+        var validation = validationWindow.ViewModel; await Until(() => !validation.Busy); validation.ConfirmValidation = _ => false;
+        await validation.ValidateAsync(); Require(runner.Calls == 0 && validation.History.Count == 0, "Recusa iniciou processo.");
+        validation.ConfirmValidation = preview => { store.SaveProjectValidationAsync(preview.Configuration).GetAwaiter().GetResult(); return true; };
+        await validation.ValidateAsync(); Require(runner.Calls == 0 && validation.Notice.Contains("mudou"), "Prévia obsoleta iniciou comandos.");
+        validation.ConfirmValidation = _ => true;
+        Button(validationWindow, "ValidateTaskCombination").Command!.Execute(null); await Until(() => validation.Busy);
+        await WaitValidationAsync(validation); Require(validation.History.Last().Record.State == ValidationState.Passed && validation.Details.Contains("saída conferida") && validation.Details.Contains("evento de teste"), "Processo real/logs não apresentados.");
+        var indexAfter = SHA256.HashData(await File.ReadAllBytesAsync(indexPath));
+        Require(indexBefore.SequenceEqual(indexAfter), "Validação modificou índice original.");
+        var batch = (await store.GetTaskBatchesAsync(project.Id)).Single(); Require(!WorkspaceTaskPolicy.CanStart(batch.Tasks[1], batch.Tasks), "Passed liberou dependente.");
+        Capture(validationWindow, Path.Combine(output, "05-validation-normal.png")); validationWindow.Width = validationWindow.MinWidth; validationWindow.Height = validationWindow.MinHeight;
+        Capture(validationWindow, Path.Combine(output, "06-validation-minimum.png"));
+        Require(((TextBox)validationWindow.FindName("ValidationDetails")).ActualHeight > 180, "Logs inacessíveis no mínimo.");
+        saved = await store.GetProjectValidationAsync(project.Id);
+        await store.SaveProjectValidationAsync(saved with { Commands = [saved.Commands[0] with { Arguments = ["-NoProfile", "-Command", "Write-Output 'falha conferida'; exit 9"] }, saved.Commands[0] with { Name = "Não executar" }] });
+        await validation.ValidateAsync(); Require(validation.History.Last().Record.State == ValidationState.Failed && validation.History.Last().Record.Results?.Count == 1, "Falha não interrompeu sequência.");
+        runner.Mode = 1; runner.Reset(); var late = validation.ValidateAsync(); await runner.Started.Task.WaitAsync(TimeSpan.FromSeconds(40));
+        validation.CancelCommand.Execute(null); Require(validation.Busy, "Cancelamento liberou UI antes do processo."); runner.Release.SetResult(); await late;
+        Require(validation.History.Last().Record.State == ValidationState.Cancelled, "Resposta tardia virou sucesso.");
+        var other = Path.Combine(Path.GetDirectoryName(project.Directory)!, "Outro projeto validação"); Directory.CreateDirectory(other);
+        await vm.AddProjectAsync(other); await Until(() => vm.CanConfigure);
+        Require(validation.Project.Id == project.Id && config.Project.Id == project.Id, "Navegação mudou projeto dos painéis.");
+        validationWindow.Close(); await Until(() => !validationWindow.IsVisible);
+        validationWindow = new TaskValidationWindow(diffWindow.ViewModel.CreateValidationReview()) { Owner = main }; validationWindow.Show(); validation = validationWindow.ViewModel;
+        await Until(() => !validation.Busy && validation.History.Count == 3); validation.ConfirmValidation = _ => true;
+        runner.Mode = 2; runner.Reset(); var closing = validation.ValidateAsync(); await runner.Started.Task.WaitAsync(TimeSpan.FromSeconds(40));
+        main.Close(); await closing; await Until(() => !main.IsVisible && !validationWindow.IsVisible && !editor.IsVisible);
+        Require(runner.Cancelled && (await store.GetTaskIntegrationValidationsAsync(project.Id)).Last().State == ValidationState.Cancelled, "Fechamento deixou validação ativa.");
+    }
+    private static async Task WaitValidationAsync(TaskValidationViewModel vm)
+    { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90)); while (vm.Busy) await Task.Delay(25, stop.Token); await Task.Delay(30); }
+    private sealed class ControlledRunner(IValidationCommandRunner native) : IValidationCommandRunner
+    {
+        public int Calls { get; private set; }
+        public int Mode { get; set; }
+        public bool Cancelled { get; private set; }
+        public TaskCompletionSource Started { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public void Reset() { Started = new(TaskCreationOptions.RunContinuationsAsynchronously); Release = new(TaskCreationOptions.RunContinuationsAsynchronously); Cancelled = false; }
+        public async Task<ValidationCommandResult> RunAsync(ProjectValidationCommand command, int index, string directory, CancellationToken token)
+        {
+            Calls++; if (Mode == 0) return await native.RunAsync(command, index, directory, token);
+            var started = DateTimeOffset.UtcNow; Started.TrySetResult();
+            if (Mode == 1) await Release.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            else try { await Task.Delay(Timeout.InfiniteTimeSpan, token); } catch (OperationCanceledException) { Cancelled = true; throw; }
+            return new(index, ValidationState.Passed, 0, "SIMULAÇÃO: resultado tardio", "", false, started, DateTimeOffset.UtcNow);
+        }
+    }
     private sealed class ControlledPreparer(IGitTaskIntegrationPreparer native) : IGitTaskIntegrationPreparer
     {
         public int Calls { get; private set; }

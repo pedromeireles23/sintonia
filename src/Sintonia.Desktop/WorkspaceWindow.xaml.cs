@@ -7,6 +7,7 @@ using Sintonia.Desktop.ViewModels;
 using Sintonia.Infrastructure.Persistence;
 using Sintonia.Infrastructure.Providers;
 using Sintonia.Infrastructure.Git;
+using Sintonia.Infrastructure.Validation;
 
 namespace Sintonia.Desktop;
 
@@ -24,7 +25,8 @@ public partial class WorkspaceWindow : Window
         DataContext = viewModel ?? new WorkspaceViewModel(store,
             new WorkspaceChatService(store, [new CodexConversationProvider(), new ClaudeConversationProvider()], worktrees), Dispatcher,
             PickDirectory, InspectAsync, new TaskWorktreeService(store, worktrees), new TaskDiffService(store, new GitTaskDiffReader(worktrees)),
-            deliveries, new TaskIntegrationPreparationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationPreparer(worktrees)));
+            deliveries, new TaskIntegrationPreparationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationPreparer(worktrees)),
+            new TaskIntegrationValidationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(worktrees), new ValidationCommandRunner()));
         Loaded += async (_, _) => await ViewModel.InitializeAsync();
         Closing += CloseAsync;
     }
@@ -72,6 +74,8 @@ public partial class WorkspaceWindow : Window
         if (_closed) return;
         e.Cancel = true;
         if (_closing) return;
+        foreach (var editor in OwnedWindows.OfType<ProjectValidationWindow>())
+            if (!editor.ConfirmClose()) return;
         _closing = true;
         IsEnabled = false;
         await Task.Yield();
@@ -79,8 +83,15 @@ public partial class WorkspaceWindow : Window
         {
             await Task.WhenAll(OwnedWindows.OfType<GitDiagnosticsWindow>().Select(window => window.ViewModel.StopAsync())
                 .Concat(OwnedWindows.OfType<TaskDiffWindow>().Select(window => window.ViewModel.StopAsync()))
+                .Concat(OwnedWindows.OfType<TaskValidationWindow>().Select(window => window.ViewModel.StopAsync()))
+                .Concat(OwnedWindows.OfType<ProjectValidationWindow>().Select(window => window.ViewModel.StopAsync()))
                 .Concat(OwnedWindows.OfType<TaskQueueWindow>().Select(window => window.ViewModel.StopAsync())).Append(ViewModel.StopAsync()));
         }
         finally { _closed = true; Close(); }
+    }
+    private void OpenValidationConfiguration(object sender, RoutedEventArgs e)
+    {
+        try { new ProjectValidationWindow(ViewModel.CreateProjectValidation()) { Owner = this }.Show(); }
+        catch (Exception error) { MessageBox.Show(this, error.Message, "Critérios de validação", MessageBoxButton.OK, MessageBoxImage.Information); }
     }
 }

@@ -53,6 +53,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Registrar commit revisado" Command="{Binding RegisterCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="RegisterTaskDelivery" />
                     <Button Content="Preparar combinação" Command="{Binding PrepareCombinationCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="PrepareTaskCombination" />
+                    <Button Content="Validar combinação" Click="OpenValidation" IsEnabled="{Binding CanValidateCombination}" Margin="0,0,8,0" AutomationProperties.AutomationId="OpenTaskValidation" />
                     <Button Content="Cancelar operação" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
                     <Button Content="Atualizar diffs" Command="{Binding RefreshCommand}" Background="{StaticResource Accent}" Foreground="White" AutomationProperties.AutomationId="RefreshTaskDiffs" />
                 </StackPanel>

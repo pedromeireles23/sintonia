@@ -1,0 +1,35 @@
+<Window x:Class="Sintonia.Desktop.ProjectValidationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sintonia — Critérios de validação" Width="1150" Height="820" MinWidth="900" MinHeight="650"
+        FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterOwner">
+    <Border Background="#F4F7F4" Padding="22"><Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,16"><TextBlock Text="Critérios de validação" FontSize="26" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Context}" Style="{StaticResource Caption}" Margin="0,8,0,0"/><TextBlock Text="{Binding State}" Margin="0,8,0,0"/>
+        </StackPanel>
+        <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,14,0"><Grid>
+                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <ListBox ItemsSource="{Binding Commands}" SelectedItem="{Binding Selected}" DisplayMemberPath="Name" IsEnabled="{Binding CanEdit}" AutomationProperties.AutomationId="ValidationCommands"/>
+                <WrapPanel Grid.Row="1" Margin="0,12,0,0"><Button Content="Adicionar" Command="{Binding AddCommand}" AutomationProperties.AutomationId="AddValidationCommand"/>
+                    <Button Content="Remover" Command="{Binding RemoveCommand}" Margin="6,0,0,0"/><Button Content="↑" Command="{Binding MoveUpCommand}" Margin="0,6,6,0"/><Button Content="↓" Command="{Binding MoveDownCommand}" Margin="0,6,0,0"/>
+                </WrapPanel>
+            </Grid></Border>
+            <Border Grid.Column="1" Style="{StaticResource Card}" Padding="16"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel IsEnabled="{Binding CanEdit}">
+                <TextBlock Text="Nome do critério"/><TextBox Text="{Binding Selected.Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,12" AutomationProperties.AutomationId="ValidationName"/>
+                <TextBlock Text="Executável (.exe), caminho completo"/><DockPanel Margin="0,6,0,12"><Button Content="Escolher…" DockPanel.Dock="Right" Click="PickExecutable" Margin="8,0,0,0"/>
+                    <TextBox Text="{Binding Selected.Executable, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="ValidationExecutable"/></DockPanel>
+                <TextBlock Text="Argumentos literais"/><TextBlock Text="Use uma lista JSON, por exemplo [ &quot;build&quot;, &quot;projeto com espaços&quot; ]. Cada item é um argumento; [] significa nenhum." Style="{StaticResource Caption}" Margin="0,4,0,6"/>
+                <TextBox Text="{Binding Selected.Arguments, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" Height="110" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" AutomationProperties.AutomationId="ValidationArguments"/>
+                <TextBlock Text="Pasta relativa à combinação ( . para a raiz )" Margin="0,12,0,6"/><TextBox Text="{Binding Selected.Directory, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="Prazo em segundos (1–600)" Margin="0,12,0,6"/><TextBox Text="{Binding Selected.Timeout, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Text="Os comandos usam suas permissões locais. Configure ferramentas e critérios do projeto; salvar não inicia processos. Falha ou prazo excedido interrompe a sequência." Style="{StaticResource Caption}" Margin="0,16,0,0"/>
+            </StackPanel></ScrollViewer></Border>
+        </Grid>
+        <StackPanel Grid.Row="2" Margin="0,14,0,0"><TextBlock Text="{Binding Notice}" Style="{StaticResource Caption}" Margin="0,0,0,10"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Atualizar" Command="{Binding ReloadCommand}"/><Button Content="Reverter rascunho" Command="{Binding RevertCommand}" Margin="8,0,0,0"/>
+                <Button Content="Salvar critérios" Command="{Binding SaveCommand}" Background="{StaticResource Accent}" Foreground="White" Margin="8,0,0,0" AutomationProperties.AutomationId="SaveValidationCommands"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid></Border>
+</Window>

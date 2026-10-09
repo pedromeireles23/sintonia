@@ -49,9 +49,9 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 ## M3 — Trabalho paralelo com Git
 
-Estado: diagnóstico Git, worktrees, diffs, registro do commit revisado e preparação da combinação conectados à central/fila. Nova worktree separada/destacada conserva árvore ou conflitos, preservando original/índices/ignorados. Núcleo de validação configurável registra intenção/resultados no schema 9, mantém reserva/trava, executa comandos limitados/canceláveis e confere índice/conteúdo/critério antes de salvar sucesso. Recuperação preserva operações vivas e não repete comandos abandonados. Editor/execução WPF de validação são o próximo incremento. Combinação/Passed não publicam nem liberam dependentes; integração concluída exige confirmação e publicação no destino. Projetos sem Git continuam disponíveis; escrita direta permanece exclusiva. Limite de 3–7 sessões e escrita paralela em worktrees validadas implementados no schema 10, com seletor WPF e despacho de uma rodada do plano aprovado. Git real e processos/runs de teste, sem chamadas de modelos neste incremento.
+Estado: diagnóstico Git, worktrees, diffs, registro do commit revisado e preparação da combinação conectados à central/fila. Nova worktree separada/destacada conserva árvore ou conflitos, preservando original/índices/ignorados. Validação configurável registra intenção/resultados no schema 9, mantém reserva/trava, executa comandos limitados/canceláveis e confere índice/conteúdo/critério antes de salvar sucesso. Editor por projeto e execução/histórico WPF conectados, com prévia integral e fechamento aguardado. Recuperação preserva operações vivas e não repete comandos abandonados. Combinação/Passed não publicam nem liberam dependentes; próximo incremento é confirmação/publicação no destino. Projetos sem Git continuam disponíveis; escrita direta permanece exclusiva. Limite de 3–7 sessões e escrita paralela em worktrees validadas implementados no schema 10, com seletor WPF e despacho de uma rodada do plano aprovado. Git real e processos/runs de teste, sem chamadas de modelos neste incremento.
 
-Validação atual: build sem avisos/erros, suíte completa com 257 testes xUnit aprovados e WPF --sessions aprovado, zero erros de binding. O fluxo --combinations mantém sua validação anterior. Release local atualizado e abertura/encerramento conferidos. O núcleo de validação não é apresentado como fluxo visual concluído.
+Validação atual: build sem avisos/erros, última suíte completa com 257 testes xUnit aprovados. WPF --validation e --sessions aprovados, zero erros de binding, capturas normal/mínima revisadas. O fluxo --combinations mantém sua validação anterior; a atualização do Release acompanha o próximo fechamento da sessão.
 
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
 - [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
@@ -78,7 +78,7 @@ Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sess�
 
 ## M6 — Fluxos para projetos gerais
 
-- [ ] Permitir configurar comandos de validação e critérios adequados à stack ou ao tipo de projeto (núcleo/persistência/execução prontos; editor WPF pendente).
+- [x] Permitir configurar comandos de validação e critérios adequados à stack ou ao tipo de projeto, com editor e execução/histórico WPF.
 - [ ] Integrar entregas de código, documentação, análise e arquivos conforme o projeto.
 - [ ] Preparar exemplos de projetos distintos que combinem entregas das duas ferramentas.
 

@@ -245,6 +245,13 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Limites: sete modelos reais simultâneos não foram exercitados. Chefia propõe o plano e o aplicativo distribui mediante início; acompanhamento/atualização automática do plano ainda pendentes. Publicação e dependentes de worktrees continuam pendentes.
 - Próximo incremento M3: editor e execução/histórico WPF dos comandos de validação já implementados no núcleo; depois publicação confirmada e disponibilidade da revisão integrada para dependentes.
 
+## 09/10/2026 — Editor e histórico visual de validação
+
+- Critérios de validação por projeto na central, com até dez comandos ordenáveis, argumentos literais, pasta/prazo, rascunho/revisão e descarte confirmado. Edição concorrente recusa gravação preservando o rascunho.
+- Validar combinação nos diffs abre histórico fixado à preparação/projeto. Prévia integral com rolagem mostra comandos/pastas/árvore/revisão antes do início explícito; recusa não inicia processos. Resultados exibem estados, códigos, stdout/stderr e truncamento. Cancelamento/fechamento aguardam execução e recarga; central aguarda os painéis.
+- Build sem avisos/erros. WPF --validation aprovado com Git/processos reais e temporização simulada: recusa/prévia obsoleta, configuração/revisão, argumentos vazios/aspas/quebras de linha, sucesso/falha e sequência interrompida, logs/histórico, cancelamento/tardio, navegação/reabertura e fechamento. Zero erros de binding; capturas normal/mínima revisadas. Nenhum modelo chamado.
+- Limites: histórico salvo ao encerrar, sem checkpoint contínuo de logs. Passed ainda não publica nem libera dependentes. Próximo incremento: publicação Git confirmada, com origem/destino/arquivos/critérios reconferidos e revisão integrada vinculada às dependências.
+
 ## 09/10/2026 — Retirada do M5 de artes e reafirmação do canal entre agentes
 
 - Neste chat, o usuário questionou por que implementar geração de imagens e biblioteca no Sintonia se os agentes já podem realizar esse trabalho com suas ferramentas. Autorizou retirar o M5 e reafirmou o propósito: comunicação entre agentes do Codex e do Claude, trabalhando em conjunto com várias sessões nos projetos necessários.

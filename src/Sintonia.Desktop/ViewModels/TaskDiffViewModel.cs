@@ -20,6 +20,7 @@ public sealed class TaskDiffViewModel : ObservableObject
     private readonly TaskDiffService _service;
     private readonly TaskDeliveryService? _deliveries;
     private readonly TaskIntegrationPreparationService? _preparations;
+    private readonly TaskIntegrationValidationService? _validations;
     private TaskIntegrationPreparation? _preparation;
     private TaskDelivery? _delivery;
     private CancellationTokenSource? _stop;
@@ -31,10 +32,11 @@ public sealed class TaskDiffViewModel : ObservableObject
     private bool _busy, _stopping;
     private string _notice = "Atualize para consultar a pasta registrada desta tarefa.";
     public TaskDiffViewModel(WorkspaceProject project, WorkspaceTask task, TaskDiffService service, TaskDeliveryService? deliveries = null,
-        TaskIntegrationPreparationService? preparations = null)
+        TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null)
     {
         Project = project; TaskRecord = task; _service = service; _deliveries = deliveries; _delivery = task.Delivery; _comparison = Comparisons[0];
         _preparations = preparations;
+        _validations = validations;
         RefreshCommand = new(RefreshAsync, ShowError, () => !Busy && !_stopping);
         ReadCommand = new(ReadSelectedAsync, ShowError, () => CanRead);
         CancelCommand = new(() => _stop?.Cancel(), () => Busy && !_stopping);
@@ -92,6 +94,9 @@ public sealed class TaskDiffViewModel : ObservableObject
     public bool CanPrepareCombination => CanChoose && _preparations is not null && Delivery is not null
         && Review?.Task.State == WorkspaceTaskState.Approved && Review.Snapshot.HeadCommit == Delivery.Commit
         && !Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent);
+    public bool CanValidateCombination => CanChoose && _validations is not null && Preparation is not null;
+    public TaskValidationViewModel CreateValidationReview() => CanValidateCombination
+        ? new(Project, Preparation!, _validations!) : throw new InvalidOperationException("Atualize os diffs e prepare uma combinação antes de consultar sua validação.");
     public AsyncCommand RefreshCommand { get; }
     public AsyncCommand ReadCommand { get; }
     public DelegateCommand CancelCommand { get; }
@@ -169,6 +174,7 @@ public sealed class TaskDiffViewModel : ObservableObject
     {
         foreach (var property in new[] { nameof(Review), nameof(Content), nameof(Delivery), nameof(DeliveryStatus), nameof(Preparation), nameof(PreparationStatus), nameof(Summary), nameof(ContentText), nameof(ContentStatus), nameof(CanChoose), nameof(CanRead), nameof(CanRegister), nameof(CanPrepareCombination) }) Notify(property);
         RefreshCommand?.Refresh(); ReadCommand?.Refresh(); CancelCommand?.Refresh(); RegisterCommand?.Refresh(); PrepareCombinationCommand?.Refresh();
+        Notify(nameof(CanValidateCombination));
     }
 
     public Task PrepareCombinationAsync()

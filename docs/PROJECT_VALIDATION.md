@@ -38,7 +38,11 @@ Cancelar após salvar a intenção retorna o registro `Cancelled` e conserva a s
 
 ## Estado e próximos passos
 
-Configuração, runner, operação serial, conferência e histórico implementados no núcleo. O editor WPF e a execução/consulta visual ainda estão pendentes: o botão Preparar combinação mantém seu fluxo existente. Próximo incremento: editor por projeto e painel de validação com prévia explícita dos comandos, cancelamento, resultado/logs/revisão e fechamento aguardado pela central. Publicação e dependentes permanecem pendentes; `Passed` não libera tarefas sucessoras.
+Configuração, runner, operação serial, conferência e histórico estão conectados ao WPF. Na central, **Critérios de validação** edita até dez comandos, sua ordem e revisão, com rascunho separado e descarte confirmado. Argumentos usam uma lista JSON de strings para preservar espaços, aspas, argumentos vazios e quebras de linha; não há interpretação automática de shell. Edição obsoleta conserva o rascunho e exige reverter/atualizar antes de salvar novamente.
+
+Nos diffs, **Validar combinação** abre o histórico da preparação registrada. **Conferir e validar** apresenta a pasta, árvore, revisão, executáveis, argumentos e prazos em uma prévia integral com rolagem; confirmar executa uma única sequência. Recusar não cria intenção nem inicia comandos. Os resultados mostram critérios, estados, códigos, stdout/stderr e truncamento. Projeto/preparação ficam fixos ao navegar. Cancelamento e fechamento aguardam execução e recarga; a central aguarda todos os painéis antes de encerrar. Logs de comandos em andamento ainda não têm checkpoint contínuo.
+
+Teste WPF `--validation` aprovado com Git/processos reais e temporização simulada, sem modelos: configuração/revisão, argumentos literais, recusa, prévia obsoleta, sucesso/falha, sequência interrompida, logs/histórico, cancelamento/tardio, reabertura e fechamento. Zero erros de binding; capturas normal/mínima revisadas. Build sem avisos/erros. Próximo incremento: publicação confirmada e dependentes; `Passed` ainda não libera tarefas sucessoras.
 
 Testes cobrem isolamento/configuração/revisão, migrações, argumentos literais, streams, falha, timeout/cancelamento com filho, árvore/índices preservados, conteúdo alterado apesar de `assume-unchanged`, recusa de critérios obsoletos, recuperação viva/abandonada, resultado tardio e dependentes bloqueados. Git real em pastas temporárias e processos de teste, sem modelos.
 

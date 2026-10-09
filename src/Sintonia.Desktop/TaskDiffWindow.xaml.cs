@@ -26,4 +26,9 @@ public partial class TaskDiffWindow : Window
             finally { _closed = true; Close(); }
         };
     }
+    private void OpenValidation(object sender, RoutedEventArgs e)
+    {
+        try { new TaskValidationWindow(ViewModel.CreateValidationReview()) { Owner = Owner ?? this }.Show(); }
+        catch (Exception error) { MessageBox.Show(this, error.Message, "Validação da combinação", MessageBoxButton.OK, MessageBoxImage.Information); }
+    }
 }
