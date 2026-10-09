@@ -11,7 +11,7 @@ namespace Sintonia.Infrastructure.Tests;
 [Collection("Git environment")]
 public sealed class TaskDeliveryTests
 {
-    private static async Task<(SqliteWorkspaceStore Store, WorkspaceProject Project, WorkspaceTask Task, TaskDiffReview Review)> PrepareAsync(
+    internal static async Task<(SqliteWorkspaceStore Store, WorkspaceProject Project, WorkspaceTask Task, TaskDiffReview Review)> PrepareAsync(
         TaskWorktreeTests.Fixture fixture, bool independentWrites = false)
     {
         await fixture.InitializeAsync(); var (store, project, batch) = await fixture.SeedAsync(independentWrites);
@@ -211,7 +211,7 @@ public sealed class TaskDeliveryTests
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(task), System.Text.Json.JsonSerializer.Serialize(restored));
         Assert.Single(await migrated.GetRunsAsync(task.ConversationId));
         using (var connection = new SqliteConnection("Data Source=" + fixture.Database + ";Pooling=False"))
-        { connection.Open(); using var command = connection.CreateCommand(); command.CommandText = "PRAGMA user_version=7;"; command.ExecuteNonQuery(); }
+        { connection.Open(); using var command = connection.CreateCommand(); command.CommandText = "PRAGMA user_version=8;"; command.ExecuteNonQuery(); }
         await Assert.ThrowsAsync<InvalidOperationException>(() => migrated.InitializeAsync());
     }
     [Fact]

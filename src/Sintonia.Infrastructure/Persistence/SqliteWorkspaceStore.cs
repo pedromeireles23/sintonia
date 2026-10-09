@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 6) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 7) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -63,7 +63,9 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE TABLE IF NOT EXISTS task_integrations(id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES task_deliveries(task_id),
                 definition TEXT NOT NULL, common_key TEXT NOT NULL, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 2), error TEXT);
             CREATE UNIQUE INDEX IF NOT EXISTS one_task_integration ON task_integrations(common_key) WHERE state=0;
-            PRAGMA user_version=6;
+            CREATE TABLE IF NOT EXISTS task_integration_preparations(id TEXT PRIMARY KEY REFERENCES task_integrations(id),
+                definition TEXT NOT NULL, checkout_key TEXT NOT NULL UNIQUE, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 3), error TEXT);
+            PRAGMA user_version=7;
             """);
         transaction.Commit();
         return true;
@@ -229,8 +231,12 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 }
             }
             foreach (var id in abandoned)
+            {
+                Execute(connection, transaction, "UPDATE task_integration_preparations SET state=3,error=$error WHERE id=$id AND state=0",
+                    ("$id", id), ("$error", "O aplicativo encerrou durante a combinação. Confira a pasta preservada; nenhum efeito foi repetido."));
                 Execute(connection, transaction, "UPDATE task_integrations SET state=2,error=$error WHERE id=$id AND state=0",
                     ("$id", id), ("$error", "O aplicativo encerrou com uma reserva de integração. Confira origem/destino e possíveis efeitos; nenhuma integração foi repetida."));
+            }
             transaction.Commit();
         }
         finally { foreach (var held in locks) held.Dispose(); }

@@ -32,7 +32,7 @@ Cada reserva tem ID próprio. Liberar uma reserva antiga não libera uma nova. F
 
 `RepositoryIntegrationLock` mantém um arquivo aberto com compartilhamento exclusivo por Git comum. A operação deve adquirir essa trava antes de reservar e conservá-la até salvar seu resultado. A recuperação tenta a mesma trava: preserva reservas de executores vivos e marca atenção somente quando consegue adquiri-la. O Windows libera o bloqueio ao encerrar o processo; o arquivo marcador permanece para evitar uma corrida de exclusão/recriação. Erros de acesso são propagados, sem presumir que o executor morreu. A janela principal já impede uma segunda instância na mesma sessão do Windows; esta proteção adicional coordena integração/recuperação também entre processos.
 
-Não há botão de reserva enquanto o executor de integração estiver pendente. Aprovação, registro e reserva permanecem insuficientes para liberar dependentes. A futura integração deverá fixar origem/destino, preservar alterações e arquivos ignorados, testar a combinação e registrar o resultado real.
+O executor de [preparação da combinação](TASK_INTEGRATION_PREPARATION.md) usa a reserva durante o merge numa pasta separada e salva intenção/resultados no schema 7. Aprovação, registro, reserva e combinação permanecem insuficientes para liberar dependentes. A futura publicação deverá conferir e validar o conjunto e registrar o resultado real no destino.
 
 ## Validação
 

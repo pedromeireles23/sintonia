@@ -71,9 +71,12 @@ public sealed partial class SqliteWorkspaceStore
     public Task ReleaseTaskIntegrationAsync(string reservationId, string? error = null) => RunAsync(connection =>
     {
         if (error?.Length > 4000) throw new ArgumentException("Mensagem de integração muito longa.");
-        if (Execute(connection, null, "UPDATE task_integrations SET state=$state,error=$error WHERE id=$id AND state=0",
+        if (Execute(connection, null, """
+            UPDATE task_integrations SET state=$state,error=$error WHERE id=$id AND state=0
+            AND NOT EXISTS(SELECT 1 FROM task_integration_preparations p WHERE p.id=task_integrations.id AND p.state=0)
+            """,
             ("$state", (int)(error is null ? TaskIntegrationState.Released : TaskIntegrationState.NeedsAttention)), ("$error", error), ("$id", reservationId)) != 1)
-            throw new InvalidOperationException("Esta reserva já terminou. Nenhuma reserva mais nova foi alterada.");
+            throw new InvalidOperationException("Esta reserva já terminou ou tem uma combinação em andamento. Nenhuma reserva mais nova foi alterada.");
         return true;
     });
     private static TaskIntegrationReservation ReadIntegration(SqliteDataReader reader)
@@ -123,12 +126,25 @@ public sealed partial class SqliteWorkspaceStore
     {
         if (Within(directory, target.RepositoryDirectory) || Within(target.RepositoryDirectory, directory)) return true;
         using var command = connection.CreateCommand(); command.Transaction = transaction;
-        command.CommandText = "SELECT definition FROM task_worktrees WHERE common_key=$common";
+        command.CommandText = """
+            SELECT definition,0 FROM task_worktrees WHERE common_key=$common
+            UNION ALL SELECT p.definition,1 FROM task_integration_preparations p
+            JOIN task_integrations i ON i.id=p.id WHERE i.common_key=$common
+            """;
         command.Parameters.AddWithValue("$common", PathKey(target.CommonGitDirectory)); using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            var worktree = JsonSerializer.Deserialize<TaskWorktree>(reader.GetString(0))!; worktree.ValidateDefinition();
-            if (Within(directory, worktree.CheckoutDirectory) || Within(worktree.CheckoutDirectory, directory)) return true;
+            string checkout;
+            if (reader.GetInt32(1) == 0)
+            {
+                var worktree = JsonSerializer.Deserialize<TaskWorktree>(reader.GetString(0))!; worktree.ValidateDefinition(); checkout = worktree.CheckoutDirectory;
+            }
+            else
+            {
+                var preparation = JsonSerializer.Deserialize<TaskIntegrationPreparation>(reader.GetString(0))!;
+                preparation.ValidateDefinition(); checkout = preparation.CheckoutDirectory;
+            }
+            if (Within(directory, checkout) || Within(checkout, directory)) return true;
         }
         return false;
     }

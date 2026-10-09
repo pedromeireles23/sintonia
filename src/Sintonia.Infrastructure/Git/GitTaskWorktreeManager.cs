@@ -89,7 +89,17 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
             throw new InvalidOperationException("O repositório original mudou desde a confirmação. Confira a pasta.");
         // Inspect the pinned tree, not dirty attributes from the original checkout.
         // An installed LFS filter is harmless when no file actually uses it.
-        var files = await RunAsync(worktree.RepositoryDirectory, token, "ls-tree", "-r", "-z", "--format=%(objectmode) %(path)", worktree.BaseCommit).ConfigureAwait(false);
+        await CheckTreeAsync(worktree.RepositoryDirectory, worktree.BaseCommit, token).ConfigureAwait(false);
+        var tree = worktree.ProjectRelativeDirectory == "." ? worktree.BaseCommit + "^{tree}"
+            : worktree.BaseCommit + ":" + worktree.ProjectRelativeDirectory.Replace('\\', '/');
+        var project = await RunAsync(worktree.RepositoryDirectory, token, "cat-file", "-t", tree).ConfigureAwait(false);
+        if (project.ExitCode != 0 || project.StandardOutput.Trim() != "tree")
+            throw new InvalidOperationException("A pasta do projeto não existe no commit de base. Salve o projeto em Git antes de preparar.");
+    }
+
+    internal async Task CheckTreeAsync(string directory, string commit, CancellationToken token, bool forIntegration = false)
+    {
+        var files = await RunAsync(directory, token, "ls-tree", "-r", "-z", "--format=%(objectmode) %(path)", commit).ConfigureAwait(false);
         RequireSuccess(files);
         if (files.StandardOutput.Length > 0 && !files.StandardOutput.EndsWith('\0')) throw new FormatException("Árvore Git incompleta.");
         var paths = new List<string>();
@@ -97,6 +107,8 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
         {
             if (entry.Length < 8 || entry[6] != ' ') throw new FormatException("Árvore Git inválida.");
             if (entry.StartsWith("160000 ", StringComparison.Ordinal)) throw new InvalidOperationException("A preparação de worktrees com submódulos ainda não é suportada.");
+            if (forIntegration && entry.StartsWith("120000 ", StringComparison.Ordinal))
+                throw new InvalidOperationException("A combinação ainda não suporta links simbólicos versionados. Preserve os arquivos e confira o projeto.");
             paths.Add(entry[7..]);
         }
         for (var offset = 0; offset < paths.Count;)
@@ -104,22 +116,23 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
             var chunk = new List<string>(); var length = 0;
             while (offset < paths.Count && (chunk.Count == 0 || length + paths[offset].Length < 8000))
             { var path = paths[offset++]; chunk.Add(path); length += path.Length + 3; }
-            var attributes = await RunAsync(worktree.RepositoryDirectory, token,
-                new[] { "check-attr", "--source=" + worktree.BaseCommit, "-z", "filter", "--" }.Concat(chunk).ToArray()).ConfigureAwait(false);
+            var attributes = await RunAsync(directory, token,
+                new[] { "check-attr", "--source=" + commit, "-z", "filter" }.Concat(forIntegration ? ["merge"] : Array.Empty<string>())
+                    .Concat(["--"]).Concat(chunk).ToArray()).ConfigureAwait(false);
             RequireSuccess(attributes); var values = attributes.StandardOutput.Split('\0');
-            if (values.Length != chunk.Count * 3 + 1 || values[^1] != "") throw new FormatException("Atributos Git incompletos.");
+            var stride = forIntegration ? 6 : 3;
+            if (values.Length != chunk.Count * stride + 1 || values[^1] != "") throw new FormatException("Atributos Git incompletos.");
             for (var i = 0; i < chunk.Count; i++)
             {
-                if (values[i * 3] != chunk[i] || values[i * 3 + 1] != "filter") throw new FormatException("Atributos Git inválidos.");
-                if (values[i * 3 + 2] is not ("unspecified" or "unset"))
+                if (values[i * stride] != chunk[i] || values[i * stride + 1] != "filter") throw new FormatException("Atributos Git inválidos.");
+                if (values[i * stride + 2] is not ("unspecified" or "unset"))
                     throw new InvalidOperationException("A preparação ainda não suporta arquivos com filtros de checkout, como Git LFS. Nenhuma configuração foi alterada.");
+                if (forIntegration && (values[i * stride + 3] != chunk[i] || values[i * stride + 4] != "merge"))
+                    throw new FormatException("Atributos de merge Git inválidos.");
+                if (forIntegration && values[i * stride + 5] is not ("unspecified" or "unset" or "set" or "text" or "binary" or "union"))
+                    throw new InvalidOperationException("A combinação ainda não suporta drivers personalizados de merge. Nenhum driver foi executado.");
             }
         }
-        var tree = worktree.ProjectRelativeDirectory == "." ? worktree.BaseCommit + "^{tree}"
-            : worktree.BaseCommit + ":" + worktree.ProjectRelativeDirectory.Replace('\\', '/');
-        var project = await RunAsync(worktree.RepositoryDirectory, token, "cat-file", "-t", tree).ConfigureAwait(false);
-        if (project.ExitCode != 0 || project.StandardOutput.Trim() != "tree")
-            throw new InvalidOperationException("A pasta do projeto não existe no commit de base. Salve o projeto em Git antes de preparar.");
     }
 
     private void EnsureManagedLocation(TaskWorktree worktree)
