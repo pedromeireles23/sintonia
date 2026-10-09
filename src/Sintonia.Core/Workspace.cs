@@ -36,6 +36,8 @@ public interface IWorkspaceStore
     Task SaveTaskIntegrationPreparationAsync(TaskIntegrationPreparation preparation);
     Task FinishTaskIntegrationPreparationAsync(TaskIntegrationPreparation preparation);
     Task<IReadOnlyList<TaskIntegrationPreparation>> GetTaskIntegrationPreparationsAsync(string projectId);
+    Task<ProjectValidationConfiguration> GetProjectValidationAsync(string projectId);
+    Task<ProjectValidationConfiguration> SaveProjectValidationAsync(ProjectValidationConfiguration configuration);
     Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync();
     Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
     Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);

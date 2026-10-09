@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 7) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 8) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -65,7 +65,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE UNIQUE INDEX IF NOT EXISTS one_task_integration ON task_integrations(common_key) WHERE state=0;
             CREATE TABLE IF NOT EXISTS task_integration_preparations(id TEXT PRIMARY KEY REFERENCES task_integrations(id),
                 definition TEXT NOT NULL, checkout_key TEXT NOT NULL UNIQUE, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 3), error TEXT);
-            PRAGMA user_version=7;
+            CREATE TABLE IF NOT EXISTS project_validations(project_id TEXT PRIMARY KEY REFERENCES projects(id), definition TEXT NOT NULL);
+            PRAGMA user_version=8;
             """);
         transaction.Commit();
         return true;

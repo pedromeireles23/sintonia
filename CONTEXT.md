@@ -1,6 +1,6 @@
 # Contexto durável do Sintonia
 
-Atualizado em 08/10/2026. Este arquivo é o ponto de entrada para retomar o desenvolvimento em qualquer sessão de Codex ou Claude.
+Atualizado em 09/10/2026. Este arquivo é o ponto de entrada para retomar o desenvolvimento em qualquer sessão de Codex ou Claude.
 
 ## Intenção do usuário
 
@@ -70,7 +70,9 @@ Executor de combinação implementado: intenção salva antes da criação, work
 
 Preparar combinação conectado ao painel WPF de diffs: exige commit registrado/origem limpa e consulta atual; prévia confirma commits, branch e pasta de referência. Recusa não reserva/cria checkout. Resumo copiável/com rolagem mostra pasta, árvore/conflitos e estado persistido; os diffs abaixo continuam sendo os da tarefa. Atualizar/reabrir conserva o projeto/tarefa e recupera resultados/atenção. Cancelamento/fechamento aguarda o executor e conserva efeitos parciais; resposta tardia não mostra sucesso. Build sem avisos/erros, 216 testes xUnit verificados (62 Core + 154 Infrastructure), WPF --combinations e regressões de registro/diffs sem erros de binding. Layout normal/mínimo revisado; nenhum modelo chamado. Release local atualizado e abertura/encerramento conferidos.
 
-Próximo incremento M3: configurar critérios/comandos de validação adequados a projetos gerais, com execução limitada/cancelável na pasta combinada e registro vinculado à árvore revisada. Depois, publicar no destino somente após validação e confirmação, revalidando origem/destino/arquivos. Liberar dependentes apenas com resultado integrado registrado; registro/reserva/combinação não são integração concluída. Worktrees/arquivos continuam preservados; escrita permanece serial. Projetos sem Git continuam usando chat e fila. Negativas reais de Bash/Edit/MCP, interações especiais e acompanhamento de background no Claude permanecem parciais. A chefia ainda não acompanha nem atualiza planos automaticamente; consumo disponível e limites configuráveis pendentes.
+Núcleo de validação por projeto implementado no schema 8: até dez comandos, argumentos literais, executável .exe absoluto, pasta relativa, prazo de até dez minutos e revisão contra edições concorrentes. Runner reutiliza streams limitados/assíncronos e encerra processos filhos ao cancelar/exceder prazo, conservando saída e estados distintos. Build completo sem avisos/erros; 18 testes selecionados aprovados (13 novos e cinco regressões de processos), sem modelos. Editor WPF e registro da árvore validada ainda pendentes. Detalhes em [docs/PROJECT_VALIDATION.md](docs/PROJECT_VALIDATION.md).
+
+Próximo incremento M3: execução serial dos comandos na combinação, com intenção/histórico persistidos, conferência física da árvore antes/depois e recuperação sem repetir comandos. Depois, editor/execução WPF e publicação confirmada, revalidando origem/destino/arquivos. Liberar dependentes apenas com resultado integrado registrado; registro/reserva/combinação não são integração concluída. Worktrees/arquivos continuam preservados; escrita permanece serial. Projetos sem Git continuam usando chat e fila. Negativas reais de Bash/Edit/MCP, interações especiais e acompanhamento de background no Claude permanecem parciais. A chefia ainda não acompanha nem atualiza planos automaticamente; consumo disponível e limites configuráveis pendentes.
 
 ## Critério da primeira versão útil
 

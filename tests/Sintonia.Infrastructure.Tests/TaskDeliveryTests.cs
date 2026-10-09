@@ -211,7 +211,7 @@ public sealed class TaskDeliveryTests
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(task), System.Text.Json.JsonSerializer.Serialize(restored));
         Assert.Single(await migrated.GetRunsAsync(task.ConversationId));
         using (var connection = new SqliteConnection("Data Source=" + fixture.Database + ";Pooling=False"))
-        { connection.Open(); using var command = connection.CreateCommand(); command.CommandText = "PRAGMA user_version=8;"; command.ExecuteNonQuery(); }
+        { connection.Open(); using var command = connection.CreateCommand(); command.CommandText = "PRAGMA user_version=9;"; command.ExecuteNonQuery(); }
         await Assert.ThrowsAsync<InvalidOperationException>(() => migrated.InitializeAsync());
     }
     [Fact]

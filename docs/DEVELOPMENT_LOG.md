@@ -2,6 +2,13 @@
 
 Registro resumido de incrementos e pontos de retomada. Consulte `git log` para hashes e cronologia exata dos commits.
 
+## 09/10/2026 — Configuração e processos de validação geral
+
+- Schema 8 guarda até dez comandos por projeto, com revisão contra edição concorrente e cópia de argumentos. Nome do critério, executável .exe absoluto, argumentos separados, pasta relativa e prazo de 1–600 segundos; nenhuma stack obrigatória ou conversão de respostas dos modelos em comandos.
+- Runner usa processo direto e streams assíncronos limitados. Falha, timeout e cancelamento distintos, com saída conservada e encerramento de filhos. Diagnósticos antigos continuam limitados a 60 segundos. Não instala dependências nem copia arquivos ignorados.
+- Validação: build completo sem avisos/erros; 18 testes selecionados aprovados, incluindo 13 novos de configuração/runner e cinco regressões de processos. Isolamento por projeto, revisão/reabertura/migração, argumentos literais, pasta, streams/falha/limites, timeout/cancelamento com filho e entradas ausentes. Sem modelos.
+- Próximo incremento: operação serial na combinação com reserva, intenção/resultados persistidos e árvore conferida antes/depois. Editor e execução WPF, publicação e dependentes ainda pendentes.
+
 ## 08/10/2026 — Preparação do repositório
 
 - Repositório inicialmente vazio clonado na pasta existente do usuário.

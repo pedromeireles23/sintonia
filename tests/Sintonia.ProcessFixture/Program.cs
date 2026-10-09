@@ -21,6 +21,10 @@ if (args.Contains("--help"))
 }
 switch (args.FirstOrDefault())
 {
+    case "validation-context":
+        Console.WriteLine(JsonSerializer.Serialize(new { Directory = Environment.CurrentDirectory, Arguments = args.Skip(1), GitIndex = Environment.GetEnvironmentVariable("GIT_INDEX_FILE") })); return 0;
+    case "validation-write":
+        await File.WriteAllTextAsync(args[1], args[2]); Console.WriteLine("Arquivo alterado pela fixture"); return 0;
     case "echo": Console.WriteLine(JsonSerializer.Serialize(args.Skip(1))); return 0;
     case "fail": Console.Error.WriteLine("Falha de teste"); return 7;
     case "flood":

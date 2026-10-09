@@ -3,16 +3,30 @@ using System.Text;
 
 namespace Sintonia.Infrastructure.Diagnostics;
 
-public sealed record ProcessProbeResult(int ExitCode, string StandardOutput, string StandardError, bool Truncated, bool TimedOut);
+public sealed record ProcessProbeResult(int ExitCode, string StandardOutput, string StandardError, bool Truncated, bool TimedOut, bool Cancelled = false);
 
 public static class ProcessProbe
 {
-    public static async Task<ProcessProbeResult> RunAsync(ExecutableLaunch launch, IReadOnlyList<string> arguments,
+    public static Task<ProcessProbeResult> RunAsync(ExecutableLaunch launch, IReadOnlyList<string> arguments,
         string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken = default,
         IReadOnlyDictionary<string, string?>? environmentOverrides = null)
     {
         if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromSeconds(60))
             throw new ArgumentOutOfRangeException(nameof(timeout), "Diagnósticos devem durar no máximo 60 segundos.");
+        return RunCoreAsync(launch, arguments, workingDirectory, timeout, cancellationToken, environmentOverrides, captureCancellation: false);
+    }
+
+    internal static Task<ProcessProbeResult> RunValidationAsync(ExecutableLaunch launch, IReadOnlyList<string> arguments,
+        string workingDirectory, TimeSpan timeout, CancellationToken token)
+    {
+        if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(10)) throw new ArgumentOutOfRangeException(nameof(timeout));
+        return RunCoreAsync(launch, arguments, workingDirectory, timeout, token, Git.GitRepositoryInspector.CleanEnvironment(), captureCancellation: true);
+    }
+
+    private static async Task<ProcessProbeResult> RunCoreAsync(ExecutableLaunch launch, IReadOnlyList<string> arguments,
+        string workingDirectory, TimeSpan timeout, CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string?>? environmentOverrides, bool captureCancellation)
+    {
         cancellationToken.ThrowIfCancellationRequested();
         var start = new ProcessStartInfo(launch.FileName)
         {
@@ -49,8 +63,8 @@ public static class ProcessProbe
         }
         var output = await stdout.ConfigureAwait(false);
         var error = await stderr.ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        return new(process.ExitCode, output.Text, error.Text, output.Truncated || error.Truncated, timedOut);
+        if (!captureCancellation) cancellationToken.ThrowIfCancellationRequested();
+        return new(process.ExitCode, output.Text, error.Text, output.Truncated || error.Truncated, timedOut, cancellationToken.IsCancellationRequested);
     }
 
     private static async Task StopAsync(Process process)
