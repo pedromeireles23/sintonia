@@ -4,6 +4,8 @@
 
 C# com .NET 10, interface WPF em MVVM e SQLite para o histórico real. A primeira versão é local e focada no Windows.
 
+O Sintonia é o canal de comunicação e coordenação entre sessões do Codex e do Claude em múltiplos projetos. Os agentes executam o trabalho usando suas ferramentas; os contratos do aplicativo cuidam de encaminhar contexto e resultados, preservar histórico e coordenar dependências, permissões e concorrência. Código, documentos e imagens são entregas desse fluxo geral. A retirada do módulo próprio de artes está registrada na decisão 011 de [docs/DECISIONS.md](docs/DECISIONS.md).
+
 Estrutura atual (M0–M3, com adaptadores reais e central persistente):
 
 ```text
@@ -65,10 +67,8 @@ flowchart TD
     UI --> Q[Fila e regras de distribuição]
     Q --> C[Adaptador Codex]
     Q --> L[Adaptador Claude]
-    Q --> I[Adaptador de imagens futuro]
     C --> E[Eventos e resultados]
     L --> E
-    I --> E
     E --> R[Revisão e artefatos]
     R --> G[Git e validação da combinação]
     Q <--> DB[SQLite]
@@ -81,7 +81,8 @@ O M0 mantém adaptadores simulados. `IConversationProvider` implementa início/r
 
 - Codex: App Server por stdio, contratos conferidos contra o schema instalado e autorizações por ação.
 - Claude: CLI com stream-json bidirecional, session ID, retomada e host de permissões por ação. Modo plan para leitura e manual para escrita, preservando regras/hooks existentes. AskUserQuestion/ExitPlanMode ainda não têm respostas específicas no host.
-- Imagens: adaptador separado, após escolha de provedor.
+
+Ferramentas de imagens e outras extensões são utilizadas pelos próprios agentes quando compatíveis com a instalação e a integração. Seus arquivos entram como entregas das tarefas; a arquitetura não prevê um adaptador de imagens separado no Sintonia. Suporte a cada ferramenta continua sujeito à verificação real.
 
 Usar `System.Diagnostics.Process` com argumentos separados, entrada/saída redirecionada e leitura assíncrona simultânea de stdout e stderr. Resolver wrappers do Windows sem concatenar prompts numa linha de shell. Propagar cancelamento e tratar processos filhos.
 
@@ -109,7 +110,7 @@ Worktrees separam alterações. O merge será serial e testado sobre a versão c
 
 `GitDiagnosticsWindow`/`GitDiagnosticsViewModel` mantêm o projeto capturado ao abrir o painel, consultam ao carregar e permitem atualização/cancelamento explícitos. A lista separa índice e pasta e preserva origem de renomeações; respostas tardias após cancelamento não aparecem. Cada nova consulta retira o resultado anterior até terminar; erro/ausência de Git não exibe estado limpo. O painel cancela e aguarda ao fechar; a central cancela e aguarda consultas de suas janelas junto aos jobs dos provedores. Status não é persistido no SQLite, pois precisa ser atualizado após mudanças. Subpastas mostram a raiz e alterações do repositório inteiro. Detalhes em [docs/GIT_DIAGNOSTICS.md](docs/GIT_DIAGNOSTICS.md).
 
-Autenticação permanece nos mecanismos suportados dos provedores. Chaves futuras de imagens ficam no armazenamento seguro do Windows, nunca na configuração versionada. Logs devem limitar conteúdo e remover dados sensíveis antes de exportação.
+Autenticação permanece nos mecanismos suportados dos provedores e de suas ferramentas, sem credenciais na configuração versionada. Logs devem limitar conteúdo e remover dados sensíveis antes de exportação.
 
 `TaskDiffService` lê o vínculo persistido e recusa tarefa em execução ou alterada durante a consulta. `IGitTaskDiffReader`/`GitTaskDiffReader` combinam status local e diferenças desde a base, incluindo commits posteriores, arquivos preparados/não preparados/novos, renomeações, exclusões e conflitos. Cada arquivo pode comparar base, índice ou pasta; renomeações usam a origem correspondente à comparação. Git roda com caminhos literais, sem diff externo/textconv/filtros/fsmonitor e sem alteração do índice. Consultas têm prazo total de 20 segundos e limites de saída; listas parciais são recusadas, conteúdos grandes/binários são explícitos. Validação de worktree/branch/estado precede e sucede a leitura. A consulta não fixa uma revisão imutável para integração. Detalhes em [docs/TASK_DIFFS.md](docs/TASK_DIFFS.md).
 

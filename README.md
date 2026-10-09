@@ -1,17 +1,19 @@
 # Sintonia
 
-Aplicativo desktop para Windows, em C#/.NET, que centraliza projetos gerais e conversas do Codex e do Claude: software, documentação, pesquisa, análise e outras tarefas suportadas pelos provedores.
+Aplicativo desktop para Windows, em C#/.NET, que serve como canal de comunicação e coordenação entre agentes de IA do Codex e do Claude. Organiza várias sessões nos projetos que o usuário precisar, com contexto separado por projeto; os agentes executam o trabalho com suas ferramentas.
 
 O usuário abre projetos, escolhe uma IA/modelo e acompanha as ferramentas trabalhando. Perfis reutilizáveis guardam funções, provedor/modelo padrão e instruções para sessões normais dos provedores. A chefia produz planos editáveis; a fila permite encaminhar, iniciar tarefas e revisar entregas. Integração Git e acompanhamento automático pela chefia são os próximos incrementos. Jogos são apenas um exemplo opcional de uso.
 
 ## Objetivos
 
-- Fazer Codex e Claude executarem tarefas reais no mesmo projeto.
+- Conectar sessões do Codex e do Claude para trabalharem em conjunto em múltiplos projetos.
+- Encaminhar instruções, contexto e resultados entre sessões e acompanhar suas entregas.
 - Preservar as skills, os plugins e as conexões MCP compatíveis com seus CLIs.
 - Abrir ou retomar sessões conforme o trabalho for liberado.
 - Separar alterações paralelas com Git e revisar entregas antes da integração.
-- Adicionar geração de imagens e uma biblioteca de assets numa etapa posterior.
 - Entregar um aplicativo utilizável e um projeto demonstrável em portfólio .NET.
+
+A produção de código, documentos, imagens e outros arquivos pertence aos agentes e às ferramentas disponíveis em suas instalações. O Sintonia organiza a comunicação e o fluxo geral de entregas. Em 09/10/2026, o usuário retirou o marco de artes e biblioteca de assets por duplicar essas responsabilidades; a justificativa está na decisão 011 de [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Stack escolhida
 

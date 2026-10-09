@@ -1,6 +1,8 @@
 # Roadmap do Sintonia
 
-Aplicativo Windows em C#/.NET 10 e WPF para coordenar sessões de Codex e Claude em projetos gerais. Jogos são um exemplo opcional de uso. Os marcos são incrementos verificáveis; não representam datas prometidas.
+Aplicativo Windows em C#/.NET 10 e WPF que serve como canal de comunicação e coordenação entre agentes do Codex e do Claude, com várias sessões nos projetos que o usuário precisar. Os agentes produzem as entregas; o Sintonia encaminha contexto/resultados e acompanha o trabalho conjunto. Os marcos são incrementos verificáveis; não representam datas prometidas.
+
+Em 09/10/2026, o usuário retirou o M5 de artes e biblioteca de assets: a produção e organização desses arquivos podem ser solicitadas nas tarefas dos agentes, com suas ferramentas disponíveis. A criação de um módulo especializado duplicaria responsabilidades e ampliaria o produto além do canal de comunicação solicitado. Imagens seguem o fluxo geral de entregas. Os identificadores M6/M7 foram preservados para manter as referências históricas. Justificativa na decisão 011 de [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## M0 — Base .NET e fluxo demonstrativo
 
@@ -74,22 +76,13 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 
 Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sessões das duas ferramentas, com plano revisável, dependências e limites controlados pelo aplicativo. Chefia não substitui permissões ou aprovação das entregas.
 
-## M5 — Artes e biblioteca de assets
-
-- [ ] Escolher e conectar um provedor de imagens.
-- [ ] Criar briefing visual, referências, versões e prévia.
-- [ ] Armazenar parâmetros, origem, custos disponíveis e arquivos gerados.
-- [ ] Aprovar e exportar assets antes da importação no projeto.
-
-Aceite: uma imagem é gerada e entregue como arquivo revisável. Evolução: imagens estáticas e texturas → sprites isolados → variações consistentes → animações validadas.
-
 ## M6 — Fluxos para projetos gerais
 
 - [ ] Permitir configurar comandos de validação e critérios adequados à stack ou ao tipo de projeto (núcleo/persistência/execução prontos; editor WPF pendente).
 - [ ] Integrar entregas de código, documentação, análise e arquivos conforme o projeto.
 - [ ] Preparar exemplos de projetos distintos que combinem entregas das duas ferramentas.
 
-Aceite: projetos de tipos diferentes combinam entregas do Codex e do Claude e passam pelos critérios definidos pelo usuário. Recursos específicos de jogos ou imagens são opcionais.
+Aceite: projetos de tipos diferentes combinam entregas do Codex e do Claude e passam pelos critérios definidos pelo usuário. Arquivos visuais produzidos pelos agentes seguem esse mesmo fluxo geral.
 
 ## M7 — Distribuição e portfólio
 

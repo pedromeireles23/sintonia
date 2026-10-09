@@ -11,6 +11,7 @@ Estas instruções se aplicam a todo o repositório. Orientações e autorizaç�
 ## Produto e implementação
 
 - Produto: aplicativo visual Windows em C#/.NET 10, WPF e MVVM. Electron não é a stack do produto.
+- Escopo: canal de comunicação e coordenação entre agentes do Codex e do Claude, com várias sessões em múltiplos projetos. A produção dos arquivos cabe aos agentes e às suas ferramentas; usar o fluxo geral de entregas. O M5 de artes/biblioteca foi retirado por decisão do usuário em 09/10/2026; justificativa na decisão 011 de [docs/DECISIONS.md](docs/DECISIONS.md).
 - Interface e comunicação com o usuário em português. Identificadores de código consistentes em inglês.
 - Codex e Claude devem executar trabalho real. Uma função é uma configuração de tarefa, não exige criar outra identidade de agente.
 - Preservar perfis, skills, plugins e MCPs suportados pelos provedores. Documentar incompatibilidades; não prometer paridade com todos os recursos dos aplicativos desktop.

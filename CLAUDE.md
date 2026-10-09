@@ -2,6 +2,6 @@
 
 Leia e siga `AGENTS.md` deste repositório. Leia também `CONTEXT.md`, `ROADMAP.md`, `ARCHITECTURE.md` e `docs/DEVELOPMENT_LOG.md` antes de começar ou retomar.
 
-O Sintonia é um aplicativo Windows em C#/.NET 10 com WPF e MVVM. Ele coordena sessões normais de Codex e Claude, preservando suas configurações compatíveis.
+O Sintonia é um aplicativo Windows em C#/.NET 10 com WPF e MVVM. É o canal de comunicação e coordenação entre sessões normais de Codex e Claude em múltiplos projetos, preservando suas configurações compatíveis. Os agentes produzem as entregas usando suas próprias ferramentas; o escopo está em `docs/PRODUCT_SCOPE.md`.
 
 O usuário pediu desenvolvimento incremental com **commits pequenos ao concluir trabalho validado**, atualização do contexto e sincronização com o repositório do projeto. As regras completas estão em `AGENTS.md`; não mantenha uma cópia divergente delas aqui.

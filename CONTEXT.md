@@ -4,11 +4,13 @@ Atualizado em 09/10/2026. Este arquivo é o ponto de entrada para retomar o dese
 
 ## Intenção do usuário
 
-Criar uma central para projetos em geral: conectar suas instalações de Codex e Claude, distribuir funções e acompanhar entregas em várias pastas de trabalho. Desenvolvimento de software, documentação, pesquisa e outras tarefas suportadas pelos provedores fazem parte do propósito. O produto também poderá ser apresentado em portfólio de C#/.NET.
+Criar um canal de comunicação e coordenação entre agentes de IA do Codex e do Claude, fazendo-os trabalhar em conjunto com várias sessões abertas nos projetos que o usuário precisar. Cada projeto conserva seu contexto, sessões e entregas. Os agentes executam desenvolvimento de software, documentação, pesquisa e outras tarefas com as ferramentas disponíveis em suas instalações. O produto também poderá ser apresentado em portfólio de C#/.NET.
 
 As funções podem ser desenvolvimento, interface, revisão, documentação, análise e outras definidas pelo usuário. Não é necessário criar um sistema separado de agentes autônomos: as próprias ferramentas já executam tarefas. O Sintonia fornece coordenação, estado e acompanhamento.
 
 O usuário reafirmou que o Sintonia é uma **central geral de projetos**, sem especialização em jogos: cadastro de várias pastas, chat central com escolha de provedor/modelo, função de chefe que propõe trabalho a outras sessões e lista de sessões com abertura/retomada. Exemplos de jogos são demonstrativos e opcionais. Escopo e limites em [docs/PRODUCT_SCOPE.md](docs/PRODUCT_SCOPE.md).
+
+Em 09/10/2026, neste chat, o usuário questionou por que o Sintonia teria geração de imagens e biblioteca próprias se os agentes já podem executar esse trabalho com suas ferramentas. Autorizou retirar o M5 e reafirmou o propósito de comunicação entre Codex e Claude em múltiplas sessões e projetos. Produção e organização de arquivos ficam nas tarefas dos agentes; o Sintonia encaminha contexto/resultados e acompanha o fluxo geral de entregas. Não há marco dedicado a imagens nem previsão de adaptador de imagens próprio. Justificativa na decisão 011 de [docs/DECISIONS.md](docs/DECISIONS.md).
 
 Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sintonia**, conforme a pasta e o repositório existentes.
 
@@ -27,7 +29,8 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 - Cada provedor conserva suas extensões; plugins não são compartilhados automaticamente entre Claude e Codex.
 - Funções acrescentam instruções de tarefa, sem substituir a configuração global do provedor.
 - O planejamento pode ser assistido por um modelo; dependências, concorrência e permissões são controladas pelo aplicativo.
-- Artes vetoriais e procedurais podem ser produzidas pelos CLIs. Imagens raster exigem um provedor ou ferramenta de imagens conectado numa etapa posterior.
+- Imagens e outros arquivos são entregas das tarefas dos agentes, conforme as ferramentas compatíveis de cada instalação. M5 de artes/biblioteca retirado; geração, galeria e exportação especializadas não fazem parte do escopo atual do Sintonia. Geração de imagens pela integração ainda não foi validada.
+- Cadastrar projetos conforme a necessidade do usuário, sem definir uma quantidade fixa de projetos no escopo. Os limites atuais de execuções simultâneas são distintos da quantidade de projetos e continuam descritos acima.
 - Implementação independente do Maestro, com referência arquitetural documentada.
 - Commits frequentes de incrementos validados, preservando o histórico e o progresso entre sessões.
 
@@ -94,7 +97,7 @@ Selecionar a pasta de um projeto, atribuir uma tarefa ao Claude e outra ao Codex
 - A versão de cada CLI define seus eventos, flags e capacidades. Codex App Server tem interfaces experimentais; preferir a superfície estável e registrar o que foi testado.
 - Claude em modo não interativo tem host validado para Write; outras ferramentas têm cobertura de protocolo com processos de teste, sem prova real individual. Regras/hooks podem resolver permissões antes do host. O modo `--bare` pode omitir as extensões que o usuário quer preservar.
 - SQLite deve registrar tentativas e eventos suficientes para reconciliar trabalho após interrupção; repetir uma tarefa pode repetir efeitos.
-- Configurações específicas de stacks, engines e provedores de imagens são opcionais; não bloqueiam o núcleo geral.
+- Ferramentas específicas de stacks, engines ou imagens pertencem às instalações dos agentes; verificar compatibilidade sem criar módulos especializados no Sintonia por padrão.
 
 ## Como manter este arquivo
 

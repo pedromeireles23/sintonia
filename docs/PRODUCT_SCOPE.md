@@ -1,10 +1,12 @@
-# Sintonia como central de projetos
+# Sintonia como canal de comunicação entre agentes
 
 Direção solicitada pelo usuário em 08/10/2026. A central real já oferece projetos, chat, sessões persistentes e propostas de chefia para revisão. Este documento também descreve a distribuição e a integração ainda planejadas; a demonstração M0 permanece separada e simulada.
 
+Reafirmação em 09/10/2026 neste chat: o Sintonia é um canal de comunicação entre agentes de IA do Codex e do Claude para trabalharem em conjunto com várias sessões abertas nos projetos que o usuário precisar. O usuário autorizou retirar o M5 de artes e biblioteca, pois a produção e organização dos arquivos já podem ser tarefas dos agentes com suas ferramentas. Decisão e justificativa em [DECISIONS.md](DECISIONS.md), item 011.
+
 ## Experiência desejada
 
-O Sintonia é uma central geral de trabalho com Codex e Claude Code: desenvolvimento, documentação, pesquisa, análise e outras tarefas suportadas pelos provedores. Jogos são um exemplo opcional; não orientam requisitos obrigatórios do produto.
+O Sintonia conecta sessões de Codex e Claude Code, encaminha instruções, contexto e resultados e acompanha o trabalho conjunto. Desenvolvimento, documentação, pesquisa, análise e produção de arquivos são tarefas executadas pelos agentes com as ferramentas disponíveis. O usuário cadastra projetos conforme sua necessidade, mantendo as conversas e o trabalho de cada projeto separados.
 
 | Área | Comportamento planejado |
 | --- | --- |
@@ -18,6 +20,19 @@ O Sintonia é uma central geral de trabalho com Codex e Claude Code: desenvolvim
 As sessões dos dois provedores pertencem ao mesmo projeto lógico. Quando escreverem em paralelo, o fluxo de Git deve separar as alterações e integrar de forma serial. Adicionar outra pasta não deve misturar instruções ou histórico entre projetos.
 
 Pedido atualizado em 09/10/2026: limite configurável de **3 a 7 sessões simultâneas por projeto**, padrão 3, incluindo o chefe enquanto executa. Provedores podem repetir e misturar livremente. Chat e fila compartilham até sete execuções globais. Seletor WPF e início em grupo do plano aprovado implementados; escrita paralela requer worktrees distintas e validadas. [Fluxo e limites](SESSION_CONCURRENCY.md).
+
+A quantidade de projetos cadastrados é distinta desses limites de execução: o escopo não define uma quantidade fixa de projetos. Ter várias sessões abertas não significa manter todas executando ao mesmo tempo. O teto atual de sete execuções globais permanece uma limitação da implementação.
+
+## Responsabilidades do canal e dos agentes
+
+| Responsável | Escopo |
+| --- | --- |
+| Codex e Claude | Executar as tarefas e produzir ou organizar código, documentos, imagens e outros arquivos com suas ferramentas compatíveis. |
+| Sintonia | Abrir/retomar sessões, encaminhar contexto e resultados, acompanhar tarefas e entregas, preservar histórico e aplicar dependências, concorrência e decisões do usuário. |
+
+O M5 de artes e biblioteca de assets foi retirado do roadmap. Geração de imagens, seleção de um provedor de imagens próprio, galeria e exportação especializadas duplicariam trabalho que pode ser solicitado aos agentes e acrescentariam um módulo fora do propósito confirmado. Arquivos visuais seguem o fluxo geral de entregas; uma interface especializada só poderá entrar por necessidade concreta e nova decisão de escopo.
+
+Preservar as extensões dos agentes não garante que toda ferramenta disponível em seus aplicativos originais funcione na integração. Geração de imagens dentro do Sintonia ainda não foi validada; a retirada do marco não declara essa capacidade concluída.
 
 ## Chat central e conversas nativas
 

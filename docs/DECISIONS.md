@@ -69,3 +69,15 @@ Data: 09/10/2026. Estado: implementada no núcleo e no WPF.
 O usuário definiu mínimo de 3 e máximo de 7 vagas por projeto, com sessões Codex/Claude misturadas e tarefas atribuídas pelo chefe. O padrão é 3; contam somente execuções ativas, inclusive o chefe. Chat e fila compartilham teto global de 7 no banco, sem exclusividade por provedor.
 
 O chefe propõe um plano revisável e o aplicativo distribui uma rodada das tarefas disponíveis quando o usuário inicia o grupo. Escrita direta no original é exclusiva; tarefas independentes em worktrees prontas e validadas podem escrever juntas. Cancelamento segura as vagas até encerramento e persistência. Permissões, revisão e publicação mantêm seus controles; acompanhamento automático do chefe e publicação Git concluída ainda estão pendentes. [Contrato e evidências](SESSION_CONCURRENCY.md).
+
+## 011 — Canal de comunicação entre agentes e retirada do M5 de artes
+
+Data: 09/10/2026. Estado: adotada por autorização explícita do usuário neste chat.
+
+Contexto: o usuário questionou a necessidade do M5 de artes e biblioteca de assets, primeiro lembrando os recursos do Codex e do Claude e depois perguntando por que implementar no Sintonia um trabalho que os próprios agentes podem executar. Autorizou a retirada e reafirmou que o Sintonia é um canal de comunicação entre agentes das duas ferramentas, fazendo-os trabalhar em conjunto com várias sessões abertas nos projetos que forem necessários.
+
+Decisão: retirar o marco de artes, a previsão de um adaptador de imagens próprio e os objetivos de biblioteca, galeria e exportação especializadas. Produzir imagens, criar variações, organizar arquivos e registrar informações pode ser solicitado nas tarefas dos agentes, conforme as ferramentas compatíveis de suas instalações. O Sintonia encaminha instruções, contexto e resultados, mantém projetos e sessões e acompanha o fluxo geral de entregas.
+
+Justificativa: esses recursos especializados duplicariam responsabilidades dos agentes e ampliariam o produto além do propósito solicitado. Uma imagem, um documento e código são entregas a coordenar; o canal deve tratar o trabalho conjunto sem implementar um sistema de produção para cada tipo de arquivo. Uma interface especializada exige uma necessidade concreta e nova decisão de escopo.
+
+Consequências: imagens continuam possíveis como entregas das tarefas, sem módulo próprio. A retirada não comprova geração de imagens pela integração nem paridade com os aplicativos originais; capacidades e extensões continuam exigindo validação. O escopo permite cadastrar projetos conforme a necessidade, mantendo contexto separado. Quantidade de projetos e sessões abertas é distinta de execuções ativas; os limites atuais de 3–7 por projeto e sete globalmente permanecem. M6/M7 conservam seus identificadores para preservar referências históricas. Documentos de escopo, contexto, arquitetura, roadmap e instruções foram alinhados; o próximo incremento de código continua sendo o M3 em andamento.

@@ -18,7 +18,7 @@ Análise estática realizada em 08/10/2026 sobre o [commit 31b4eb3667f52cfa55cb9
 
 ## Diferenças deliberadas
 
-O Sintonia usa C#/.NET e WPF. Seu primeiro escopo será menor: projeto, funções, tarefas, sessões e revisão. A prova das duas integrações precede automação extensa e geração de imagens.
+O Sintonia usa C#/.NET e WPF. Seu escopo é um canal de comunicação e coordenação entre sessões do Codex e do Claude em múltiplos projetos, com funções, tarefas e revisão. A prova das duas integrações precede automação extensa. Em 09/10/2026, o usuário retirou o marco de geração de imagens/biblioteca própria; esse trabalho cabe às tarefas dos agentes e às suas ferramentas compatíveis, conforme a decisão 011 de [DECISIONS.md](DECISIONS.md).
 
 No commit analisado, Claude recebe `--dangerously-skip-permissions` e o modo de lote de Codex inclui `--dangerously-bypass-approvals-and-sandbox`. [Claude](https://github.com/RunMaestro/Maestro/blob/31b4eb3667f52cfa55cb924ff0c22d494f308cfb/src/main/agents/definitions.ts#L169), [Codex](https://github.com/RunMaestro/Maestro/blob/31b4eb3667f52cfa55cb924ff0c22d494f308cfb/src/main/agents/definitions.ts#L251). O Sintonia não adotará essas opções como padrão de funcionamento.
 
