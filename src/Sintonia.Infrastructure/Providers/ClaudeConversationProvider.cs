@@ -6,7 +6,8 @@ using Sintonia.Infrastructure.Diagnostics;
 
 namespace Sintonia.Infrastructure.Providers;
 
-public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executable = null) : IConversationProvider, IProviderUsageReader
+public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executable = null,
+    Action<ClaudeToolResult>? toolResultObserver = null) : IConversationProvider, IProviderUsageReader
 {
     public ProviderKind Kind => ProviderKind.Claude;
     public Task<ProviderUsageSnapshot> ReadUsageAsync(string directory, CancellationToken token)
@@ -33,7 +34,7 @@ public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executa
             request.NativeSessionId is null ? "--session-id" : "--resume", id };
         if (!string.IsNullOrWhiteSpace(request.Instructions)) arguments.AddRange(["--append-system-prompt", request.Instructions]);
         if (!string.IsNullOrWhiteSpace(request.Model)) arguments.AddRange(["--model", request.Model]);
-        await using var session = new ClaudeStdioSession(Launch, arguments, request, id, progress, token);
+        await using var session = new ClaudeStdioSession(Launch, arguments, request, id, progress, token, toolResultObserver);
         try
         {
             return await session.SendAsync(token).ConfigureAwait(false);
@@ -62,14 +63,21 @@ public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executa
     }
 }
 
+/// <summary>Opt-in, bounded, in-memory tool observation. Never persisted or displayed by the default adapter.</summary>
+public sealed record ClaudeToolResult(string ToolUseId, string ToolName, bool? IsError, string Text, bool Truncated);
+
 /// <summary>Parses documented stream events; accepts additive fields, rejects missing terminal success.</summary>
-public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationEvent> progress)
+public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationEvent> progress,
+    Action<ClaudeToolResult>? toolResultObserver = null)
 {
     private string _model = "";
     private JsonElement? _result;
     private RunTokenUsage? _usage;
     private readonly ConcurrentDictionary<string, byte> _denials = new();
     private readonly StringBuilder _fallback = new();
+    private readonly Dictionary<string, string> _toolCalls = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _completedCalls = new(StringComparer.Ordinal);
+    private int _observedCalls;
     public void Accept(string line)
     {
         using var document = JsonDocument.Parse(line);
@@ -109,7 +117,49 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
                         _fallback.Append(text.AsSpan(0, Math.Min(text.Length, 256_000 - _fallback.Length)));
                     }
                     else if (content.GetProperty("type").GetString() == "tool_use")
+                    {
                         progress.Report(new(ConversationEventKind.Tool, content.GetProperty("name").GetString()!));
+                        if (toolResultObserver is not null)
+                        {
+                            var callId = content.GetProperty("id").GetString();
+                            var toolName = content.GetProperty("name").GetString();
+                            if (string.IsNullOrWhiteSpace(callId) || callId.Length > 512 || string.IsNullOrWhiteSpace(toolName) || toolName.Length > 512
+                                || ++_observedCalls > 1024 || !_toolCalls.TryAdd(callId, toolName))
+                                throw new ProviderException("Claude repetiu uma chamada de ferramenta ou excedeu o limite de observação.");
+                        }
+                    }
+                }
+                break;
+            case "user" when toolResultObserver is not null
+                && (!root.TryGetProperty("parent_tool_use_id", out var userParent) || userParent.ValueKind == JsonValueKind.Null):
+                if (!root.GetProperty("message").TryGetProperty("content", out var results) || results.ValueKind != JsonValueKind.Array) break;
+                foreach (var content in results.EnumerateArray())
+                {
+                    if (content.GetProperty("type").GetString() != "tool_result") continue;
+                    var callId = content.GetProperty("tool_use_id").GetString()!;
+                    if (!_toolCalls.TryGetValue(callId, out var toolName) || !_completedCalls.Add(callId)) continue; // Old history, uncorrelated or repeated result.
+                    var text = new StringBuilder();
+                    var truncated = false;
+                    if (content.TryGetProperty("content", out var body))
+                    {
+                        if (body.ValueKind == JsonValueKind.String) Append(body.GetString()!);
+                        else if (body.ValueKind == JsonValueKind.Array)
+                            foreach (var block in body.EnumerateArray())
+                                if (block.TryGetProperty("type", out var blockType) && blockType.GetString() == "text")
+                                    Append(block.GetProperty("text").GetString()!);
+                    }
+                    bool? isError = content.TryGetProperty("is_error", out var error) && error.ValueKind is JsonValueKind.True or JsonValueKind.False
+                        ? error.GetBoolean() : null;
+                    toolResultObserver(new(callId, toolName, isError, text.ToString(), truncated));
+
+                    void Append(string value)
+                    {
+                        const int limit = 128_000;
+                        if (text.Length > 0 && text.Length < limit) text.Append('\n');
+                        var count = Math.Min(value.Length, limit - text.Length);
+                        text.Append(value.AsSpan(0, count));
+                        truncated |= count < value.Length;
+                    }
                 }
                 break;
             case "result":

@@ -29,10 +29,11 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
     private bool _terminal;
 
     public ClaudeStdioSession(ExecutableLaunch launch, IEnumerable<string> arguments, ConversationRequest request,
-        string sessionId, IProgress<ConversationEvent> progress, CancellationToken token)
+        string sessionId, IProgress<ConversationEvent> progress, CancellationToken token,
+        Action<ClaudeToolResult>? toolResultObserver = null)
     {
         _request = request; _sessionId = sessionId; _progress = progress;
-        _parser = new(sessionId, progress);
+        _parser = new(sessionId, progress, toolResultObserver);
         _lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         _process = new(launch, arguments, request.WorkingDirectory, ReceiveAsync);
     }

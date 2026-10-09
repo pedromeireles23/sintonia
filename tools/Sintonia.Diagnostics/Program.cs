@@ -5,11 +5,20 @@ using Sintonia.Infrastructure.Providers;
 
 Console.OutputEncoding = Encoding.UTF8;
 using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan.FromSeconds(25)
-    : args.FirstOrDefault() is "collaboration" or "collaboration-resume" || args is ["permissions", "Claude", "BashEdit"]
+    : args.FirstOrDefault() is "collaboration" or "collaboration-resume" || args is ["permissions", "Claude", "BashEdit" or "Mcp"]
         ? TimeSpan.FromMinutes(6) : TimeSpan.FromMinutes(3));
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["verify-mcp", var mcpDirectory])
+    {
+        ClaudeMcpPermissionProbe.Verify(Path.GetFullPath(mcpDirectory));
+        Console.WriteLine("PASS: evidência MCP conferida sem rede ou modelos; corpos das respostas não são persistidos."); return 0;
+    }
+    if (args is ["permissions", "Claude", "Mcp"])
+    {
+        await ClaudeMcpPermissionProbe.RunAsync(cancellation.Token); return 0;
+    }
     if (args is ["verify-permissions", var permissionDirectory])
     {
         ClaudeToolPermissionProbe.VerifyFiles(Path.GetFullPath(permissionDirectory));
@@ -167,7 +176,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude [BashEdit] | verify-permissions pasta | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude [BashEdit/Mcp] | verify-permissions pasta | verify-mcp pasta | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>
