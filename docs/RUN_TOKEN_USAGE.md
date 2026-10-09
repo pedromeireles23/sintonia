@@ -31,4 +31,4 @@ Respostas do chat e da fila mostram os tokens do próprio run, incluindo contage
 
 WPF `--tokens` valida chat, provedores misturados, medição informada/parcial, ausência de campos, cancelamento, navegação e reabertura. `--queue` verifica consumos distintos das tentativas antigas/atuais, dependências, revisão e reabertura. Dados/provedores simulados, capturas normal/mínima revisadas, zero erros de binding e nenhum modelo chamado. Regressões `--usage` e `--chief-plan` aprovadas.
 
-O [limite agregado](TOKEN_BUDGET.md) está implementado no núcleo do schema 15, com soma por run e reserva transacional por início. A interface ainda será conectada. Observações parciais, escopos distintos e uso ausente não sustentam promessa de teto integral de consumo. Tokens não representam saldo de assinatura.
+O [limite agregado](TOKEN_BUDGET.md) está implementado no schema 15, com soma por run, reserva transacional por início e configuração/snapshot WPF. Observações parciais, escopos distintos e uso ausente não sustentam promessa de teto integral de consumo. Tokens não representam saldo de assinatura.

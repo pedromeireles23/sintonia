@@ -59,6 +59,10 @@ public sealed class WorkspaceViewModel : ObservableObject
     private string _executionTimeout = "300";
     private bool _savingSessionLimit;
     private Task _settingsSave = Task.CompletedTask;
+    private Task _tokenRefresh = Task.CompletedTask;
+    private readonly Dictionary<string, ProjectTokenBudget> _tokenBudgets = [];
+    private string _tokenLimit = "";
+    private string _tokenReservation = "1000";
     private readonly SemaphoreSlim _permissionGate = new(1);
     private readonly CancellationTokenSource _lifetime = new();
     private TaskCompletionSource<bool>? _permissionAnswer;
@@ -105,6 +109,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         ApplyFunctionProfileCommand = new(ApplyFunctionProfileAsync, ShowError, () => CanApplyFunctionProfile);
         RefreshFunctionProfilesCommand = new(RefreshFunctionProfilesAsync, ShowError, () => CanManageFunctionProfiles);
         SaveSessionLimitCommand = new(SaveSessionLimitAsync, ShowError, () => CanEditSessionLimit && LimitsChanged);
+        RefreshTokenBudgetCommand = new(RefreshTokenBudgetAsync, ShowError, () => Ready && Project is not null && !_loadingProject && !_stopping);
     }
 
     public ObservableCollection<WorkspaceProject> Projects { get; } = [];
@@ -185,9 +190,15 @@ public sealed class WorkspaceViewModel : ObservableObject
     public IReadOnlyList<int> AttemptLimits { get; } = [1, 2, 3];
     public int TaskAttemptLimit { get => _taskAttemptLimit; set { Set(ref _taskAttemptLimit, value); RefreshCommands(); } }
     public string ExecutionTimeout { get => _executionTimeout; set { Set(ref _executionTimeout, value); RefreshCommands(); } }
+    public string TokenLimit { get => _tokenLimit; set { Set(ref _tokenLimit, value); RefreshCommands(); } }
+    public string TokenReservation { get => _tokenReservation; set { Set(ref _tokenReservation, value); RefreshCommands(); } }
+    public string TokenBudgetDescription => Project is { } project && _tokenBudgets.TryGetValue(project.Id, out var budget)
+        ? budget.Describe() : "Consumo ainda não consultado. O banco confere o limite antes de cada início.";
+    private bool HasTokenCapacity(string projectId) => !_tokenBudgets.TryGetValue(projectId, out var budget) || budget.CanAdmit(out _);
     public int AttemptLimitFor(string projectId) => _executionSettings.TryGetValue(projectId, out var settings) ? settings.MaxAttempts : 3;
     private bool LimitsChanged => Project is { } project && _executionSettings.TryGetValue(project.Id, out var settings)
-        && (settings.MaxConcurrentSessions != SessionLimit || settings.MaxAttempts != TaskAttemptLimit || ExecutionTimeout != settings.MaxExecutionSeconds.ToString());
+        && (settings.MaxConcurrentSessions != SessionLimit || settings.MaxAttempts != TaskAttemptLimit || ExecutionTimeout != settings.MaxExecutionSeconds.ToString()
+            || TokenLimit != (settings.MaxReportedTokens?.ToString() ?? "") || TokenReservation != settings.TokenReservation.ToString());
     public string SessionUsage => Project is { } project
         ? SessionUsageFor(project.Id)
         : $"{ActiveCount}/7 na central";
@@ -202,6 +213,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public bool CanApplyFunctionProfile => CanManageFunctionProfiles && Project is not null && !_loadingProject && SelectedFunctionProfile is not null;
     public bool CanEditFunction => SelectedConversation?.Running != true && SelectedConversation?.Record.IsTask != true && !_stopping && !_loadingProject;
     public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && SelectedConversation?.Running != true
+        && HasTokenCapacity(Project.Id)
         && SelectedConversation?.Record.IsTask != true
         && (SelectedConversation is null || SelectedConversation.Loaded)
         && WorkspaceExecutionPolicy.CanAdmit(WorkspaceExecutionSlot.Create(Project,
@@ -220,6 +232,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public AsyncCommand ApplyFunctionProfileCommand { get; }
     public AsyncCommand RefreshFunctionProfilesCommand { get; }
     public AsyncCommand SaveSessionLimitCommand { get; }
+    public AsyncCommand RefreshTokenBudgetCommand { get; }
 
     public async Task InitializeAsync()
     {
@@ -257,6 +270,9 @@ public sealed class WorkspaceViewModel : ObservableObject
             var settings = await _store.GetProjectExecutionSettingsAsync(project.Id);
             if (revision != _projectRevision || _stopping) return;
             _executionSettings[project.Id] = settings; SessionLimit = settings.MaxConcurrentSessions; TaskAttemptLimit = settings.MaxAttempts; ExecutionTimeout = settings.MaxExecutionSeconds.ToString();
+            TokenLimit = settings.MaxReportedTokens?.ToString() ?? ""; TokenReservation = settings.TokenReservation.ToString();
+            await QueueTokenBudgetRefreshAsync(project);
+            if (revision != _projectRevision || _stopping) return;
             var records = await _store.GetConversationsAsync(project.Id);
             if (revision != _projectRevision || _stopping) return;
             foreach (var record in records)
@@ -282,7 +298,15 @@ public sealed class WorkspaceViewModel : ObservableObject
     {
         if (!CanEditSessionLimit || Project is not { } project) return;
         if (!int.TryParse(ExecutionTimeout, out var seconds)) throw new ArgumentException("Use um prazo inteiro entre 1 e 300 segundos.");
-        var settings = _executionSettings[project.Id] with { MaxConcurrentSessions = SessionLimit, MaxAttempts = TaskAttemptLimit, MaxExecutionSeconds = seconds };
+        long? tokenLimit = null;
+        if (!string.IsNullOrWhiteSpace(TokenLimit))
+        {
+            if (!long.TryParse(TokenLimit, out var parsedLimit)) throw new ArgumentException("Use um limite de tokens inteiro ou deixe vazio para desativar.");
+            tokenLimit = parsedLimit;
+        }
+        if (!long.TryParse(TokenReservation, out var reservation)) throw new ArgumentException("Use uma reserva de tokens inteira por início.");
+        var settings = _executionSettings[project.Id] with { MaxConcurrentSessions = SessionLimit, MaxAttempts = TaskAttemptLimit, MaxExecutionSeconds = seconds,
+            MaxReportedTokens = tokenLimit, TokenReservation = reservation };
         settings.Validate();
         _savingSessionLimit = true; RefreshCommands();
         try
@@ -293,13 +317,16 @@ public sealed class WorkspaceViewModel : ObservableObject
             {
                 SessionLimit = saved.MaxConcurrentSessions;
                 TaskAttemptLimit = saved.MaxAttempts; ExecutionTimeout = saved.MaxExecutionSeconds.ToString();
+                TokenLimit = saved.MaxReportedTokens?.ToString() ?? ""; TokenReservation = saved.TokenReservation.ToString();
                 Notice = $"Limites salvos: {saved.MaxConcurrentSessions} sessões, {saved.MaxAttempts} tentativas por tarefa e {saved.MaxExecutionSeconds}s por execução. Sessões já ativas conservam seus parâmetros.";
             }
+            await QueueTokenBudgetRefreshAsync(project);
         }
         catch (InvalidOperationException exception)
         {
             var current = await _store.GetProjectExecutionSettingsAsync(project.Id);
             _executionSettings[project.Id] = current;
+            await QueueTokenBudgetRefreshAsync(project);
             throw new InvalidOperationException($"Não foi possível aplicar o limite. Em vigor: {current.MaxConcurrentSessions}. Confira a escolha antes de aplicar novamente. " + exception.Message, exception);
         }
         finally { _savingSessionLimit = false; RefreshCommands(); }
@@ -308,6 +335,27 @@ public sealed class WorkspaceViewModel : ObservableObject
     public async Task RefreshExecutionSettingsAsync(WorkspaceProject project)
     {
         _executionSettings[project.Id] = await _store.GetProjectExecutionSettingsAsync(project.Id);
+        await QueueTokenBudgetRefreshAsync(project);
+        RefreshCommands();
+    }
+
+    public Task RefreshTokenBudgetAsync() => Project is { } project ? QueueTokenBudgetRefreshAsync(project) : Task.CompletedTask;
+    private Task QueueTokenBudgetRefreshAsync(WorkspaceProject project) =>
+        _tokenRefresh = RefreshTokenBudgetCoreAsync(_tokenRefresh, project);
+    private async Task RefreshTokenBudgetCoreAsync(Task previous, WorkspaceProject project)
+    {
+        await previous;
+        if (_stopping) return;
+        try
+        {
+            var budget = await _store.GetProjectTokenBudgetAsync(project.Id);
+            if (!_stopping) _tokenBudgets[project.Id] = budget;
+        }
+        catch (Exception exception)
+        {
+            _tokenBudgets.Remove(project.Id);
+            if (!_stopping && Project?.Id == project.Id) ShowError(exception);
+        }
         RefreshCommands();
     }
 
@@ -431,6 +479,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             {
                 session.Record = session.Record with { NativeSessionId = ev.NativeSessionId, Model = ev.Model };
                 if (SelectedConversation == session) { _model = ev.Model ?? DefaultModel; Notify(nameof(Model)); }
+                if (!finished && !_stopping) _ = QueueTokenBudgetRefreshAsync(project);
             }
             if (ev.Kind == ConversationEventKind.TextDelta && answer.Text.Length < 256_000) answer.Text += ev.Text;
             else if (ev.Kind != ConversationEventKind.TextDelta)
@@ -464,6 +513,11 @@ public sealed class WorkspaceViewModel : ObservableObject
                 }
             }
         }
+        catch (OperationCanceledException) when (stop.IsCancellationRequested)
+        {
+            answer.State = session.State = "Cancelada";
+            Notice = "Envio cancelado antes da execução. Nenhuma resposta do provedor foi registrada.";
+        }
         catch (Exception exception)
         {
             answer.State = session.State = "Falha";
@@ -471,6 +525,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         }
         finally
         {
+            await QueueTokenBudgetRefreshAsync(project);
             session.Running = false; _jobs.Remove(session.Record.Id); stop.Dispose(); RefreshCommands();
         }
     }
@@ -524,6 +579,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public bool IsTaskRunning(WorkspaceTask task) => _jobs.ContainsKey(task.ConversationId);
 
     public bool CanStartTask(WorkspaceProject project, WorkspaceTask task) => !_stopping
+        && HasTokenCapacity(project.Id)
         && WorkspaceExecutionPolicy.CanAdmit(TaskSlot(project, task), _jobs.Values.Select(j => j.Slot).ToArray(), LimitFor(project.Id), out _);
 
     private static WorkspaceExecutionSlot TaskSlot(WorkspaceProject project, WorkspaceTask task) =>
@@ -534,11 +590,15 @@ public sealed class WorkspaceViewModel : ObservableObject
     {
         if (_stopping || batch.ProjectId != project.Id) return [];
         var slots = _jobs.Values.Select(j => j.Slot).ToList(); var selected = new List<WorkspaceTask>();
+        _tokenBudgets.TryGetValue(project.Id, out var budget);
         foreach (var task in batch.Tasks.Where(t => WorkspaceTaskPolicy.CanStart(t, batch.Tasks, AttemptLimitFor(project.Id))))
         {
+            if (budget is not null && !budget.CanAdmit(out _)) break;
             var slot = TaskSlot(project, task);
             if (!WorkspaceExecutionPolicy.CanAdmit(slot, slots, LimitFor(project.Id), out _)) continue;
             slots.Add(slot); selected.Add(task);
+            if (budget?.Settings.MaxReportedTokens is not null)
+                budget = budget with { ReservedTokens = budget.ReservedTokens + budget.Settings.TokenReservation };
         }
         return selected;
     }
@@ -631,6 +691,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Append(_settingsSave).ToArray();
         try { await Task.WhenAll(jobs); }
         catch (Exception exception) { ShowError(exception); }
+        await _tokenRefresh;
     }
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException ? "Operação cancelada ou prazo excedido." : exception.Message;
     private void RefreshCommands()
@@ -638,10 +699,12 @@ public sealed class WorkspaceViewModel : ObservableObject
         Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanEditAccess)); Notify(nameof(CanSend)); Notify(nameof(CanReviewProposals));
         Notify(nameof(CanManageFunctionProfiles)); Notify(nameof(CanApplyFunctionProfile));
         Notify(nameof(CanEditSessionLimit)); Notify(nameof(SavedSessionLimit)); Notify(nameof(SessionUsage));
+        Notify(nameof(TokenBudgetDescription));
         AddProjectCommand?.Refresh(); RefreshModelsCommand?.Refresh(); NewConversationCommand?.Refresh(); SendCommand?.Refresh(); CancelCommand?.Refresh();
         AllowPermissionCommand?.Refresh(); DenyPermissionCommand?.Refresh();
         ApplyFunctionProfileCommand?.Refresh(); RefreshFunctionProfilesCommand?.Refresh();
         SaveSessionLimitCommand?.Refresh();
+        RefreshTokenBudgetCommand?.Refresh();
     }
     private static string StateText(ChatRunState? state) => state switch
     {

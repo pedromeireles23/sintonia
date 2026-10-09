@@ -19,6 +19,7 @@ internal static class Program
     {
         if (args.FirstOrDefault() == "--workspace") return WorkspaceSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/workspace-smoke");
         if (args.FirstOrDefault() == "--tokens") return WorkspaceSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/token-smoke", verifyTokenUsage: true);
+        if (args.FirstOrDefault() == "--budget") return TokenBudgetSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/budget-smoke");
         if (args.FirstOrDefault() == "--proposals") return ProposalSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/proposal-smoke");
         if (args.FirstOrDefault() == "--queue") return TaskQueueSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/queue-smoke");
         if (args.FirstOrDefault() == "--sessions") return SessionConcurrencySmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/session-smoke");

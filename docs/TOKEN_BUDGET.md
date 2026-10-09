@@ -14,4 +14,12 @@ Limite/reserva aceitam inteiros de 1 a 1.000.000.000.000; reserva não supera li
 
 Schema 15 acrescenta `project_token_limits` e `run_token_reservations`, preservando schema 14/histórico anterior. `GetProjectTokenBudgetAsync` lê configuração, medições e reservas num snapshot transacional. Bloqueio ocorre antes de consumir tentativa ou chamar provedor. Nenhuma quota adicional é consultada.
 
-Quinze casos novos verificam concorrência entre stores, checkpoints repetidos, reserva/consumo sem duplicação, excesso durante execução, estados terminais, recuperação, configuração alterada/obsoleta, migração, isolamento por projeto, overflow e bloqueio de chat/fila sem inferência/tentativa. Provedores simulados, sem modelos. Interface WPF pendente neste incremento.
+Quinze casos novos verificam concorrência entre stores, checkpoints repetidos, reserva/consumo sem duplicação, excesso durante execução, estados terminais, recuperação, configuração alterada/obsoleta, migração, isolamento por projeto, overflow e bloqueio de chat/fila sem inferência/tentativa. Provedores simulados, sem modelos.
+
+## Interface WPF
+
+Em **Função, permissões e limites**, configure **Limite de tokens informados** e **Reserva de tokens por início** e use **Aplicar limites**. Campo de limite vazio desativa; o histórico permanece. Rascunho inválido/obsoleto não é descartado. A consulta mostra configuração em vigor, consumo, reserva pendente, execuções ativas e lacunas por projeto. **Atualizar consumo do projeto** consulta novamente, sem modelo. A consulta também ocorre na abertura, ao salvar e no início/término de uma execução; não há polling contínuo durante inferência.
+
+Botões do chat/fila e seleção da rodada respeitam o último snapshot; o banco reconfere tudo antes de admitir cada início. Uma consulta visual pode ficar desatualizada por outra instância ou execução em andamento; atualização manual não altera rascunho/configuração. Consultas são serializadas e seu fechamento é aguardado.
+
+WPF `--budget` passou em Debug/Release: configuração, rascunho inválido/obsoleto, consumo/ausência, margem exata, reserva/cancelamento, bloqueio de chat/fila/rodada, dois projetos, reabertura e fechamento. Regressões `--tokens`, `--queue`, `--chief-plan` e `--sessions` passaram; zero erros de binding. Capturas normal/mínima revisadas. Cancelamento anterior ao início é mostrado como cancelado, sem inventar um run persistido.
