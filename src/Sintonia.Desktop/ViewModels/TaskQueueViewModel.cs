@@ -46,6 +46,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         StartAvailableCommand = new(StartAvailableAsync, ShowError, () => CanStartAvailable);
         CancelCommand = new(Cancel, () => Busy && (_preparationStop is not null || _dispatchStop is not null || _planStop is not null || Session?.Running == true));
         PrepareWorktreeCommand = new(PrepareWorktreeAsync, ShowError, () => CanPrepareWorktree);
+        ArchiveWorktreeCommand = new(ArchiveWorktreeAsync, ShowError, () => CanArchiveWorktree);
         ApproveCommand = new(() => ReviewAsync(true), ShowError, () => CanReview);
         RequestChangesCommand = new(() => ReviewAsync(false), ShowError, () => CanReview && !string.IsNullOrWhiteSpace(ReviewNote));
         PrepareChiefCommand = new(PrepareChiefAsync, ShowError, () => CanChoose && SelectedBatch is not null);
@@ -109,16 +110,23 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
             ? "\nAguarda integração Git das dependências." : "");
     public string WorktreeDetails => SelectedTask?.Record.Worktree is not { } worktree
         ? $"Pasta usada nas tentativas: {Project.Directory}\n\nUma tarefa com escrita pode preparar outra pasta Git antes da primeira tentativa. A preparação é opcional e não chama modelos."
-        : $"{WorktreeStateText(worktree.State)}\n\nBranch: {worktree.Branch}\nCommit de base: {worktree.BaseCommit}\n\nPasta usada nas tentativas:\n{worktree.WorkingDirectory}\n\nCheckout:\n{worktree.CheckoutDirectory}\n\nRepositório original:\n{worktree.RepositoryDirectory}"
+        : (SelectedTask.Record.Cleanup is { } cleanup ? $"{CleanupStateText(cleanup.State)}\n\n{(cleanup.State == TaskWorktreeCleanupState.Archived ? "Arquivo preservado" : "Destino registrado do arquivo (confira a pasta)")}:\n{cleanup.Preview.ArchiveDirectory}"
+                + (cleanup.Error is { } cleanupError ? "\n\n" + cleanupError : "\nOs arquivos continuam ocupando espaço. Esta pasta é um arquivo, sem checkout Git ativo.")
+                + "\n\nVínculo histórico da tarefa:\n" : $"{WorktreeStateText(worktree.State)}\n\n")
+            + $"Branch: {worktree.Branch}\nCommit de base: {worktree.BaseCommit}\n\nPasta usada nas tentativas:\n{worktree.WorkingDirectory}\n\nCheckout:\n{worktree.CheckoutDirectory}\n\nRepositório original:\n{worktree.RepositoryDirectory}"
             + (worktree.Error is { } error ? "\n\n" + error : "")
             + (SelectedTask.Record.Delivery is { } delivery ? $"\n\nCommit registrado da entrega:\n{delivery.Commit}\n"
                 + (SelectedTask.Record.Publication is { State: TaskPublicationState.Published } publication ? $"Integrada no commit:\n{publication.Commit}" : "Integração pendente.") : "");
-    public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nTarefas independentes em worktrees distintas podem escrever em paralelo. Escrita direta no original é exclusiva. Dependentes de uma worktree exigem publicação registrada da combinação validada. As pastas são preservadas; não há limpeza automática.";
+    public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nTarefas independentes em worktrees distintas podem escrever em paralelo. Escrita direta no original é exclusiva. Dependentes de uma worktree exigem publicação registrada da combinação validada.\n\nApós publicar, você pode arquivar a worktree da entrega. Os arquivos são movidos intactos e a branch/histórico são preservados. O arquivo continua ocupando espaço; as pastas de combinação permanecem. Não há limpeza automática.";
     public Func<TaskWorktree, bool>? ConfirmWorktree { get; set; }
+    public Func<TaskWorktreeCleanupPreview, bool>? ConfirmArchive { get; set; }
     public bool CanPrepareWorktree => CanChoose && !_loading && Workspace.CanPrepareWorktrees && SelectedTask is { } task && SelectedBatch is { } batch
         && WorkspaceTaskPolicy.CanPrepareWorktree(task.Record, batch.Tasks);
     public bool CanReviewDiffs => CanChoose && !_loading && Workspace.CanReviewTaskDiffs && Session?.Running != true
-        && SelectedTask?.Record is { State: not WorkspaceTaskState.Running, Worktree.State: TaskWorktreeState.Ready };
+        && SelectedTask?.Record is { State: not WorkspaceTaskState.Running, Worktree.State: TaskWorktreeState.Ready } task && task.Cleanup?.BlocksCheckout != true;
+    public bool CanArchiveWorktree => CanChoose && !_loading && Workspace.CanArchiveWorktrees && Session?.Running != true
+        && SelectedTask?.Record is { State: WorkspaceTaskState.Approved, Worktree.State: TaskWorktreeState.Ready, Publication.State: TaskPublicationState.Published } task
+        && task.Cleanup?.State is not (TaskWorktreeCleanupState.Archiving or TaskWorktreeCleanupState.Archived);
     public string ReviewNote { get => _note; set { Set(ref _note, value); Refresh(); } }
     public string Notice { get => _notice; private set => Set(ref _notice, value); }
     public bool Busy { get => _busy; private set { Set(ref _busy, value); Refresh(); } }
@@ -138,6 +146,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     public AsyncCommand StartCommand { get; }
     public AsyncCommand StartAvailableCommand { get; }
     public AsyncCommand PrepareWorktreeCommand { get; }
+    public AsyncCommand ArchiveWorktreeCommand { get; }
     public DelegateCommand CancelCommand { get; }
     public AsyncCommand ApproveCommand { get; }
     public AsyncCommand RequestChangesCommand { get; }
@@ -314,6 +323,31 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
             finally { Busy = false; }
         }
     }
+    public Task ArchiveWorktreeAsync() => CanArchiveWorktree ? _preparationTask = ArchiveWorktreeCoreAsync() : Task.CompletedTask;
+    private async Task ArchiveWorktreeCoreAsync()
+    {
+        if (!CanArchiveWorktree || SelectedTask is not { } item) return;
+        Busy = true; _preparationStop = new(); Refresh();
+        try
+        {
+            Notice = "Conferindo a entrega publicada e os arquivos da worktree para arquivamento.";
+            var preview = await Workspace.PreviewTaskArchiveAsync(Project, item.Record, _preparationStop.Token);
+            _preparationStop.Token.ThrowIfCancellationRequested();
+            if (ConfirmArchive?.Invoke(preview) != true) { Notice = "Arquivamento não confirmado. A pasta foi preservada no local original."; return; }
+            Notice = "Arquivando a pasta. Após iniciar a movimentação, aguarde o resultado mesmo se cancelar ou fechar.";
+            var result = await Workspace.ArchiveTaskWorktreeAsync(Project, preview, _preparationStop.Token);
+            Notice = result.State == TaskWorktreeCleanupState.Archived
+                ? "Worktree arquivada. Arquivos, branch e histórico preservados; o espaço em disco continua ocupado."
+                : result.Error ?? CleanupStateText(result.State);
+        }
+        catch (Exception exception) { ShowError(exception); }
+        finally
+        {
+            _preparationStop.Dispose(); _preparationStop = null;
+            try { await ReloadAsync(); await LoadSelectionAsync(); }
+            finally { Busy = false; }
+        }
+    }
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException
         ? "Operação cancelada. Confira o estado e possíveis arquivos antes de retomar." : exception.Message;
     public async Task StopAsync()
@@ -334,14 +368,19 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         Notify(nameof(CanChoose)); Notify(nameof(CanStart)); Notify(nameof(CanReview)); Notify(nameof(TaskDetails)); Notify(nameof(TaskStatus));
         Notify(nameof(CanStartAvailable)); Notify(nameof(SessionUsage));
         Notify(nameof(PlanStatus)); PrepareChiefCommand?.Refresh(); ApplyRevisionCommand?.Refresh();
-        Notify(nameof(CanPrepareWorktree)); Notify(nameof(WorktreeDetails));
+        Notify(nameof(CanPrepareWorktree)); Notify(nameof(CanArchiveWorktree)); Notify(nameof(WorktreeDetails));
         Notify(nameof(CanReviewDiffs));
         ReloadCommand?.Refresh(); EnqueueCommand?.Refresh(); StartCommand?.Refresh(); CancelCommand?.Refresh(); ApproveCommand?.Refresh(); RequestChangesCommand?.Refresh();
         PrepareWorktreeCommand?.Refresh();
+        ArchiveWorktreeCommand?.Refresh();
         StartAvailableCommand?.Refresh();
     }
     private static string WorktreeStateText(TaskWorktreeState state) => state switch
     { TaskWorktreeState.Preparing => "Preparação em andamento", TaskWorktreeState.Ready => "Worktree pronta", _ => "Preparação precisa de conferência" };
+    private static string CleanupStateText(TaskWorktreeCleanupState state) => state switch
+    { TaskWorktreeCleanupState.Archiving => "Arquivamento em andamento", TaskWorktreeCleanupState.Archived => "Worktree arquivada",
+        TaskWorktreeCleanupState.Cancelled => "Arquivamento cancelado antes de mover a pasta", TaskWorktreeCleanupState.Interrupted => "Arquivamento interrompido; confira os caminhos",
+        _ => "Arquivamento precisa de conferência" };
     public static string StateText(WorkspaceTaskState state) => state switch
     {
         WorkspaceTaskState.Pending => "Na fila", WorkspaceTaskState.Running => "Executando", WorkspaceTaskState.AwaitingReview => "Aguardando revisão",

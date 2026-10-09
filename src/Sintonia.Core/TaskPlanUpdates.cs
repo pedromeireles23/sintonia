@@ -33,6 +33,7 @@ public static class TaskPlanUpdates
             taskId = t.Definition.Id, state = t.State, attempts = t.Attempts,
             preserveDefinition = IsFrozen(t), worktree = t.Worktree?.WorkingDirectory,
             registeredCommit = t.Delivery?.Commit, publication = t.Publication?.State, publishedCommit = t.Publication?.Commit,
+            worktreeCleanup = t.Cleanup?.State, archiveDirectory = t.Cleanup?.Preview.ArchiveDirectory,
             lastRun = lastRuns.TryGetValue(t.Id, out var run) && run is not null ? new { runId = run.Id, state = run.State, result = Limit(run.Response, excerpt), error = Limit(run.Error, Math.Min(excerpt, 1000)) } : null,
             humanReview = Limit(t.ReviewNote, Math.Min(excerpt, 2000))
         }).ToArray();

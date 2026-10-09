@@ -83,6 +83,7 @@ public sealed class TaskDeliveryService(IWorkspaceStore store, IGitTaskDeliveryI
         token.ThrowIfCancellationRequested();
         var task = (await store.GetTaskBatchesAsync(projectId).ConfigureAwait(false)).SelectMany(b => b.Tasks).Single(t => t.Id == taskId);
         token.ThrowIfCancellationRequested();
+        if (task.Cleanup?.BlocksCheckout == true) throw new InvalidOperationException("A worktree tem um arquivamento registrado. Consulte os caminhos e o histórico na fila.");
         if (task.State != WorkspaceTaskState.Approved || task.Worktree?.State != TaskWorktreeState.Ready || task.LastRunId is null)
             throw new InvalidOperationException("A entrega precisa estar aprovada e ter uma worktree pronta para registrar seu commit.");
         return task;

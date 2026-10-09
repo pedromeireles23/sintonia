@@ -23,9 +23,9 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 ## Estado atual
 
-**M2 concluído; M3 com publicação Git validada e M4 com revisão assistida do plano.** Cadastre projetos, escolha Codex/Claude e modelo, converse e retome sessões. Histórico, perfis, tarefas e entregas sobrevivem à reabertura. Prepare worktrees, revise diffs, registre commits, combine em pasta separada e execute critérios de validação configuráveis. Uma combinação Passed vigente pode ser publicada localmente; dependentes exigem a revisão integrada na sua pasta. A chefia recebe resultados no chat e propõe ajustes para tarefas ainda não iniciadas, com revisão/confirmação. Limites por projeto: 3–7 sessões, 1–3 tentativas por tarefa e 1–300s por execução; teto global de sete sessões. Escrita paralela usa worktrees validadas distintas. Limpeza assistida e quota restante/limites agregados de consumo continuam pendentes. [Sessões](docs/SESSION_CONCURRENCY.md), [publicação](docs/TASK_PUBLICATION.md) e [chefia/limites](docs/PLAN_UPDATES.md).
+**M2 concluído; M3 com publicação e arquivamento Git assistidos e M4 com revisão assistida do plano.** Cadastre projetos, escolha Codex/Claude e modelo, converse e retome sessões. Histórico, perfis, tarefas e entregas sobrevivem à reabertura. Prepare worktrees, revise diffs, registre commits, combine em pasta separada e execute critérios de validação configuráveis. Uma combinação Passed vigente pode ser publicada localmente; dependentes exigem a revisão integrada na sua pasta. Após publicar, arquive a worktree da entrega preservando arquivos, branch e histórico. O arquivo continua ocupando espaço; combinações permanecem. A chefia recebe resultados no chat e propõe ajustes para tarefas ainda não iniciadas, com revisão/confirmação. Limites por projeto: 3–7 sessões, 1–3 tentativas por tarefa e 1–300s por execução; teto global de sete sessões. Escrita paralela usa worktrees validadas distintas. Restauração/descarte de arquivos e quota restante/limites agregados de consumo continuam pendentes. [Sessões](docs/SESSION_CONCURRENCY.md), [publicação](docs/TASK_PUBLICATION.md), [arquivamento](docs/TASK_WORKTREE_CLEANUP.md) e [chefia/limites](docs/PLAN_UPDATES.md).
 
-Build sem avisos/erros, 270 testes xUnit verificados e fluxos WPF de sete sessões, validação/publicação e revisão do plano aprovados sem erros de binding. A verificação geral passou em 269 casos; uma expectativa antiga de schema futuro foi corrigida e o caso passou novamente em Debug/Release. [Evidências](docs/DEVELOPMENT_LOG.md). Testes de Git usam repositórios reais e processos/runs simulados; nenhum modelo foi chamado nestes incrementos.
+Build Debug/Release sem avisos/erros e fluxos WPF de sessões, validação/publicação, revisão do plano e arquivamento aprovados sem erros de binding. No arquivamento, passaram 69 Core, nove testes novos e 36 casos selecionados em Release, incluindo 35 regressões e a reexecução de um novo. A suíte contém 279 casos; o baseline anterior tinha 270 verificados e os casos não afetados não foram repetidos integralmente. [Evidências](docs/DEVELOPMENT_LOG.md). Testes de Git usam repositórios reais e processos/runs simulados; nenhum modelo foi chamado nestes incrementos.
 
 Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. As provas reais foram finitas; os testes novos usam provedores simulados.
 
@@ -47,6 +47,7 @@ A demonstração Electron criada durante a pesquisa foi um experimento de fluxo;
 - [Perfis de função](docs/FUNCTION_PROFILES.md).
 - [Diagnóstico Git](docs/GIT_DIAGNOSTICS.md).
 - [Worktrees por tarefa](docs/TASK_WORKTREES.md).
+- [Arquivamento assistido de worktrees publicadas](docs/TASK_WORKTREE_CLEANUP.md).
 - [Revisão de diffs](docs/TASK_DIFFS.md).
 - [Registro de entregas e reserva de integração](docs/TASK_DELIVERIES.md).
 - [Preparação da combinação em pasta separada](docs/TASK_INTEGRATION_PREPARATION.md).
@@ -109,6 +110,10 @@ Após **Aprovar entrega**, salve suas mudanças em um commit na worktree por uma
 
 Com o commit registrado e a origem limpa, use **Preparar combinação**. Confira commits, branch e pasta original. Uma nova worktree guarda o merge e mostra árvore ou conflitos; preparar conserva o original. Configure comandos em **Critérios de validação** na central. **Validar combinação** confirma comandos/pasta/árvore e mostra histórico/logs. Uma validação Passed vigente permite **Publicar no projeto**, mediante confirmação e nova conferência. Publicação avança a branch local com a árvore validada, registra o commit e libera dependentes compatíveis; não faz push. Falhas/interrupções preservam evidências e exigem conferência. [Preparação](docs/TASK_INTEGRATION_PREPARATION.md), [validação](docs/PROJECT_VALIDATION.md) e [publicação](docs/TASK_PUBLICATION.md).
 
+Após publicar, volte à fila e use **Arquivar worktree integrada** em **Pasta de trabalho**. Confira origem e destino: a pasta inteira é preservada num arquivo, incluindo configurações ignoradas e rascunhos. O registro ativo da worktree é retirado; branch, commits e histórico permanecem. Mudanças versionadas posteriores impedem o arquivamento. O espaço em disco continua ocupado e as combinações permanecem; não há restauração/descarte automático. [Arquivamento e recuperação](docs/TASK_WORKTREE_CLEANUP.md).
+
+![Worktree arquivada em tamanho mínimo — Git real em pasta de teste e runs simulados, sem modelos](docs/images/sintonia-arquivamento.png)
+
 ![Combinação com conflito em tamanho mínimo — Git real em pasta de teste e runs simulados, sem modelos](docs/images/sintonia-combinacao.png)
 
 Abra **Diagnóstico Git** para conferir raiz, branch/commit, acompanhamento local e alterações preparadas, na pasta, novas ou em conflito. Uma subpasta mostra o repositório inteiro; confira a raiz indicada. O painel permite atualizar/cancelar sem modificar arquivos ou índice e mantém o projeto consultado mesmo ao navegar na central. Projetos sem Git continuam disponíveis. [Fluxo e limites do diagnóstico](docs/GIT_DIAGNOSTICS.md).
@@ -131,6 +136,7 @@ rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- -
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --combinations
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --validation
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --publication
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --cleanup
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --chief-plan
 ```
 

@@ -47,6 +47,6 @@ Testes usam Git real em pastas temporárias e runs/temporização simulados, sem
 
 Teste WPF `--combinations` percorre registro exigido, botão, recusa/prévia obsoleta, combinação e conflito reais, original/índice/ignorado preservados, navegação/reabertura, cancelamento/resposta tardia e fechamento da central com efeitos parciais preservados. Layout normal/mínimo revisado, sem erros de binding; runs e temporização simulados. Regressões de registro/diffs também verificadas.
 
-O [fluxo de validação configurável](PROJECT_VALIDATION.md) executa comandos na combinação com editor/histórico WPF, reserva e conferência. [Publicação confirmada](TASK_PUBLICATION.md) registra a revisão integrada e libera dependentes compatíveis. Preparação isolada não equivale à integração. Resolução de conflitos e limpeza assistida continuam pendentes; pastas são preservadas.
+O [fluxo de validação configurável](PROJECT_VALIDATION.md) executa comandos na combinação com editor/histórico WPF, reserva e conferência. [Publicação confirmada](TASK_PUBLICATION.md) registra a revisão integrada e libera dependentes compatíveis. Preparação isolada não equivale à integração. A worktree da entrega publicada pode ser [arquivada explicitamente](TASK_WORKTREE_CLEANUP.md); as combinações permanecem preservadas. Resolução de conflitos e arquivamento das combinações continuam pendentes.
 
 Comportamento do merge conforme [git merge](https://git-scm.com/docs/git-merge); checkout destacado e bloqueio conforme [git worktree](https://git-scm.com/docs/git-worktree).

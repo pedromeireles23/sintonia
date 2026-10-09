@@ -12,7 +12,7 @@ public sealed class TaskPublicationTests
     private static TaskDeliveryService Deliveries(SqliteWorkspaceStore store, TaskWorktreeTests.Fixture fixture) => new(store, new GitTaskDeliveryInspector(fixture.Manager));
     private static TaskPublicationService Service(SqliteWorkspaceStore store, TaskWorktreeTests.Fixture fixture, IGitTaskPublisher? publisher = null) =>
         new(store, Deliveries(store, fixture), new RepositoryIntegrationLock(), publisher ?? new GitTaskPublisher(fixture.Manager));
-    private static async Task<(SqliteWorkspaceStore Store, WorkspaceProject Project, TaskIntegrationValidation Validation)> SeedAsync(TaskWorktreeTests.Fixture fixture, bool ignoredCollision = false)
+    internal static async Task<(SqliteWorkspaceStore Store, WorkspaceProject Project, TaskIntegrationValidation Validation)> SeedAsync(TaskWorktreeTests.Fixture fixture, bool ignoredCollision = false)
     {
         var (store, project, _, preparation) = await TaskIntegrationValidationTests.SeedAsync(fixture, ignoredCollision);
         var validations = new TaskIntegrationValidationService(store, Deliveries(store, fixture), new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(fixture.Manager), new PassingRunner());

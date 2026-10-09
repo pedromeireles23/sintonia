@@ -5,7 +5,7 @@ namespace Sintonia.Core;
 
 public enum WorkspaceTaskState { Pending, Running, AwaitingReview, Approved, ChangesRequested, Blocked, Failed, Cancelled, Interrupted }
 public sealed record WorkspaceTask(string Id, string BatchId, ProposedTask Definition, string ConversationId,
-    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null, TaskDelivery? Delivery = null, TaskPublication? Publication = null);
+    WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null, TaskDelivery? Delivery = null, TaskPublication? Publication = null, TaskWorktreeCleanup? Cleanup = null);
 public sealed record WorkspaceTaskBatch(string Id, string ProjectId, string ProposalId, int ProposalRevision,
     PlanProposal Definition, IReadOnlyList<WorkspaceTask> Tasks, int Revision = 0);
 
@@ -14,7 +14,7 @@ public static class WorkspaceTaskPolicy
     public const int MaxAttempts = 3;
     private static readonly JsonSerializerOptions PromptOptions = new() { Converters = { new JsonStringEnumConverter() } };
     public static bool CanStart(WorkspaceTask task, IReadOnlyList<WorkspaceTask> tasks, int maxAttempts = MaxAttempts) =>
-        task.Attempts < maxAttempts && (task.State is WorkspaceTaskState.Pending or WorkspaceTaskState.ChangesRequested
+        task.Cleanup?.BlocksCheckout != true && task.Attempts < maxAttempts && (task.State is WorkspaceTaskState.Pending or WorkspaceTaskState.ChangesRequested
             or WorkspaceTaskState.Blocked or WorkspaceTaskState.Failed or WorkspaceTaskState.Cancelled or WorkspaceTaskState.Interrupted)
         && (task.Worktree is null || task.Worktree.State == TaskWorktreeState.Ready)
         && DependenciesAvailable(task, tasks);

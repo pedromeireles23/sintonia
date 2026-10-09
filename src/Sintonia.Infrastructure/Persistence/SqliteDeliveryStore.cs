@@ -31,8 +31,15 @@ public sealed partial class SqliteWorkspaceStore
     });
     public Task<TaskIntegrationReservation> ReserveTaskIntegrationAsync(string projectId, TaskDelivery delivery, TaskIntegrationTarget target) => RunAsync(connection =>
     {
-        target.ValidateFor(delivery); using var transaction = connection.BeginTransaction();
+        using var transaction = connection.BeginTransaction();
+        var result = ReserveIntegration(connection, transaction, projectId, delivery, target, Guid.NewGuid().ToString()); transaction.Commit(); return result;
+    });
+    private static TaskIntegrationReservation ReserveIntegration(SqliteConnection connection, SqliteTransaction transaction, string projectId,
+        TaskDelivery delivery, TaskIntegrationTarget target, string id, bool archiving = false)
+    {
+        target.ValidateFor(delivery);
         var task = ApprovedDeliveryTask(connection, transaction, projectId, delivery);
+        if (!archiving && task.Cleanup?.BlocksCheckout == true) throw new InvalidOperationException("A worktree tem um arquivamento registrado. Confira a fila antes de integrar.");
         if (task.Delivery != delivery) throw new InvalidOperationException("Registre esta entrega antes de reservar a integração.");
         EnsureCommonNotReserved(connection, transaction, target.CommonGitDirectory);
         using (var preparing = connection.CreateCommand())
@@ -53,11 +60,11 @@ public sealed partial class SqliteWorkspaceStore
                 if (UsesRepository(connection, transaction, reader.GetString(0), target) || Optional(reader, 1) == PathKey(target.CommonGitDirectory))
                     throw new InvalidOperationException("Aguarde as execuções deste repositório antes de reservar a integração.");
         }
-        var reservation = new TaskIntegrationReservation(Guid.NewGuid().ToString(), delivery, target, DateTimeOffset.UtcNow);
+        var reservation = new TaskIntegrationReservation(id, delivery, target, DateTimeOffset.UtcNow);
         Execute(connection, transaction, "INSERT INTO task_integrations(id,task_id,definition,common_key,state) VALUES($id,$task,$definition,$common,0)",
             ("$id", reservation.Id), ("$task", delivery.TaskId), ("$definition", JsonSerializer.Serialize(reservation)), ("$common", PathKey(target.CommonGitDirectory)));
-        transaction.Commit(); return reservation;
-    });
+        return reservation;
+    }
     public Task<IReadOnlyList<TaskIntegrationReservation>> GetTaskIntegrationsAsync(string projectId) => RunAsync<IReadOnlyList<TaskIntegrationReservation>>(connection =>
     {
         using var command = connection.CreateCommand();
@@ -76,6 +83,7 @@ public sealed partial class SqliteWorkspaceStore
             AND NOT EXISTS(SELECT 1 FROM task_integration_preparations p WHERE p.id=task_integrations.id AND p.state=0)
             AND NOT EXISTS(SELECT 1 FROM task_integration_validations v WHERE v.id=task_integrations.id AND v.state=0)
             AND NOT EXISTS(SELECT 1 FROM task_publications p WHERE p.id=task_integrations.id AND p.state=0)
+            AND NOT EXISTS(SELECT 1 FROM task_worktree_cleanups c WHERE c.id=task_integrations.id AND c.state=0)
             """,
             ("$state", (int)(error is null ? TaskIntegrationState.Released : TaskIntegrationState.NeedsAttention)), ("$error", error), ("$id", reservationId)) != 1)
             throw new InvalidOperationException("Esta reserva já terminou ou tem uma combinação em andamento. Nenhuma reserva mais nova foi alterada.");

@@ -3,8 +3,8 @@ using Sintonia.Infrastructure.Diagnostics;
 
 namespace Sintonia.Infrastructure.Git;
 
-/// <summary>Only creates owned checkouts. Never removes, resets, forces, commits, fetches or merges.</summary>
-public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager, IGitTaskRevisionInspector
+/// <summary>Creates owned checkouts and archives published checkouts intact, retiring only their missing Git registration.</summary>
+public sealed partial class GitTaskWorktreeManager : IGitTaskWorktreeManager, IGitTaskRevisionInspector, IGitTaskWorktreeArchiver
 {
     private readonly string _root;
     private readonly ExecutableLaunch? _launch;

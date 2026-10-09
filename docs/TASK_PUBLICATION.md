@@ -6,6 +6,8 @@ A publicação cria um commit com a árvore conferida e dois pais: destino confi
 
 O schema 11 acrescenta intenção, candidato e resultado de publicação. Reserva transacional e trava por Git comum permanecem durante conferência, criação do commit, aplicação e persistência. Publicação concluída é única por entrega. Critérios alterados, resultados obsoletos e términos antigos são recusados. Recuperação conserva executores vivos e marca abandonados como interrompidos, com o candidato salvo; não repete checkout nem move refs automaticamente.
 
+Uma entrega publicada pode ter sua worktree [arquivada explicitamente](TASK_WORKTREE_CLEANUP.md), preservando arquivos, branch e histórico. Arquivamento não altera a publicação ou a disponibilidade das dependências; as pastas de combinação continuam preservadas.
+
 Cancelar impede a aplicação enquanto a operação ainda está preparando/conferindo. Depois de iniciar a aplicação, o host aguarda sua operação Git limitada e registra o resultado real, mesmo se o cancelamento chegar tarde. Fechamento da central aguarda o painel. Falha durante/depois do checkout conserva o candidato e marca atenção: a branch pode ter avançado e exige inspeção. Nenhum rollback automático descarta arquivos ou commits.
 
 Somente **Published**, com entrega/run compatíveis, libera dependentes de uma worktree. O pedido do dependente inclui resumo, critérios, revisão humana e commit/árvore publicados. Antes de chamar o provedor, o host exige que a pasta efetiva contenha esse commit no histórico. Uma worktree anterior à integração não recebe início silencioso nem atualização automática. Tarefas sem dependência Git conservam seu fluxo existente.

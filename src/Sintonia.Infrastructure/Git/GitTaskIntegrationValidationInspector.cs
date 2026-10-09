@@ -17,7 +17,7 @@ public sealed class GitTaskIntegrationValidationInspector(GitTaskWorktreeManager
         await new GitTaskIntegrationPreparer(manager).ValidateCheckoutAsync(preparation, deadline.Token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
     }
-    internal async Task VerifyContentAsync(string directory, string treeId, CancellationToken token)
+    internal async Task VerifyContentAsync(string directory, string treeId, CancellationToken token, bool allowUntracked = false)
     {
         directory = Path.GetFullPath(directory);
         GitTaskWorktreeManager.CheckPath(directory);
@@ -32,7 +32,7 @@ public sealed class GitTaskIntegrationValidationInspector(GitTaskWorktreeManager
         if (expected.Length > 1000) throw new InvalidOperationException("A árvore excedeu o limite de mil arquivos para validação completa.");
         var paths = expected.Select(e => e[(e.IndexOf('\t') + 1)..]).ToArray();
         await VerifyIndexAsync(directory, expected, deadline.Token).ConfigureAwait(false);
-        await VerifyStatusAsync(directory, deadline.Token).ConfigureAwait(false);
+        await VerifyStatusAsync(directory, deadline.Token, allowUntracked).ConfigureAwait(false);
         for (var offset = 0; offset < paths.Length;)
         {
             var start = offset; var chunk = new List<string>(); var length = 0;
@@ -54,7 +54,7 @@ public sealed class GitTaskIntegrationValidationInspector(GitTaskWorktreeManager
                     throw new InvalidOperationException("O conteúdo da combinação mudou. Prepare uma nova combinação antes de validar.");
         }
         await VerifyIndexAsync(directory, expected, deadline.Token).ConfigureAwait(false);
-        await VerifyStatusAsync(directory, deadline.Token).ConfigureAwait(false);
+        await VerifyStatusAsync(directory, deadline.Token, allowUntracked).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
     }
     private async Task VerifyIndexAsync(string directory, string[] expected, CancellationToken token)
@@ -68,11 +68,11 @@ public sealed class GitTaskIntegrationValidationInspector(GitTaskWorktreeManager
         }).ToArray();
         if (!expected.SequenceEqual(normalized)) throw new InvalidOperationException("O índice da combinação mudou. Prepare novamente.");
     }
-    private async Task VerifyStatusAsync(string directory, CancellationToken token)
+    private async Task VerifyStatusAsync(string directory, CancellationToken token, bool allowUntracked)
     {
-        var status = await RunAsync(directory, token, "status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all", "--ignore-submodules=none").ConfigureAwait(false);
+        var status = await RunAsync(directory, token, "status", "--porcelain=v2", "--branch", "-z", allowUntracked ? "--untracked-files=no" : "--untracked-files=all", "--ignore-submodules=none").ConfigureAwait(false);
         var parsed = GitStatusParser.Parse(directory, directory, status.StandardOutput);
-        if (parsed.Changes.Any(c => c.IsConflict || c.IsUntracked || c.WorktreeStatus != '.'))
+        if (parsed.Changes.Any(c => c.IsConflict || (c.IsUntracked ? !allowUntracked : c.WorktreeStatus != '.')))
             throw new InvalidOperationException("Há conflitos, arquivos novos ou alterações fora do índice da combinação. Confira a pasta preservada.");
     }
     private static string[] Entries(ProcessProbeResult result)

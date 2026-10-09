@@ -37,13 +37,14 @@ public sealed class TaskDiffService(IWorkspaceStore store, IGitTaskDiffReader re
         token.ThrowIfCancellationRequested();
         var task = (await store.GetTaskBatchesAsync(projectId).ConfigureAwait(false)).SelectMany(b => b.Tasks).Single(t => t.Id == taskId);
         token.ThrowIfCancellationRequested();
-        if (task.State == WorkspaceTaskState.Running || task.Worktree?.State != TaskWorktreeState.Ready)
+        if (task.State == WorkspaceTaskState.Running || task.Worktree?.State != TaskWorktreeState.Ready || task.Cleanup?.BlocksCheckout == true)
             throw new InvalidOperationException("Aguarde a tentativa terminar e confira a worktree preparada antes de consultar os diffs.");
         return task;
     }
     private static void EnsureSame(WorkspaceTask expected, WorkspaceTask current)
     {
-        if (expected.Worktree != current.Worktree || expected.State != current.State || expected.Attempts != current.Attempts || expected.LastRunId != current.LastRunId)
+        if (expected.Worktree != current.Worktree || expected.State != current.State || expected.Attempts != current.Attempts || expected.LastRunId != current.LastRunId
+            || expected.Cleanup?.Preview.Id != current.Cleanup?.Preview.Id || expected.Cleanup?.State != current.Cleanup?.State)
             throw new InvalidOperationException("A tarefa mudou durante a consulta. Atualize os diffs antes de continuar.");
     }
 }

@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 12) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 13) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -80,7 +80,12 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 proposal_id TEXT NOT NULL UNIQUE REFERENCES proposals(id), definition TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(batch_id,revision));
             CREATE TABLE IF NOT EXISTS project_execution_limits(project_id TEXT PRIMARY KEY REFERENCES projects(id),
                 max_attempts INTEGER NOT NULL CHECK(max_attempts BETWEEN 1 AND 3), max_seconds INTEGER NOT NULL CHECK(max_seconds BETWEEN 1 AND 300));
-            PRAGMA user_version=12;
+            CREATE TABLE IF NOT EXISTS task_worktree_cleanups(id TEXT PRIMARY KEY REFERENCES task_integrations(id),
+                project_id TEXT NOT NULL REFERENCES projects(id), task_id TEXT NOT NULL REFERENCES work_tasks(id),
+                publication_id TEXT NOT NULL REFERENCES task_publications(id), definition TEXT NOT NULL,
+                state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 4), finished_at TEXT, error TEXT);
+            CREATE UNIQUE INDEX IF NOT EXISTS one_archived_worktree ON task_worktree_cleanups(task_id) WHERE state=1;
+            PRAGMA user_version=13;
             """);
         transaction.Commit();
         return true;
@@ -252,6 +257,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             }
             foreach (var id in abandoned)
             {
+                Execute(connection, transaction, "UPDATE task_worktree_cleanups SET state=3,finished_at=$finished,error=$error WHERE id=$id AND state=0",
+                    ("$id", id), ("$finished", DateTimeOffset.UtcNow.ToString("O")), ("$error", "Arquivamento interrompido. Confira a pasta original, o arquivo preservado e o registro Git; nenhuma operação será repetida."));
                 Execute(connection, transaction, "UPDATE task_publications SET state=3,finished_at=$finished,error=$error WHERE id=$id AND state=0",
                     ("$id", id), ("$finished", DateTimeOffset.UtcNow.ToString("O")), ("$error", "Publicação interrompida. Confira o commit e o destino; nenhuma operação será repetida automaticamente."));
                 Execute(connection, transaction, "UPDATE task_integration_validations SET state=5,finished_at=$finished,error=$error WHERE id=$id AND state=0",

@@ -29,6 +29,7 @@ internal static class Program
         if (args.FirstOrDefault() == "--combinations") return TaskCombinationSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/combination-smoke");
         if (args.FirstOrDefault() == "--validation") return TaskCombinationSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/validation-smoke", validate: true);
         if (args.FirstOrDefault() == "--publication") return TaskCombinationSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/publication-smoke", validate: true, publish: true);
+        if (args.FirstOrDefault() == "--cleanup") return TaskCombinationSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/cleanup-smoke", validate: true, publish: true, cleanup: true);
         if (args.FirstOrDefault() == "--chief-plan") return ChiefPlanSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/chief-plan-smoke");
         if (args.FirstOrDefault() == "--workspace-real") return WorkspaceRealSmoke.Run();
         var output = Path.GetFullPath(args.FirstOrDefault() ?? "artifacts/ui-smoke");

@@ -42,6 +42,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private readonly TaskIntegrationPreparationService? _preparations;
     private readonly TaskIntegrationValidationService? _validations;
     private readonly TaskPublicationService? _publications;
+    private readonly TaskWorktreeCleanupService? _cleanups;
     private readonly HashSet<Task> _gitJobs = [];
     private readonly Dispatcher _dispatcher;
     private readonly Func<string?> _pickDirectory;
@@ -78,7 +79,8 @@ public sealed class WorkspaceViewModel : ObservableObject
     public WorkspaceViewModel(IWorkspaceStore store, WorkspaceChatService chat, Dispatcher dispatcher,
         Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect,
         TaskWorktreeService? worktrees = null, TaskDiffService? diffs = null, TaskDeliveryService? deliveries = null,
-        TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null, TaskPublicationService? publications = null)
+        TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null, TaskPublicationService? publications = null,
+        TaskWorktreeCleanupService? cleanups = null)
     {
         _store = store; _chat = chat; _dispatcher = dispatcher; _pickDirectory = pickDirectory; _inspect = inspect;
         _worktrees = worktrees;
@@ -87,6 +89,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         _preparations = preparations;
         _validations = validations;
         _publications = publications;
+        _cleanups = cleanups;
         _function = Functions[0]; _access = AccessOptions[0];
         AddProjectCommand = new(AddPickedProjectAsync, ShowError, () => Ready && !_stopping);
         RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && Project is not null && CanConfigure);
@@ -534,6 +537,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     }
 
     public bool CanPrepareWorktrees => _worktrees is not null && !_stopping;
+    public bool CanArchiveWorktrees => _cleanups is not null && !_stopping;
     public bool CanReviewTaskDiffs => _diffs is not null && !_stopping;
     public TaskDiffViewModel CreateTaskDiffReview(WorkspaceProject project, WorkspaceTask task)
     {
@@ -581,12 +585,16 @@ public sealed class WorkspaceViewModel : ObservableObject
         }
     }
     public Task<TaskWorktree> PreviewTaskWorktreeAsync(WorkspaceProject project, WorkspaceTask task, CancellationToken token) =>
-        RunGitOperationAsync(stop => _worktrees!.PreviewAsync(project.Id, task.Id, stop), token);
+        RunGitOperationAsync(stop => _worktrees!.PreviewAsync(project.Id, task.Id, stop), token, _worktrees is not null);
     public Task PrepareTaskWorktreeAsync(WorkspaceProject project, TaskWorktree preview, CancellationToken token) =>
-        RunGitOperationAsync(async stop => { await _worktrees!.PrepareAsync(project.Id, preview, stop); return true; }, token);
-    private async Task<T> RunGitOperationAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken token)
+        RunGitOperationAsync(async stop => { await _worktrees!.PrepareAsync(project.Id, preview, stop); return true; }, token, _worktrees is not null);
+    public Task<TaskWorktreeCleanupPreview> PreviewTaskArchiveAsync(WorkspaceProject project, WorkspaceTask task, CancellationToken token) =>
+        RunGitOperationAsync(stop => _cleanups!.PreviewAsync(project.Id, task.Id, stop), token, _cleanups is not null);
+    public Task<TaskWorktreeCleanup> ArchiveTaskWorktreeAsync(WorkspaceProject project, TaskWorktreeCleanupPreview preview, CancellationToken token) =>
+        RunGitOperationAsync(stop => _cleanups!.ArchiveAsync(project.Id, preview, stop), token, _cleanups is not null);
+    private async Task<T> RunGitOperationAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken token, bool available)
     {
-        if (!CanPrepareWorktrees) throw new InvalidOperationException("A preparação não está disponível ou o aplicativo está encerrando.");
+        if (!available || _stopping) throw new InvalidOperationException("A operação Git não está disponível ou o aplicativo está encerrando.");
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, token);
         var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _gitJobs.Add(finished.Task);

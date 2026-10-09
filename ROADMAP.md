@@ -49,11 +49,13 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 ## M3 — Trabalho paralelo com Git
 
-Estado: diagnóstico Git, worktrees, diffs, commit revisado, combinação separada, critérios/execução/histórico WPF e publicação serial confirmada conectados. Schema 11 registra intenção/candidato/resultado; Published libera dependentes e a pasta efetiva precisa conter o commit integrado. Reserva/trava e recuperação preservam executores vivos/efeitos sem repetir operações. Limite 3–7 por projeto, teto global 7, provedores misturados e despacho de uma rodada aprovados. Projetos sem Git continuam usando chat/fila; escrita direta permanece exclusiva. Worktrees e arquivos são conservados; limpeza assistida ainda pendente.
+Estado: fluxo implementado com diagnóstico Git, worktrees, diffs, commit revisado, combinação separada, critérios/execução/histórico WPF, publicação serial e arquivamento assistido de entregas publicadas. Schema 13 registra intenção/resultado do arquivo usando a reserva compartilhada; Published libera dependentes e a pasta efetiva precisa conter o commit integrado. Reserva/trava e recuperação preservam executores vivos/efeitos sem repetir operações. Limite 3–7 por projeto, teto global 7, provedores misturados e despacho de uma rodada aprovados. Projetos sem Git continuam usando chat/fila; escrita direta permanece exclusiva. Arquivamento conserva todos os arquivos, branch e histórico, retirando somente o registro do checkout ausente. Espaço em disco, combinações e arquivos interrompidos são conservados; restauração/descarte automático permanece fora deste incremento. [Contrato](docs/TASK_WORKTREE_CLEANUP.md).
 
 Validação atual: build sem avisos/erros, 69 testes Core, sete novos de publicação e 26 regressões de validação/fila/concorrência aprovados. WPF --publication/--validation/--sessions aprovados, zero erros de binding, capturas revisadas. Nenhum modelo chamado neste incremento.
 
 Fechamento M3/M4: 270 testes verificados, incluindo reexecução aprovada do único teste com expectativa antiga de schema futuro. WPF --chief-plan/--queue/--proposals também aprovados. Release atualizado e abertura/encerramento normal conferidos; [registro completo](docs/DEVELOPMENT_LOG.md).
+
+Arquivamento: build Debug/Release sem avisos/erros, 69 Core, nove testes novos e 36 casos selecionados em Release aprovados (um novo reexecutado e 35 regressões). WPF --cleanup aprovado, zero erros de binding; capturas normal/mínima revisadas e Release local atualizado. Git/processos reais, runs simulados e nenhum modelo chamado. A suíte contém 279 casos; testes não afetados não foram repetidos integralmente neste incremento.
 
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
 - [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
@@ -63,7 +65,7 @@ Fechamento M3/M4: 270 testes verificados, incluindo reexecução aprovada do ún
 - [x] Registrar commit/árvore revisados e preparar reserva serial por repositório.
 - [x] Combinar entrega/destino numa pasta separada, preservando conflitos e resultados persistidos.
 - [x] Integrar alterações de forma serial após validar a combinação, com confirmação e publicação registrada.
-- [ ] Oferecer limpeza assistida preservando alterações locais e arquivos necessários; atualmente todas as worktrees são conservadas.
+- [x] Oferecer arquivamento assistido da worktree de entregas publicadas, preservando arquivos locais, branch e histórico; mudanças versionadas posteriores recusam a operação. Combinações permanecem e o arquivo continua ocupando espaço.
 
 Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nenhuma alteração é perdida; a versão combinada é verificada. Projeto sem Git não recebe escrita paralela por padrão.
 

@@ -60,10 +60,11 @@
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="14">
                                     <TextBlock Text="Pasta da tarefa" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,12" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                                        <Button Content="Preparar worktree" Command="{Binding PrepareWorktreeCommand}" AutomationProperties.AutomationId="PrepareTaskWorktree" />
-                                        <Button Content="Revisar diffs" Click="OpenDiffs" IsEnabled="{Binding CanReviewDiffs}" Margin="8,0,0,0" AutomationProperties.AutomationId="OpenTaskDiffs" />
-                                    </StackPanel>
+                                    <WrapPanel Margin="0,0,0,14">
+                                        <Button Content="Preparar worktree" Command="{Binding PrepareWorktreeCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="PrepareTaskWorktree" />
+                                        <Button Content="Revisar diffs" Click="OpenDiffs" IsEnabled="{Binding CanReviewDiffs}" Margin="0,0,8,8" AutomationProperties.AutomationId="OpenTaskDiffs" />
+                                        <Button Content="Arquivar worktree integrada" Command="{Binding ArchiveWorktreeCommand}" Margin="0,0,0,8" AutomationProperties.AutomationId="ArchiveTaskWorktree" />
+                                    </WrapPanel>
                                     <TextBox Text="{Binding WorktreeDetails, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="Transparent" BorderThickness="0" AutomationProperties.AutomationId="TaskWorktreeDetails" />
                                     <TextBlock Text="{Binding WorktreeExplanation}" Style="{StaticResource Caption}" Margin="0,14,0,0" />
                                 </StackPanel>

@@ -49,6 +49,9 @@ public interface IWorkspaceStore
     Task RecordTaskPublicationCommitAsync(TaskPublication publication);
     Task FinishTaskPublicationAsync(TaskPublication publication);
     Task<IReadOnlyList<TaskPublication>> GetTaskPublicationsAsync(string projectId);
+    Task<TaskWorktreeCleanup> ReserveTaskWorktreeCleanupAsync(string projectId, TaskWorktreeCleanupPreview preview);
+    Task FinishTaskWorktreeCleanupAsync(TaskWorktreeCleanup cleanup);
+    Task<IReadOnlyList<TaskWorktreeCleanup>> GetTaskWorktreeCleanupsAsync(string projectId);
     Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync();
     Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
     Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);

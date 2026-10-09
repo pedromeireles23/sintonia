@@ -16,7 +16,7 @@ namespace Sintonia.Desktop.SmokeTests;
 
 internal static class TaskCombinationSmoke
 {
-    public static int Run(string outputPath, bool validate = false, bool publish = false)
+    public static int Run(string outputPath, bool validate = false, bool publish = false, bool cleanup = false)
     {
         var output = Path.GetFullPath(outputPath); Directory.CreateDirectory(output);
         var root = Path.Combine(output, "run-" + Guid.NewGuid()); var original = Path.Combine(root, "Portal geral ação");
@@ -32,7 +32,8 @@ internal static class TaskCombinationSmoke
         var errors = new BindingErrors(); PresentationTraceSources.DataBindingSource.Listeners.Add(errors);
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
         var vm = new WorkspaceViewModel(store, new(store, [worker], manager), app.Dispatcher, () => directory,
-            (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])), new(store, manager), new(store, new GitTaskDiffReader(manager)), deliveries, preparations, validations, publications);
+            (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])), new(store, manager), new(store, new GitTaskDiffReader(manager)), deliveries, preparations, validations, publications,
+            new TaskWorktreeCleanupService(store, new RepositoryIntegrationLock(), manager));
         var main = new WorkspaceWindow(vm); TaskDiffWindow? window = null; var exitCode = 1;
         main.Loaded += async (_, _) =>
         {
@@ -84,9 +85,10 @@ internal static class TaskCombinationSmoke
                 Require(((TextBox)window.FindName("DiffContent")).ActualHeight > 140 && prepare.IsVisible, "Conteúdo/ação inacessível no mínimo.");
                 if (validate)
                 {
-                    await ValidateUiAsync(output, main, window, store, runner, project, originalIndex, index, publish);
+                    await ValidateUiAsync(output, main, window, store, runner, project, originalIndex, index, publish, cleanup);
                     Require(worker.Calls == 0 && errors.Errors.Count == 0, "Modelos chamados ou erros de binding: " + string.Join("\n", errors.Errors));
-                    Console.WriteLine(publish ? "PASS: publicação WPF com Git/processos reais, recusa/destino obsoleto, árvore/commit registrados, ignorados preservados, dependentes disponíveis, reabertura; zero erros de binding e nenhum modelo chamado. Capturas: " + output
+                    Console.WriteLine(cleanup ? "PASS: arquivamento WPF com Git real, recusa/mudança posterior, arquivo íntegro com ignorados/não rastreados, histórico/dependentes/reabertura e layout mínimo; zero erros de binding e nenhum modelo chamado. Capturas: " + output
+                        : publish ? "PASS: publicação WPF com Git/processos reais, recusa/destino obsoleto, árvore/commit registrados, ignorados preservados, dependentes disponíveis, reabertura; zero erros de binding e nenhum modelo chamado. Capturas: " + output
                         : "PASS: editor/validação WPF, critérios literais/revisão, recusa/prévia obsoleta, Git e processos reais, histórico/logs/falha, cancelamento/tardio, navegação/reabertura e fechamento aguardado; zero erros de binding, nenhum modelo chamado. Capturas: " + output);
                     exitCode = 0; return;
                 }
@@ -127,7 +129,7 @@ internal static class TaskCombinationSmoke
     { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90)); while (diff.Busy) await Task.Delay(25, stop.Token); await Task.Delay(30); }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static async Task ValidateUiAsync(string output, WorkspaceWindow main, TaskDiffWindow diffWindow, SqliteWorkspaceStore store,
-        ControlledRunner runner, WorkspaceProject project, byte[] indexBefore, string indexPath, bool publish)
+        ControlledRunner runner, WorkspaceProject project, byte[] indexBefore, string indexPath, bool publish, bool cleanup)
     {
         var vm = main.ViewModel;
         var editor = new ProjectValidationWindow(vm.CreateProjectValidation()) { Owner = main }; editor.Show();
@@ -177,6 +179,7 @@ internal static class TaskCombinationSmoke
             validationWindow = new TaskValidationWindow(diffWindow.ViewModel.CreateValidationReview()) { Owner = main }; validationWindow.Show();
             await Until(() => !validationWindow.ViewModel.Busy && validationWindow.ViewModel.Publication is not null);
             Require(validationWindow.ViewModel.Publication?.State == TaskPublicationState.Published, "Reabertura perdeu publicação.");
+            if (cleanup) await CleanupUiAsync(output, main, diffWindow, store, project);
             main.Close(); await Until(() => !main.IsVisible && !validationWindow.IsVisible && !editor.IsVisible); return;
         }
         saved = await store.GetProjectValidationAsync(project.Id);
@@ -194,6 +197,36 @@ internal static class TaskCombinationSmoke
         runner.Mode = 2; runner.Reset(); var closing = validation.ValidateAsync(); await runner.Started.Task.WaitAsync(TimeSpan.FromSeconds(40));
         main.Close(); await closing; await Until(() => !main.IsVisible && !validationWindow.IsVisible && !editor.IsVisible);
         Require(runner.Cancelled && (await store.GetTaskIntegrationValidationsAsync(project.Id)).Last().State == ValidationState.Cancelled, "Fechamento deixou validação ativa.");
+    }
+    private static async Task CleanupUiAsync(string output, WorkspaceWindow main, TaskDiffWindow diffWindow, SqliteWorkspaceStore store, WorkspaceProject project)
+    {
+        var queue = new TaskQueueViewModel(store, main.ViewModel, project);
+        var window = new TaskQueueWindow(queue) { Owner = main }; window.Show(); await queue.InitializeAsync();
+        await Until(() => queue.CanArchiveWorktree); ((TabControl)window.FindName("TaskTabs")).SelectedIndex = 3; window.UpdateLayout();
+        var button = Button(window, "ArchiveTaskWorktree"); Require(button.IsEnabled, "Arquivamento não vinculado ao botão.");
+        queue.ConfirmArchive = _ => false; await queue.ArchiveWorktreeAsync(); Require((await store.GetTaskWorktreeCleanupsAsync(project.Id)).Count == 0, "Recusa registrou arquivamento.");
+        var task = queue.SelectedTask!.Record; var path = Path.Combine(task.Worktree!.WorkingDirectory, "portal.txt"); var original = await File.ReadAllTextAsync(path);
+        queue.ConfirmArchive = _ => { File.WriteAllText(path, "trabalho posterior à prévia"); return true; };
+        await queue.ArchiveWorktreeAsync(); Require(queue.SelectedTask!.Record.Cleanup?.State == TaskWorktreeCleanupState.NeedsAttention && Directory.Exists(task.Worktree.CheckoutDirectory), "Mudança posterior movida.");
+        await File.WriteAllTextAsync(path, original);
+        await File.WriteAllTextAsync(Path.Combine(task.Worktree.CheckoutDirectory, "config.local"), "configuração da tarefa preservada");
+        await File.WriteAllTextAsync(Path.Combine(task.Worktree.CheckoutDirectory, "rascunho ação.txt"), "arquivo não rastreado preservado");
+        queue.ConfirmArchive = _ => true; button.Command!.Execute(null); await Until(() => queue.Busy);
+        Require(!button.IsEnabled && !queue.CanReviewDiffs, "Outra operação permitida durante arquivamento.");
+        using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90))) while (queue.Busy) await Task.Delay(25, timeout.Token);
+        var archived = queue.SelectedTask!.Record.Cleanup!; Require(archived.State == TaskWorktreeCleanupState.Archived && !queue.CanArchiveWorktree && !queue.CanReviewDiffs, "Arquivamento não registrado ou ações do checkout disponíveis.");
+        Require(await File.ReadAllTextAsync(Path.Combine(archived.Preview.ArchiveDirectory, "config.local")) == "configuração da tarefa preservada"
+            && await File.ReadAllTextAsync(Path.Combine(archived.Preview.ArchiveDirectory, "rascunho ação.txt")) == "arquivo não rastreado preservado", "Arquivos locais não preservados.");
+        Require(queue.WorktreeDetails.Contains(archived.Preview.ArchiveDirectory) && queue.Notice.Contains("ocupado"), "Caminho/limites omitidos.");
+        await diffWindow.ViewModel.RefreshAsync(); Require(diffWindow.ViewModel.Review is null, "Painel antigo consultou checkout arquivado.");
+        Capture(window, Path.Combine(output, "08-archived-normal.png")); window.Width = window.MinWidth; window.Height = window.MinHeight;
+        await window.Dispatcher.InvokeAsync(window.UpdateLayout, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Capture(window, Path.Combine(output, "09-archived-minimum.png")); Require(button.IsVisible && button.ActualWidth > 100, "Ação inacessível no mínimo.");
+        window.Close(); await Until(() => !window.IsVisible);
+        queue = new TaskQueueViewModel(store, main.ViewModel, project); window = new TaskQueueWindow(queue) { Owner = main }; window.Show(); await queue.InitializeAsync();
+        Require(queue.SelectedTask?.Record.Cleanup?.State == TaskWorktreeCleanupState.Archived, "Reabertura perdeu arquivo/histórico.");
+        queue.SelectedTask = queue.Tasks[1]; await Until(() => queue.CanStart); Require(queue.CanStart, "Dependente bloqueado após arquivamento.");
+        window.Close();
     }
     private static async Task WaitValidationAsync(TaskValidationViewModel vm)
     { using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90)); while (vm.Busy) await Task.Delay(25, stop.Token); await Task.Delay(30); }

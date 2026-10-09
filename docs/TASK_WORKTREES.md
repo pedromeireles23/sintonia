@@ -18,7 +18,7 @@ O M3 permite preparar uma worktree para uma tarefa com escrita antes da primeira
 
 `Ready` permite executar na subpasta correspondente da worktree. Antes de cada tentativa, o serviço confere diretório real, registro, Git comum, branch, bloqueio e ancestralidade do commit de base. Alterações/commits produzidos por uma tentativa permanecem para a próxima, junto à mesma sessão nativa. Um vínculo alterado impede a chamada ao provedor sem consumir tentativa. O banco compara o vínculo esperado ao reservar o run, evitando que uma leitura anterior à preparação execute na pasta original.
 
-Tarefas que não prepararam worktree continuam usando o projeto original, onde escrita permanece exclusiva. Tarefas independentes com worktrees prontas e validadas em raízes distintas admitem escrita paralela, respeitando as [3–7 vagas](SESSION_CONCURRENCY.md). Aprovar uma entrega numa worktree não integra seus arquivos: dependentes continuam bloqueados neste incremento. [Revisão de diffs](TASK_DIFFS.md) está disponível; publicação integrada ainda está em desenvolvimento.
+Tarefas que não prepararam worktree continuam usando o projeto original, onde escrita permanece exclusiva. Tarefas independentes com worktrees prontas e validadas em raízes distintas admitem escrita paralela, respeitando as [3–7 vagas](SESSION_CONCURRENCY.md). Aprovar uma entrega numa worktree não integra seus arquivos: dependentes aguardam a [publicação](TASK_PUBLICATION.md) da combinação validada e a revisão integrada na sua própria pasta. [Revisão de diffs](TASK_DIFFS.md) está disponível.
 
 ## Validação
 
@@ -38,5 +38,7 @@ Com a worktree pronta e a tarefa parada, **Revisar diffs** abre a comparação d
 Após aprovar a entrega e salvar suas mudanças em um commit, o painel de diffs permite [registrar esse commit](TASK_DELIVERIES.md). A identificação persistida não altera arquivos nem integra a entrega; dependentes continuam bloqueados.
 
 **Preparar combinação** usa esse registro numa nova worktree separada, preservando as pastas existentes e mostrando árvore/conflitos. **Validar combinação** executa os critérios configurados; Passed vigente permite **Publicar no projeto**. A publicação registrada libera dependentes cuja pasta contém a revisão integrada. [Preparação](TASK_INTEGRATION_PREPARATION.md), [validação](PROJECT_VALIDATION.md) e [publicação](TASK_PUBLICATION.md).
+
+Após publicar, **Arquivar worktree integrada** preserva a pasta inteira num arquivo e retira seu registro ativo do Git. Branch e histórico permanecem; o espaço em disco continua ocupado. Arquivos locais são conservados e alterações versionadas posteriores impedem a operação. As combinações permanecem; não há restauração ou descarte automático. [Fluxo e recuperação](TASK_WORKTREE_CLEANUP.md).
 
 Teste WPF `--worktrees` percorre recusa/confirmação pelos comandos visuais, preparação com Git real, escrita/autorização e ajuste com provedor simulado, reabertura, dependência bloqueada, troca de projeto, cancelamento parcial e fechamento da central. Layout normal/mínimo revisado, zero erros de binding. Preview evita status do original para não executar filtros clean; a conferência de retomada desabilita filtros somente no próprio comando.
