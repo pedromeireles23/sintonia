@@ -31,7 +31,8 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             var dependency = batch.Tasks.Single(t => t.Definition.Id == id);
             dependencies.AddRange(await store.GetRunsAsync(dependency.ConversationId).ConfigureAwait(false));
         }
-        var prompt = WorkspaceTaskPolicy.BuildPrompt(batch, task, dependencies);
+        var taskSettings = await store.GetProjectExecutionSettingsAsync(projectId).ConfigureAwait(false);
+        var prompt = WorkspaceTaskPolicy.BuildPrompt(batch, task, dependencies, taskSettings.MaxAttempts);
         if (task.Worktree is { } worktree)
         {
             if (worktrees is null) throw new InvalidOperationException("O gerenciador de worktrees não está disponível nesta instalação.");
@@ -45,12 +46,12 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             await revisions.VerifyRevisionAsync(project.Directory, dependency.Publication!.Commit!, cancellationToken).ConfigureAwait(false);
         }
         var conversation = (await store.GetConversationsAsync(projectId).ConfigureAwait(false)).Single(c => c.Id == task.ConversationId);
-        return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, taskId, task.Worktree).ConfigureAwait(false);
+        return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, taskId, task.Worktree, task.Definition).ConfigureAwait(false);
     }
 
     private async Task<ChatRun> SendCoreAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
         IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
-        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler, string? taskId, TaskWorktree? expectedWorktree = null)
+        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler, string? taskId, TaskWorktree? expectedWorktree = null, ProposedTask? expectedDefinition = null)
     {
         if (project.Id != conversation.ProjectId || string.IsNullOrWhiteSpace(prompt) || prompt.Length > 200_000)
             throw new ArgumentException("Projeto incompatível ou pedido vazio/extenso.");
@@ -72,7 +73,10 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
         try
         {
             var run = new ChatRun(Guid.NewGuid().ToString(), conversation.Id, prompt, null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
-            await store.BeginRunAsync(run, taskId, expectedWorktree, slot).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await store.BeginRunAsync(run, taskId, expectedWorktree, slot, expectedDefinition, settings).ConfigureAwait(false);
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(TimeSpan.FromSeconds(settings.MaxExecutionSeconds));
             var text = new StringBuilder();
             var events = new ConcurrentQueue<ChatEvent>();
             var checkpoint = Task.CompletedTask;
@@ -104,8 +108,8 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             try
             {
                 var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt, conversation.Model,
-                    conversation.NativeSessionId, instructions, conversation.Access, permissionHandler), live, cancellationToken).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
+                    conversation.NativeSessionId, instructions, conversation.Access, permissionHandler), live, deadline.Token).ConfigureAwait(false);
+                deadline.Token.ThrowIfCancellationRequested();
                 conversation = conversation with { NativeSessionId = result.NativeSessionId, Model = result.Model };
                 run = run with { Response = result.Text, State = result.Outcome == ConversationOutcome.Completed ? ChatRunState.Completed : ChatRunState.Blocked,
                     Error = result.PermissionDenials.Count > 0 ? "Permissões recusadas: " + string.Join(", ", result.PermissionDenials) : null };
@@ -113,6 +117,10 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 run = run with { Response = text.ToString(), State = ChatRunState.Cancelled, Error = "Execução cancelada. Confira possíveis efeitos antes de reenviar." };
+            }
+            catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+            {
+                run = run with { Response = text.ToString(), State = ChatRunState.Failed, Error = $"A execução excedeu o prazo do projeto ({settings.MaxExecutionSeconds}s). Confira possíveis efeitos antes de tentar novamente." };
             }
             catch (Exception exception)
             {

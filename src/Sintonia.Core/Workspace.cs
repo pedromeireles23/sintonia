@@ -17,7 +17,7 @@ public interface IWorkspaceStore
     Task SaveConversationAsync(WorkspaceConversation conversation);
     Task<IReadOnlyList<ChatRun>> GetRunsAsync(string conversationId);
     Task<IReadOnlyList<ChatEvent>> GetEventsAsync(string conversationId);
-    Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null, WorkspaceExecutionSlot? expectedSlot = null);
+    Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null, WorkspaceExecutionSlot? expectedSlot = null, ProposedTask? expectedDefinition = null, ProjectExecutionSettings? expectedSettings = null);
     Task<ProjectExecutionSettings> GetProjectExecutionSettingsAsync(string projectId);
     Task<ProjectExecutionSettings> SaveProjectExecutionSettingsAsync(ProjectExecutionSettings settings);
     Task CheckpointRunAsync(ChatRun run, WorkspaceConversation conversation);
@@ -28,6 +28,8 @@ public interface IWorkspaceStore
     Task<WorkspaceProposal> SaveProposalAsync(WorkspaceProposal proposal);
     Task<IReadOnlyList<WorkspaceTaskBatch>> GetTaskBatchesAsync(string projectId);
     Task<WorkspaceTaskBatch> EnqueueProposalAsync(string projectId, string proposalId, int revision);
+    Task<WorkspaceTaskBatch> ReviseTaskBatchAsync(string projectId, string batchId, int batchRevision, string proposalId, int proposalRevision);
+    Task<IReadOnlyList<string>> GetAppliedProposalIdsAsync(string projectId);
     Task ReviewTaskAsync(string projectId, string taskId, string runId, bool approve, string note);
     Task<TaskWorktree> ReserveTaskWorktreeAsync(string projectId, TaskWorktree worktree);
     Task FinishTaskWorktreeAsync(string taskId, bool ready, string? error);

@@ -20,13 +20,13 @@ Worktrees separam alterações e compartilham objetos/configuração Git; não s
 
 O chefe já produz um plano estruturado com função, provedor/modelo, escopo, dependências e critérios. Revisar e confirmar o plano cria as sessões na fila, sem iniciar modelos. O início das tarefas continua sendo uma ação separada, com permissões e revisão das entregas preservadas.
 
-A central oferece o seletor em **Função, permissões e sessões**. Escolha 3–7 e use **Aplicar limite**; a escolha em rascunho ainda não muda a reserva. A contagem mostra execuções no projeto e na central.
+A central oferece os seletores em **Função, permissões e sessões**. Escolha 3–7 sessões, 1–3 tentativas por tarefa e 1–300s por execução, e use **Aplicar limites**; o rascunho ainda não muda a reserva. Padrões 3/3/300. Schema 12 guarda tentativas/prazo sob a mesma revisão da configuração. A contagem mostra execuções no projeto e na central. Reduções não cancelam runs vivos; seu prazo capturado continua válido. [Detalhes de timeout e limites](PLAN_UPDATES.md).
 
 Na fila, **Iniciar tarefas disponíveis** lê novamente o plano e o limite salvos e distribui uma rodada nas vagas livres. Cada tarefa conserva o provedor/modelo e sua sessão. Dependências indisponíveis, tarefas em revisão, tentativas esgotadas e pastas incompatíveis ficam aguardando. Não há repetição automática, aprovação automática ou loop de modelos. Prepare as worktrees de escrita antes de iniciar o grupo.
 
 **Cancelar** interrompe o grupo iniciado por esse painel; uma tarefa iniciada separadamente conserva seu controle. Fechar a fila cancela e aguarda suas execuções/preparações; fechar a central aguarda todos os seus processos. A fila e seu contador continuam vinculados ao projeto capturado, mesmo ao navegar na central. Sessões podem ser consultadas pela lista da central durante a execução do grupo. Seleção/revisão na fila ficam disponíveis ao terminar a rodada.
 
-O chefe ainda não acompanha ou modifica automaticamente o plano após cada resultado. O fluxo atual é objetivo → proposta do chefe → revisão/confirmação → fila → início individual ou em grupo → revisão das entregas.
+O fluxo é objetivo → proposta → revisão/confirmação → fila → início individual/em grupo → revisão das entregas. **Chefia e plano** permite preparar resultados no chat e aplicar outra proposta aprovada às tarefas ainda não iniciadas, preservando sessões/histórico. [Acompanhamento e revisão](PLAN_UPDATES.md). Envio, aplicação e rodadas permanecem explícitos.
 
 ## Validação
 

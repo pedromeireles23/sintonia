@@ -1,13 +1,13 @@
 namespace Sintonia.Core;
 
-public sealed record ProjectExecutionSettings(string ProjectId, int Revision = 0, int MaxConcurrentSessions = 3)
+public sealed record ProjectExecutionSettings(string ProjectId, int Revision = 0, int MaxConcurrentSessions = 3, int MaxAttempts = 3, int MaxExecutionSeconds = 300)
 {
     public const int Minimum = 3;
     public const int Maximum = 7;
     public void Validate()
     {
-        if (!Guid.TryParse(ProjectId, out _) || Revision < 0 || MaxConcurrentSessions is < Minimum or > Maximum)
-            throw new ArgumentException("Escolha entre 3 e 7 sessões simultâneas para este projeto.");
+        if (!Guid.TryParse(ProjectId, out _) || Revision < 0 || MaxConcurrentSessions is < Minimum or > Maximum || MaxAttempts is < 1 or > 3 || MaxExecutionSeconds is < 1 or > 300)
+            throw new ArgumentException("Escolha 3–7 sessões, 1–3 tentativas por tarefa e prazo de 1–300 segundos por execução.");
     }
 }
 

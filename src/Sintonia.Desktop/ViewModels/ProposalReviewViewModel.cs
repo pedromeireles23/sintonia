@@ -104,7 +104,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
         try
         {
             var proposals = await _store.GetProposalsAsync(Project.Id);
-            _queued = (await _store.GetTaskBatchesAsync(Project.Id)).Select(b => b.ProposalId).ToHashSet();
+            _queued = (await _store.GetAppliedProposalIdsAsync(Project.Id)).ToHashSet();
             var selectedId = _selected?.Id;
             Proposals.Clear(); foreach (var proposal in proposals) Proposals.Add(proposal);
             _selected = proposals.FirstOrDefault(p => p.Id == selectedId) ?? proposals.FirstOrDefault();

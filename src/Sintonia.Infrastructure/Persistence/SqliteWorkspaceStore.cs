@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 11) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 12) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -76,7 +76,11 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 project_id TEXT NOT NULL REFERENCES projects(id), task_id TEXT NOT NULL REFERENCES work_tasks(id),
                 definition TEXT NOT NULL, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 4), finished_at TEXT, error TEXT);
             CREATE UNIQUE INDEX IF NOT EXISTS one_published_delivery ON task_publications(task_id) WHERE state=1;
-            PRAGMA user_version=11;
+            CREATE TABLE IF NOT EXISTS task_plan_revisions(batch_id TEXT NOT NULL REFERENCES task_batches(id), revision INTEGER NOT NULL,
+                proposal_id TEXT NOT NULL UNIQUE REFERENCES proposals(id), definition TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(batch_id,revision));
+            CREATE TABLE IF NOT EXISTS project_execution_limits(project_id TEXT PRIMARY KEY REFERENCES projects(id),
+                max_attempts INTEGER NOT NULL CHECK(max_attempts BETWEEN 1 AND 3), max_seconds INTEGER NOT NULL CHECK(max_seconds BETWEEN 1 AND 300));
+            PRAGMA user_version=12;
             """);
         transaction.Commit();
         return true;
@@ -173,13 +177,15 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         return list;
     });
 
-    public Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null, WorkspaceExecutionSlot? expectedSlot = null) => RunAsync(connection =>
+    public Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null, WorkspaceExecutionSlot? expectedSlot = null, ProposedTask? expectedDefinition = null, ProjectExecutionSettings? expectedSettings = null) => RunAsync(connection =>
     {
         if (run.State != ChatRunState.Running) throw new ArgumentException("Uma tentativa deve começar em execução.");
         using var transaction = connection.BeginTransaction();
         EnsureConversationNotReserved(connection, transaction, run.ConversationId, expectedWorktree);
         var slot = ReserveExecutionScope(connection, transaction, run, expectedWorktree, expectedSlot);
-        ReserveTask(connection, transaction, run, taskId, expectedWorktree);
+        if (expectedSettings is not null && ReadExecutionSettings(connection, transaction, slot.ProjectId) != expectedSettings)
+            throw new InvalidOperationException("Os limites mudaram antes da reserva. Atualize e confira antes de executar.");
+        ReserveTask(connection, transaction, run, taskId, expectedWorktree, expectedDefinition);
         Execute(connection, transaction, "INSERT INTO runs(id,conversation_id,prompt,state,started_at) VALUES($id,$conversation,$prompt,$state,$started)",
             ("$id", run.Id), ("$conversation", run.ConversationId), ("$prompt", run.Prompt), ("$state", (int)ChatRunState.Running), ("$started", run.StartedAt.ToString("O")));
         Execute(connection, transaction, "INSERT INTO run_execution_scopes(run_id,definition) VALUES($id,$definition)",
@@ -312,7 +318,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             if (Execute(connection, transaction, """
                 UPDATE proposals SET definition=$definition,state=$state,revision=revision+1
                 WHERE id=$id AND project_id=$project AND source_run_id=$run AND revision=$revision
-                    AND NOT EXISTS(SELECT 1 FROM task_batches b WHERE b.proposal_id=proposals.id);
+                    AND NOT EXISTS(SELECT 1 FROM task_batches b WHERE b.proposal_id=proposals.id)
+                    AND NOT EXISTS(SELECT 1 FROM task_plan_revisions u WHERE u.proposal_id=proposals.id);
                 """, ("$definition", definition), ("$state", (int)proposal.State), ("$id", proposal.Id),
                 ("$project", proposal.ProjectId), ("$run", proposal.SourceRunId), ("$revision", proposal.Revision)) != 1)
                 throw new InvalidOperationException("A proposta mudou em outra janela, já foi encaminhada à fila ou não pertence a este projeto. Reabra a revisão; para um plano encaminhado, crie uma nova proposta.");

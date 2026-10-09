@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.Text.Json;
 using Sintonia.Core;
 
 namespace Sintonia.Infrastructure.Persistence;
@@ -14,11 +15,11 @@ public sealed partial class SqliteWorkspaceStore
         using (var command = connection.CreateCommand())
         {
             command.Transaction = transaction;
-            command.CommandText = "SELECT id,project_id,proposal_id,proposal_revision,definition FROM task_batches WHERE project_id=$project ORDER BY rowid DESC";
+            command.CommandText = "SELECT id,project_id,proposal_id,proposal_revision,definition,COALESCE((SELECT MAX(revision) FROM task_plan_revisions u WHERE u.batch_id=task_batches.id),0) FROM task_batches WHERE project_id=$project ORDER BY rowid DESC";
             command.Parameters.AddWithValue("$project", projectId);
             using var reader = command.ExecuteReader();
             while (reader.Read()) batches.Add(new(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3),
-                PlanProposalFormat.ParseJson(reader.GetString(4)), []));
+                PlanProposalFormat.ParseJson(reader.GetString(4)), [], reader.GetInt32(5)));
         }
         for (var i = 0; i < batches.Count; i++)
         {
@@ -51,6 +52,12 @@ public sealed partial class SqliteWorkspaceStore
         }
         var existing = ReadBatches(connection, transaction, projectId).SingleOrDefault(b => b.ProposalId == proposalId);
         if (existing is not null) { transaction.Commit(); return existing; }
+        using (var applied = connection.CreateCommand())
+        {
+            applied.Transaction = transaction; applied.CommandText = "SELECT COUNT(*) FROM task_plan_revisions WHERE proposal_id=$proposal";
+            applied.Parameters.AddWithValue("$proposal", proposalId);
+            if (Convert.ToInt32(applied.ExecuteScalar()) != 0) throw new InvalidOperationException("Esta proposta já foi aplicada à fila existente. Atualize os planos.");
+        }
         var batchId = Guid.NewGuid().ToString();
         Execute(connection, transaction, "INSERT INTO task_batches(id,project_id,proposal_id,proposal_revision,definition) VALUES($id,$project,$proposal,$revision,$definition)",
             ("$id", batchId), ("$project", projectId), ("$proposal", proposalId), ("$revision", revision), ("$definition", PlanProposalFormat.Serialize(proposal.Definition)));
@@ -66,7 +73,7 @@ public sealed partial class SqliteWorkspaceStore
         transaction.Commit(); return result;
     });
 
-    private static void ReserveTask(SqliteConnection connection, SqliteTransaction transaction, ChatRun run, string? taskId, TaskWorktree? expectedWorktree)
+    private static void ReserveTask(SqliteConnection connection, SqliteTransaction transaction, ChatRun run, string? taskId, TaskWorktree? expectedWorktree, ProposedTask? expectedDefinition)
     {
         using var owner = connection.CreateCommand(); owner.Transaction = transaction;
         owner.CommandText = "SELECT t.id,b.project_id FROM work_tasks t JOIN task_batches b ON b.id=t.batch_id WHERE t.conversation_id=$conversation";
@@ -82,10 +89,12 @@ public sealed partial class SqliteWorkspaceStore
         }
         var batch = ReadBatches(connection, transaction, projectId!).Single(b => b.Tasks.Any(t => t.Id == taskId));
         var task = batch.Tasks.Single(t => t.Id == taskId);
+        if (expectedDefinition is not null && JsonSerializer.Serialize(expectedDefinition) != JsonSerializer.Serialize(task.Definition))
+            throw new InvalidOperationException("A tarefa mudou após montar o pedido. Atualize a fila antes de executar.");
         if (task.Worktree != expectedWorktree)
             throw new InvalidOperationException("A pasta de trabalho da tarefa mudou. Atualize a fila antes de executar.");
-        if (!WorkspaceTaskPolicy.CanStart(task, batch.Tasks))
-            throw new InvalidOperationException("Tarefa indisponível: confira dependências aprovadas, estado e limite de três tentativas.");
+        if (!WorkspaceTaskPolicy.CanStart(task, batch.Tasks, ReadExecutionSettings(connection, transaction, batch.ProjectId).MaxAttempts))
+            throw new InvalidOperationException("Tarefa indisponível: confira dependências aprovadas, estado e limite de tentativas do projeto.");
         Execute(connection, transaction, "UPDATE work_tasks SET state=1,attempts=attempts+1 WHERE id=$task", ("$task", taskId));
     }
 

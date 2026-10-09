@@ -52,9 +52,15 @@
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <TextBlock Text="Sessões simultâneas no projeto" VerticalAlignment="Center" TextWrapping="Wrap" />
                             <ComboBox Grid.Column="1" ItemsSource="{Binding SessionLimits}" SelectedItem="{Binding SessionLimit}" IsEnabled="{Binding CanEditSessionLimit}" Padding="7" AutomationProperties.AutomationId="ProjectSessionLimit" />
-                            <Button Grid.Column="2" Content="Aplicar limite" Command="{Binding SaveSessionLimitCommand}" Margin="10,0,0,0" AutomationProperties.AutomationId="SaveSessionLimit" />
+                            <Button Grid.Column="2" Content="Aplicar limites" Command="{Binding SaveSessionLimitCommand}" Margin="10,0,0,0" AutomationProperties.AutomationId="SaveSessionLimit" />
                         </Grid>
                         <TextBlock Text="Codex e Claude podem ocupar várias vagas. O chefe conta enquanto executa. Escrita paralela exige worktrees distintas." Style="{StaticResource Caption}" Margin="0,0,0,10" />
+                        <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Tentativas por tarefa" VerticalAlignment="Center"/><ComboBox Grid.Column="1" ItemsSource="{Binding AttemptLimits}" SelectedItem="{Binding TaskAttemptLimit}" IsEnabled="{Binding CanEditSessionLimit}" Padding="7" AutomationProperties.AutomationId="ProjectAttemptLimit"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Prazo por execução (1–300 segundos)" VerticalAlignment="Center" TextWrapping="Wrap"/><TextBox Grid.Column="1" Text="{Binding ExecutionTimeout, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditSessionLimit}" AutomationProperties.AutomationId="ProjectExecutionTimeout"/>
+                        </Grid>
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <ComboBox ItemsSource="{Binding FunctionProfiles}" SelectedItem="{Binding SelectedFunctionProfile}" DisplayMemberPath="Name" IsEnabled="{Binding CanManageFunctionProfiles}" Padding="7" Margin="0,0,10,0" ToolTip="Escolha um perfil da biblioteca local." AutomationProperties.AutomationId="SavedFunctionProfiles" />
                             <Button Grid.Column="1" Content="Nova com perfil" Command="{Binding ApplyFunctionProfileCommand}" ToolTip="Aplicar o perfil a uma nova conversa em leitura, preservando a conversa atual." AutomationProperties.AutomationId="ApplyFunctionProfile" />

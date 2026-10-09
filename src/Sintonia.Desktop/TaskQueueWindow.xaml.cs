@@ -10,6 +10,7 @@ public partial class TaskQueueWindow : Window
     public TaskQueueWindow(TaskQueueViewModel viewModel)
     {
         InitializeComponent(); DataContext = viewModel;
+        ViewModel.ConfirmRevision ??= details => ActionConfirmation.Show(this, "Atualizar plano encaminhado", details, "Aplicar proposta revisada");
         viewModel.ConfirmWorktree ??= worktree => MessageBox.Show(this,
             $"Preparar esta pasta para a tarefa?\n\nPasta: {worktree.WorkingDirectory}\nBranch: {worktree.Branch}\nCommit de base: {worktree.BaseCommit}\n\n"
             + "Alterações locais e arquivos ignorados permanecem no original. A preparação não chama modelos. Aprovar a entrega não integra seus arquivos; dependentes aguardarão integração Git, ainda em desenvolvimento.",

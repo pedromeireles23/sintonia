@@ -7,14 +7,14 @@ public enum WorkspaceTaskState { Pending, Running, AwaitingReview, Approved, Cha
 public sealed record WorkspaceTask(string Id, string BatchId, ProposedTask Definition, string ConversationId,
     WorkspaceTaskState State, int Attempts, string? LastRunId, string? ReviewNote, TaskWorktree? Worktree = null, TaskDelivery? Delivery = null, TaskPublication? Publication = null);
 public sealed record WorkspaceTaskBatch(string Id, string ProjectId, string ProposalId, int ProposalRevision,
-    PlanProposal Definition, IReadOnlyList<WorkspaceTask> Tasks);
+    PlanProposal Definition, IReadOnlyList<WorkspaceTask> Tasks, int Revision = 0);
 
 public static class WorkspaceTaskPolicy
 {
     public const int MaxAttempts = 3;
     private static readonly JsonSerializerOptions PromptOptions = new() { Converters = { new JsonStringEnumConverter() } };
-    public static bool CanStart(WorkspaceTask task, IReadOnlyList<WorkspaceTask> tasks) =>
-        task.Attempts < MaxAttempts && (task.State is WorkspaceTaskState.Pending or WorkspaceTaskState.ChangesRequested
+    public static bool CanStart(WorkspaceTask task, IReadOnlyList<WorkspaceTask> tasks, int maxAttempts = MaxAttempts) =>
+        task.Attempts < maxAttempts && (task.State is WorkspaceTaskState.Pending or WorkspaceTaskState.ChangesRequested
             or WorkspaceTaskState.Blocked or WorkspaceTaskState.Failed or WorkspaceTaskState.Cancelled or WorkspaceTaskState.Interrupted)
         && (task.Worktree is null || task.Worktree.State == TaskWorktreeState.Ready)
         && DependenciesAvailable(task, tasks);
@@ -41,9 +41,9 @@ public static class WorkspaceTaskPolicy
         _ => throw new ArgumentException("A execução ainda não terminou.")
     };
 
-    public static string BuildPrompt(WorkspaceTaskBatch batch, WorkspaceTask task, IReadOnlyList<ChatRun> dependencies)
+    public static string BuildPrompt(WorkspaceTaskBatch batch, WorkspaceTask task, IReadOnlyList<ChatRun> dependencies, int maxAttempts = MaxAttempts)
     {
-        if (!CanStart(task, batch.Tasks)) throw new InvalidOperationException("Tarefa indisponível: confira pasta preparada, aprovação e integração das dependências, estado e limite de três tentativas.");
+        if (!CanStart(task, batch.Tasks, maxAttempts)) throw new InvalidOperationException("Tarefa indisponível: confira pasta preparada, aprovação e integração das dependências, estado e limite de tentativas.");
         var context = task.Definition.Dependencies.Select(id =>
         {
             var dependency = batch.Tasks.Single(t => t.Definition.Id == id);

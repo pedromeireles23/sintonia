@@ -33,17 +33,23 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     private Task _preparationTask = Task.CompletedTask, _executionTask = Task.CompletedTask;
     private long _selectionRevision;
     private string _note = "", _notice = "Confirme um plano na revisão e encaminhe para esta fila.";
+    private string _chiefRequest = "Confira os resultados, explique o que falta e atualize as tarefas ainda não iniciadas para concluir o objetivo.";
+    private Task _planOperation = Task.CompletedTask;
+    private CancellationTokenSource? _planStop;
+    private bool _stopping;
     public TaskQueueViewModel(IWorkspaceStore store, WorkspaceViewModel workspace, WorkspaceProject project)
     {
         _store = store; Workspace = workspace; Project = project;
-        ReloadCommand = new(InitializeAsync, ShowError, () => !Busy);
-        EnqueueCommand = new(EnqueueAsync, ShowError, () => !Busy && SelectedProposal is not null);
+        ReloadCommand = new(InitializeAsync, ShowError, () => CanChoose);
+        EnqueueCommand = new(EnqueueAsync, ShowError, () => CanChoose && SelectedProposal is not null);
         StartCommand = new(StartAsync, ShowError, () => CanStart);
         StartAvailableCommand = new(StartAvailableAsync, ShowError, () => CanStartAvailable);
-        CancelCommand = new(Cancel, () => Busy && (_preparationStop is not null || _dispatchStop is not null || Session?.Running == true));
+        CancelCommand = new(Cancel, () => Busy && (_preparationStop is not null || _dispatchStop is not null || _planStop is not null || Session?.Running == true));
         PrepareWorktreeCommand = new(PrepareWorktreeAsync, ShowError, () => CanPrepareWorktree);
         ApproveCommand = new(() => ReviewAsync(true), ShowError, () => CanReview);
         RequestChangesCommand = new(() => ReviewAsync(false), ShowError, () => CanReview && !string.IsNullOrWhiteSpace(ReviewNote));
+        PrepareChiefCommand = new(PrepareChiefAsync, ShowError, () => CanChoose && SelectedBatch is not null);
+        ApplyRevisionCommand = new(ApplyRevisionAsync, ShowError, () => CanChoose && SelectedBatch is not null && SelectedProposal is not null);
         Workspace.PropertyChanged += WorkspaceChanged;
     }
     public WorkspaceViewModel Workspace { get; }
@@ -95,7 +101,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         $"{item.Record.Definition.FunctionName} · {item.Record.Definition.Model ?? "Modelo padrão"} · {(item.Record.Definition.Access == ConversationAccess.ReadOnly ? "Leitura" : "Alterações")}\n"
         + $"Escopo: {string.Join(", ", item.Record.Definition.Scope)}\nDependências: {string.Join(", ", item.Record.Definition.Dependencies.DefaultIfEmpty("Nenhuma"))}\n"
         + item.Record.Definition.Instructions + "\nCritérios:\n• " + string.Join("\n• ", item.Record.Definition.AcceptanceCriteria);
-    public string TaskStatus => SelectedTask is not { } item ? "" : $"{(Session?.Running == true ? "Executando" : StateText(item.Record.State))} · {item.Record.Attempts + (Session?.Running == true && item.Record.State != WorkspaceTaskState.Running ? 1 : 0)}/{WorkspaceTaskPolicy.MaxAttempts} tentativas"
+    public string TaskStatus => SelectedTask is not { } item ? "" : $"{(Session?.Running == true ? "Executando" : StateText(item.Record.State))} · {item.Record.Attempts + (Session?.Running == true && item.Record.State != WorkspaceTaskState.Running ? 1 : 0)}/{Workspace.AttemptLimitFor(Project.Id)} tentativas"
         + (item.Record.ReviewNote is { Length: > 0 } note ? "\nÚltima revisão: " + note : "")
         + (SelectedBatch is { } batch && item.Record.State == WorkspaceTaskState.Pending && item.Record.Definition.Dependencies.Any(id => batch.Tasks.Any(t => t.Definition.Id == id && t.State != WorkspaceTaskState.Approved))
             ? "\nAguarda aprovação das dependências." : "")
@@ -109,20 +115,23 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
                 + (SelectedTask.Record.Publication is { State: TaskPublicationState.Published } publication ? $"Integrada no commit:\n{publication.Commit}" : "Integração pendente.") : "");
     public string WorktreeExplanation => "A worktree parte de um commit salvo. Alterações locais, arquivos ignorados e dependências instaladas permanecem no original. Confira as instruções e configurações disponíveis na nova pasta antes de executar.\n\nTarefas independentes em worktrees distintas podem escrever em paralelo. Escrita direta no original é exclusiva. Dependentes de uma worktree exigem publicação registrada da combinação validada. As pastas são preservadas; não há limpeza automática.";
     public Func<TaskWorktree, bool>? ConfirmWorktree { get; set; }
-    public bool CanPrepareWorktree => !Busy && !_loading && Workspace.CanPrepareWorktrees && SelectedTask is { } task && SelectedBatch is { } batch
+    public bool CanPrepareWorktree => CanChoose && !_loading && Workspace.CanPrepareWorktrees && SelectedTask is { } task && SelectedBatch is { } batch
         && WorkspaceTaskPolicy.CanPrepareWorktree(task.Record, batch.Tasks);
-    public bool CanReviewDiffs => !Busy && !_loading && Workspace.CanReviewTaskDiffs && Session?.Running != true
+    public bool CanReviewDiffs => CanChoose && !_loading && Workspace.CanReviewTaskDiffs && Session?.Running != true
         && SelectedTask?.Record is { State: not WorkspaceTaskState.Running, Worktree.State: TaskWorktreeState.Ready };
     public string ReviewNote { get => _note; set { Set(ref _note, value); Refresh(); } }
     public string Notice { get => _notice; private set => Set(ref _notice, value); }
     public bool Busy { get => _busy; private set { Set(ref _busy, value); Refresh(); } }
-    public bool CanChoose => !Busy;
-    public bool CanStart => !Busy && !_loading && SelectedTask is { } item && SelectedBatch is { } batch
-        && WorkspaceTaskPolicy.CanStart(item.Record, batch.Tasks) && Workspace.CanStartTask(Project, item.Record);
-    public bool CanStartAvailable => !Busy && !_loading && SelectedBatch is { } batch
+    public bool CanChoose => !Busy && !_stopping;
+    public bool CanStart => CanChoose && !_loading && SelectedTask is { } item && SelectedBatch is { } batch
+        && WorkspaceTaskPolicy.CanStart(item.Record, batch.Tasks, Workspace.AttemptLimitFor(Project.Id)) && Workspace.CanStartTask(Project, item.Record);
+    public bool CanStartAvailable => CanChoose && !_loading && SelectedBatch is { } batch
         && Workspace.SelectAvailableTasks(Project, batch).Count > 0;
     public string SessionUsage => Workspace.SessionUsageFor(Project.Id);
-    public bool CanReview => !Busy && !_loading && SelectedTask?.Record.State == WorkspaceTaskState.AwaitingReview
+    public string ChiefRequest { get => _chiefRequest; set => Set(ref _chiefRequest, value); }
+    public string PlanStatus => SelectedBatch is { } batch ? $"Revisão da fila: {batch.Revision} · {batch.Tasks.Count(t => t.State == WorkspaceTaskState.Running || Workspace.IsTaskRunning(t))} executando · {batch.Tasks.Count(t => t.State == WorkspaceTaskState.AwaitingReview)} em revisão · {batch.Tasks.Count(t => t.State == WorkspaceTaskState.Approved)} aprovadas · {batch.Tasks.Count(t => t.Publication?.State == TaskPublicationState.Published)} integradas" : "Selecione um plano encaminhado.";
+    public Func<string, bool>? ConfirmRevision { get; set; }
+    public bool CanReview => CanChoose && !_loading && SelectedTask?.Record.State == WorkspaceTaskState.AwaitingReview
         && SelectedAttempt?.Run.Id == SelectedTask.Record.LastRunId;
     public AsyncCommand ReloadCommand { get; }
     public AsyncCommand EnqueueCommand { get; }
@@ -132,10 +141,37 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     public DelegateCommand CancelCommand { get; }
     public AsyncCommand ApproveCommand { get; }
     public AsyncCommand RequestChangesCommand { get; }
+    public AsyncCommand PrepareChiefCommand { get; }
+    public AsyncCommand ApplyRevisionCommand { get; }
+    public Task PrepareChiefAsync() => !CanChoose || SelectedBatch is null ? Task.CompletedTask : _planOperation = PrepareChiefCoreAsync();
+    private async Task PrepareChiefCoreAsync()
+    {
+        var batch = SelectedBatch!; Busy = true; _planStop = new(); Refresh();
+        try { await Workspace.PrepareChiefFollowUpAsync(Project, batch, ChiefRequest, _planStop.Token); Notice = "Acompanhamento preparado no chat central. Revise e envie ao chefe; confirmar/aplicar sua proposta continua sendo uma ação separada."; }
+        finally { _planStop.Dispose(); _planStop = null; Busy = false; }
+    }
+    public Task ApplyRevisionAsync() => !CanChoose || SelectedBatch is null || SelectedProposal is null ? Task.CompletedTask : _planOperation = ApplyRevisionCoreAsync();
+    private async Task ApplyRevisionCoreAsync()
+    {
+        var selected = SelectedBatch!; var proposal = SelectedProposal!; Busy = true; _planStop = new(); Refresh();
+        try
+        {
+            var current = (await _store.GetTaskBatchesAsync(Project.Id)).Single(b => b.Id == selected.Id);
+            var actual = (await _store.GetProposalsAsync(Project.Id)).Single(p => p.Id == proposal.Id);
+            if (actual.Revision != proposal.Revision || actual.State != ProposalReviewState.Approved) throw new InvalidOperationException("A proposta mudou. Atualize e confira novamente.");
+            var description = TaskPlanUpdates.DescribeChanges(current, actual.Definition);
+            _planStop.Token.ThrowIfCancellationRequested();
+            if (ConfirmRevision?.Invoke(description) != true) { Notice = "Atualização não confirmada. A fila foi preservada."; return; }
+            _planStop.Token.ThrowIfCancellationRequested();
+            await _store.ReviseTaskBatchAsync(Project.Id, current.Id, current.Revision, actual.Id, actual.Revision);
+            await ReloadAsync(); await Workspace.RefreshProjectSessionsAsync(Project); await LoadSelectionAsync(); Notice = "Plano atualizado. Sessões/entregas iniciadas preservadas; nenhuma tarefa foi executada automaticamente.";
+        }
+        finally { _planStop.Dispose(); _planStop = null; Busy = false; }
+    }
 
     public async Task InitializeAsync()
     {
-        if (Busy) return;
+        if (!CanChoose) return;
         Busy = true;
         try { await ReloadAsync(); await LoadSelectionAsync(); }
         finally { Busy = false; }
@@ -143,10 +179,11 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     private async Task ReloadAsync()
     {
         var batches = await _store.GetTaskBatchesAsync(Project.Id); var proposals = await _store.GetProposalsAsync(Project.Id);
+        var applied = await _store.GetAppliedProposalIdsAsync(Project.Id);
         var batchId = _batch?.Id; var taskId = _task?.Record.Id;
         Batches.Clear(); foreach (var batch in batches) Batches.Add(batch);
         ApprovedProposals.Clear();
-        foreach (var proposal in proposals.Where(p => p.State == ProposalReviewState.Approved && !batches.Any(b => b.ProposalId == p.Id))) ApprovedProposals.Add(proposal);
+        foreach (var proposal in proposals.Where(p => p.State == ProposalReviewState.Approved && !applied.Contains(p.Id))) ApprovedProposals.Add(proposal);
         _proposal = ApprovedProposals.FirstOrDefault(); Notify(nameof(SelectedProposal));
         _batch = batches.FirstOrDefault(b => b.Id == batchId) ?? batches.FirstOrDefault(); Notify(nameof(SelectedBatch));
         Tasks.Clear(); if (_batch is not null) foreach (var task in _batch.Tasks) Tasks.Add(new(task));
@@ -172,7 +209,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     }
     public async Task EnqueueAsync()
     {
-        if (Busy || SelectedProposal is not { } proposal) return;
+        if (!CanChoose || SelectedProposal is not { } proposal) return;
         Busy = true;
         try
         {
@@ -228,6 +265,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
 
     private void Cancel()
     {
+        _planStop?.Cancel();
         if (_dispatchStop is not null) { _dispatchStop.Cancel(); return; }
         _preparationStop?.Cancel();
         if (Busy && SelectedTask is { } task) Workspace.CancelTask(task.Record);
@@ -280,8 +318,9 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         ? "Operação cancelada. Confira o estado e possíveis arquivos antes de retomar." : exception.Message;
     public async Task StopAsync()
     {
+        _stopping = true; Refresh();
         Cancel();
-        try { await Task.WhenAll(_preparationTask, _executionTask); }
+        try { await Task.WhenAll(_preparationTask, _executionTask, _planOperation); }
         catch (Exception exception) { ShowError(exception); }
     }
     public void Dispose()
@@ -294,6 +333,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     {
         Notify(nameof(CanChoose)); Notify(nameof(CanStart)); Notify(nameof(CanReview)); Notify(nameof(TaskDetails)); Notify(nameof(TaskStatus));
         Notify(nameof(CanStartAvailable)); Notify(nameof(SessionUsage));
+        Notify(nameof(PlanStatus)); PrepareChiefCommand?.Refresh(); ApplyRevisionCommand?.Refresh();
         Notify(nameof(CanPrepareWorktree)); Notify(nameof(WorktreeDetails));
         Notify(nameof(CanReviewDiffs));
         ReloadCommand?.Refresh(); EnqueueCommand?.Refresh(); StartCommand?.Refresh(); CancelCommand?.Refresh(); ApproveCommand?.Refresh(); RequestChangesCommand?.Refresh();

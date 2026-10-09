@@ -51,7 +51,7 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 Estado: diagnóstico Git, worktrees, diffs, commit revisado, combinação separada, critérios/execução/histórico WPF e publicação serial confirmada conectados. Schema 11 registra intenção/candidato/resultado; Published libera dependentes e a pasta efetiva precisa conter o commit integrado. Reserva/trava e recuperação preservam executores vivos/efeitos sem repetir operações. Limite 3–7 por projeto, teto global 7, provedores misturados e despacho de uma rodada aprovados. Projetos sem Git continuam usando chat/fila; escrita direta permanece exclusiva. Worktrees e arquivos são conservados; limpeza assistida ainda pendente.
 
-Validação atual: build sem avisos/erros, 69 testes Core e sete novos de publicação aprovados. WPF --publication/--validation/--sessions aprovados, zero erros de binding, capturas revisadas. Última suíte completa anterior: 257 testes; regressões selecionadas adicionais em execução. Nenhum modelo chamado neste incremento. Release será atualizado ao fechar a sessão.
+Validação atual: build sem avisos/erros, 69 testes Core, sete novos de publicação e 26 regressões de validação/fila/concorrência aprovados. WPF --publication/--validation/--sessions aprovados, zero erros de binding, capturas revisadas. Nenhum modelo chamado neste incremento.
 
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
 - [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
@@ -67,11 +67,14 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 
 ## M4 — Distribuição assistida
 
+Estado: fluxo assistido conectado. A chefia recebe estado/resultados pelo chat e sua proposta revisada pode atualizar tarefas ainda não iniciadas, com confirmação e revisão transacional. Tentativas (1–3), prazo (1–300s) e concorrência (3–7) configuráveis por projeto. Quota restante das assinaturas e limites agregados de consumo não têm contrato verificado nos adaptadores atuais; esse item permanece pendente. Não há rodadas ou reenvios automáticos. [Fluxo e limites](docs/PLAN_UPDATES.md).
+
 - [x] Escolher uma função de chefe do projeto com provedor/modelo configurável.
 - [x] Transformar um objetivo em proposta estruturada de tarefas, validada e salva para revisão.
-- [ ] Acompanhar resultados das sessões de trabalho e atualizar o plano pelo chat central.
+- [x] Acompanhar resultados das sessões de trabalho e atualizar o plano pelo chat central, mediante envio, revisão e confirmação explícitos.
 - [x] Permitir edição de função, provedor/modelo, escopo, dependências e critérios da proposta pelo usuário.
-- [ ] Implementar limites configuráveis de tentativas, tempo, concorrência e consumo disponível (concorrência 3–7 configurável na central; três tentativas por tarefa, prazo dos adaptadores e reserva compartilhada já aplicados).
+- [x] Implementar limites configuráveis de tentativas, tempo e concorrência, com reserva compartilhada e configuração revisionada.
+- [ ] Exibir e limitar consumo disponível quando os provedores oferecerem dados de quota/consumo verificados; não estimar saldo de assinatura.
 - [x] Distinguir término de execução, aprovação da entrega e integração Git publicada.
 
 Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sessões das duas ferramentas, com plano revisável, dependências e limites controlados pelo aplicativo. Chefia não substitui permissões ou aprovação das entregas.

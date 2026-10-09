@@ -15,21 +15,21 @@ Com a worktree pronta e a tarefa parada, use **Revisar diffs** na mesma aba. Sel
 
 Depois de aprovar a entrega e salvar as mudanças em Git, use **Registrar commit revisado** no painel de diffs. O registro conserva commit/árvore e tentativa aprovada, sem integrar arquivos. Atualizar a fila mostra o commit em Pasta de trabalho. [Fluxo e limites do registro](TASK_DELIVERIES.md).
 
-Com o commit registrado, **Preparar combinação** nesse painel confirma origem/destino e cria uma pasta separada para o merge, com árvore ou conflitos persistidos. Testes, publicação e liberação de dependentes continuam pendentes. [Fluxo e limites da combinação](TASK_INTEGRATION_PREPARATION.md).
+Com o commit registrado, **Preparar combinação** confirma origem/destino e cria uma pasta separada para o merge, com árvore ou conflitos persistidos. Configure **Critérios de validação** na central e use **Validar combinação** no painel. Passed vigente permite **Publicar no projeto**, com confirmação e nova conferência do conteúdo. Publicação local registrada libera dependentes, cuja pasta precisa conter a revisão integrada. [Validação](PROJECT_VALIDATION.md) e [publicação](TASK_PUBLICATION.md).
 
-Planos encaminhados são preservados e não aceitam edição. Um plano entra na fila uma única vez; repetir o encaminhamento não duplica tarefas. Para outro planejamento, gere uma nova proposta.
+Propostas encaminhadas ficam preservadas e sem edição. Um plano entra na fila uma única vez; repetir o encaminhamento não duplica tarefas. **Chefia e plano** prepara seu estado/resultados no chat. Uma nova proposta aprovada pode atualizar somente tarefas ainda não iniciadas e sem worktree, com confirmação e histórico preservado. [Fluxo e revisões](PLAN_UPDATES.md).
 
 ## Estado e revisão
 
 Na fila → executando → aguardando revisão → entrega aprovada ou ajustes solicitados. Falha, permissão recusada, cancelamento e interrupção têm estados próprios e não liberam dependências. Término do modelo não equivale a aprovação da entrega nem a integração Git.
 
-Cada tentativa tem run, resposta, erros, eventos e identificador nativo preservados. A aba **Tentativas** permite consultar respostas anteriores; somente a entrega atual concluída pode ser revisada. Decisões obsoletas são recusadas no banco. Aprovação da entrega é definitiva neste incremento; não há revogação nem edição posterior de dependências da cópia encaminhada.
+Cada tentativa tem run, resposta, erros, eventos e identificador nativo preservados. A aba **Tentativas** permite consultar respostas anteriores; somente a entrega atual concluída pode ser revisada. Decisões obsoletas são recusadas no banco. Aprovação da entrega é definitiva neste incremento; tarefas iniciadas não aceitam mudanças de contrato/dependências pela revisão do plano.
 
 O pedido de uma tarefa contém objetivo, função/instruções, acesso recomendado, escopo, critérios e ajuste anterior. Dependentes recebem IDs dos runs aprovados, resposta até 4.000 caracteres e nota até 2.000 por dependência; trechos extensos são identificados. Não há memória compartilhada automática. Arquivos necessários são consultados no projeto, sujeito às permissões do provedor. Contexto e escopo orientam a entrega; não constituem sandbox nem revisão Git fixada.
 
 ## Limites e recuperação
 
-- Até três tentativas por tarefa, todas iniciadas pelo usuário. Não há loops de modelos ou novas tentativas automáticas.
+- 1–3 tentativas por tarefa e 1–300s por execução, configuráveis por projeto, padrões 3/300. Todas as tentativas são explícitas. Timeout aguarda o executor, conserva parcial e não aceita sucesso tardio. Não há loops ou novas tentativas automáticas.
 - Chat e fila compartilham até sete execuções globais, com limite de 3–7 por projeto (padrão 3), sem exclusividade por provedor. Escrita no original trabalha sozinha; tarefas com worktrees distintas e validadas admitem concorrência. [Regras de sessões](SESSION_CONCURRENCY.md).
 - Autorizações usam o host já existente e aparecem também na janela da fila. Confirmar plano, encaminhar ou aprovar entrega não concede permissões de ferramentas.
 - Cancelar aguarda encerramento do processo antes de liberar capacidade. Não desfaz arquivos já modificados; confira efeitos antes de iniciar outra tentativa.
@@ -37,7 +37,7 @@ O pedido de uma tarefa contém objetivo, função/instruções, acesso recomenda
 - Schema 3 acrescenta task_batches/work_tasks, preservando projetos, propostas e histórico anteriores. Reserva e run, assim como término e estado da tarefa, são gravados em transações.
 - Conversas de tarefas podem ser consultadas na central; envios e mudanças de contrato passam pela fila.
 
-Worktrees por tarefa, revisão de diffs e limite configurável de sessões estão disponíveis; publicação Git, outros limites/consumo e atualização automática do plano pela chefia permanecem pendentes. Entregas aprovadas em worktrees mantêm dependentes bloqueados neste incremento. Alterações externas nos arquivos não são fixadas por aprovação; integração verificável é o marco M3.
+Worktrees/diffs/validação/publicação e acompanhamento assistido da chefia estão disponíveis. Limpeza assistida, quota restante/limites agregados de consumo e rodadas automáticas continuam ausentes. Aprovação de entrega em worktree exige Published compatível para liberar dependentes; arquivos são reconferidos na validação/publicação.
 
 ## Validação
 
