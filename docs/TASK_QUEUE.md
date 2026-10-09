@@ -15,6 +15,8 @@ Com a worktree pronta e a tarefa parada, use **Revisar diffs** na mesma aba. Sel
 
 Depois de aprovar a entrega e salvar as mudanças em Git, use **Registrar commit revisado** no painel de diffs. O registro conserva commit/árvore e tentativa aprovada, sem integrar arquivos. Atualizar a fila mostra o commit em Pasta de trabalho. [Fluxo e limites do registro](TASK_DELIVERIES.md).
 
+Com o commit registrado, **Preparar combinação** nesse painel confirma origem/destino e cria uma pasta separada para o merge, com árvore ou conflitos persistidos. Testes, publicação e liberação de dependentes continuam pendentes. [Fluxo e limites da combinação](TASK_INTEGRATION_PREPARATION.md).
+
 Planos encaminhados são preservados e não aceitam edição. Um plano entra na fila uma única vez; repetir o encaminhamento não duplica tarefas. Para outro planejamento, gere uma nova proposta.
 
 ## Estado e revisão

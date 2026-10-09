@@ -11,10 +11,12 @@
                 <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0"><TextBlock Text="{Binding Context}" Style="{StaticResource Caption}" /></ScrollViewer>
             </StackPanel>
             <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
-                <StackPanel>
+                <ScrollViewer x:Name="DiffSummaryScroll" MaxHeight="130" VerticalScrollBarVisibility="Auto"><StackPanel>
                     <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}" />
                     <TextBlock Text="{Binding DeliveryStatus}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
-                </StackPanel>
+                    <TextBox Text="{Binding PreparationStatus, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontSize="12"
+                             Background="Transparent" BorderThickness="0" Padding="0" Margin="0,8,0,0" AutomationProperties.AutomationId="TaskCombinationStatus" />
+                </StackPanel></ScrollViewer>
             </Border>
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="350" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -50,6 +52,7 @@
                 <ScrollViewer MaxHeight="44" VerticalScrollBarVisibility="Auto" Margin="0,8,0,10"><TextBlock Text="{Binding Notice}" Style="{StaticResource Caption}" /></ScrollViewer>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Registrar commit revisado" Command="{Binding RegisterCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="RegisterTaskDelivery" />
+                    <Button Content="Preparar combinação" Command="{Binding PrepareCombinationCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="PrepareTaskCombination" />
                     <Button Content="Cancelar operação" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
                     <Button Content="Atualizar diffs" Command="{Binding RefreshCommand}" Background="{StaticResource Accent}" Foreground="White" AutomationProperties.AutomationId="RefreshTaskDiffs" />
                 </StackPanel>

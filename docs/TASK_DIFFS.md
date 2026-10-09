@@ -1,6 +1,6 @@
 # Revisão de diffs por tarefa
 
-O painel M3 consulta a worktree e o commit de base registrados na tarefa, em leitura. Não aprova, integra, prepara arquivos para commit nem chama modelos.
+As leituras do painel M3 consultam a worktree e o commit de base registrados na tarefa, preservando arquivos/índice e sem chamar modelos. Registro de commit e preparação de combinação são ações explícitas separadas.
 
 ## Usar na fila
 
@@ -9,7 +9,9 @@ O painel M3 consulta a worktree e o commit de base registrados na tarefa, em lei
 3. Selecione um arquivo e escolha **Desde o commit de base**, **Preparado para commit** ou **Na pasta, sem preparar**. Confira estado, caminho anterior e conteúdo.
 4. Use **Ler novamente** para repetir a comparação ou **Atualizar diffs** para renovar a lista após mudanças. **Cancelar operação** aguarda o término e descarta leituras tardias.
 
-Com a tarefa aprovada e a worktree sem mudanças locais, **Registrar commit revisado** guarda o commit/árvore da consulta desde a base, após confirmação. Salve as mudanças em Git antes de registrar. Cabeçalho mostra o registro persistido; não há merge ou liberação de dependentes. [Fluxo e limites do registro](TASK_DELIVERIES.md).
+Com a tarefa aprovada e a worktree sem mudanças locais, **Registrar commit revisado** guarda o commit/árvore da consulta desde a base, após confirmação. Salve as mudanças em Git antes de registrar. Cabeçalho mostra o registro persistido; essa ação não faz merge ou libera dependentes. [Fluxo e limites do registro](TASK_DELIVERIES.md).
+
+Depois do registro, **Preparar combinação** confirma origem/destino e combina numa nova pasta separada. O resumo mostra pasta, árvore ou conflitos e pode ser copiado; os arquivos/diffs abaixo continuam sendo os da tarefa. Combinação não publica/testa/libera dependentes. [Fluxo e limites da preparação](TASK_INTEGRATION_PREPARATION.md).
 
 A janela conserva o projeto e a tarefa capturados, mesmo ao mudar a seleção na fila ou na central. Cabeçalho mostra pasta/base; lista mostra estado desde a base, no índice e na pasta, além de renomeações e conflitos. Binários, prévias excessivas e comparações sem diferença têm mensagens próprias. Consulta pendente retira a prévia anterior e bloqueia seleção; erro, mudança de estado ou cancelamento retira a lista e exige nova atualização. Fechar o painel ou a central cancela e aguarda suas leituras.
 

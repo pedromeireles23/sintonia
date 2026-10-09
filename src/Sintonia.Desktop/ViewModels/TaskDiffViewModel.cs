@@ -19,6 +19,8 @@ public sealed class TaskDiffViewModel : ObservableObject
 {
     private readonly TaskDiffService _service;
     private readonly TaskDeliveryService? _deliveries;
+    private readonly TaskIntegrationPreparationService? _preparations;
+    private TaskIntegrationPreparation? _preparation;
     private TaskDelivery? _delivery;
     private CancellationTokenSource? _stop;
     private Task _operation = Task.CompletedTask;
@@ -28,13 +30,16 @@ public sealed class TaskDiffViewModel : ObservableObject
     private TaskFileDiff? _content;
     private bool _busy, _stopping;
     private string _notice = "Atualize para consultar a pasta registrada desta tarefa.";
-    public TaskDiffViewModel(WorkspaceProject project, WorkspaceTask task, TaskDiffService service, TaskDeliveryService? deliveries = null)
+    public TaskDiffViewModel(WorkspaceProject project, WorkspaceTask task, TaskDiffService service, TaskDeliveryService? deliveries = null,
+        TaskIntegrationPreparationService? preparations = null)
     {
         Project = project; TaskRecord = task; _service = service; _deliveries = deliveries; _delivery = task.Delivery; _comparison = Comparisons[0];
+        _preparations = preparations;
         RefreshCommand = new(RefreshAsync, ShowError, () => !Busy && !_stopping);
         ReadCommand = new(ReadSelectedAsync, ShowError, () => CanRead);
         CancelCommand = new(() => _stop?.Cancel(), () => Busy && !_stopping);
         RegisterCommand = new(RegisterAsync, ShowError, () => CanRegister);
+        PrepareCombinationCommand = new(PrepareCombinationAsync, ShowError, () => CanPrepareCombination);
     }
     public WorkspaceProject Project { get; }
     public WorkspaceTask TaskRecord { get; }
@@ -54,7 +59,17 @@ public sealed class TaskDiffViewModel : ObservableObject
     public TaskDiffReview? Review => _review;
     public TaskFileDiff? Content => _content;
     public TaskDelivery? Delivery => _delivery;
+    public TaskIntegrationPreparation? Preparation => _preparation;
     public Func<TaskDiffReview, bool>? ConfirmDelivery { get; set; }
+    public Func<TaskIntegrationTarget, bool>? ConfirmCombination { get; set; }
+    public string PreparationStatus => Preparation is not { } preparation ? ""
+        : $"Combinação registrada: {preparation.State switch { TaskIntegrationPreparationState.Combined => "combinada, aguardando validação", TaskIntegrationPreparationState.Conflicted => "com conflitos", TaskIntegrationPreparationState.Preparing => "preparação em andamento", _ => "precisa de atenção" }}\n"
+            + $"Pasta separada: {preparation.CheckoutDirectory}\n"
+            + $"Destino consultado: {preparation.Reservation.Target.Branch} · {preparation.Reservation.Target.Commit}\n"
+            + (preparation.Tree is { } tree ? $"Árvore combinada: {tree}\n" : "")
+            + (preparation.Conflicts is { Count: > 0 } conflicts ? "Conflitos: " + string.Join(" · ", conflicts) + "\n" : "")
+            + (preparation.Error is { } error ? error + "\n" : "")
+            + "Estado salvo da preparação. Publicação, testes do projeto e liberação de dependentes continuam pendentes.";
     public string DeliveryStatus => Delivery is { } delivery ? $"Commit registrado da entrega: {delivery.Commit}\nRegistrado em {delivery.RegisteredAt.ToLocalTime():dd/MM/yyyy HH:mm:ss}. A integração ainda está pendente."
         : (Review?.Task ?? TaskRecord).State != WorkspaceTaskState.Approved ? "Para registrar um commit, aprove a entrega na fila e atualize os diffs."
         : Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent) ? "Salve as mudanças em um commit e atualize os diffs antes de registrar. Arquivos ignorados ficam fora da entrega."
@@ -74,10 +89,14 @@ public sealed class TaskDiffViewModel : ObservableObject
     public bool CanRegister => CanChoose && _deliveries is not null && Delivery is null && Review?.Task.State == WorkspaceTaskState.Approved
         && Comparison.Value == TaskDiffView.SinceBase && !Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent)
         && (Files.Count == 0 || Content is not null);
+    public bool CanPrepareCombination => CanChoose && _preparations is not null && Delivery is not null
+        && Review?.Task.State == WorkspaceTaskState.Approved && Review.Snapshot.HeadCommit == Delivery.Commit
+        && !Files.Any(f => f.File.LocalChange is not null || f.File.HasUntrackedContent);
     public AsyncCommand RefreshCommand { get; }
     public AsyncCommand ReadCommand { get; }
     public DelegateCommand CancelCommand { get; }
     public AsyncCommand RegisterCommand { get; }
+    public AsyncCommand PrepareCombinationCommand { get; }
     public Task RefreshAsync()
     {
         if (!CanChoose) return Task.CompletedTask;
@@ -90,7 +109,9 @@ public sealed class TaskDiffViewModel : ObservableObject
         try
         {
             var review = await _service.ScanAsync(Project.Id, TaskRecord.Id, stop.Token);
+            var preparations = _preparations is null ? null : await _preparations.GetAsync(Project.Id);
             stop.Token.ThrowIfCancellationRequested(); if (_stopping) return;
+            _preparation = preparations?.LastOrDefault(p => p.Reservation.Delivery.TaskId == TaskRecord.Id);
             _review = review; _delivery = review.Task.Delivery; foreach (var file in review.Snapshot.Files) Files.Add(new(file));
             Notice = Files.Count == 0 ? "Nenhuma diferença desde a base ou alteração local nesta consulta." : "Lista consultada. Selecione um arquivo e a comparação desejada.";
         }
@@ -146,7 +167,37 @@ public sealed class TaskDiffViewModel : ObservableObject
     { _stopping = true; _stop?.Cancel(); RefreshProperties(); await _operation; }
     private void RefreshProperties()
     {
-        foreach (var property in new[] { nameof(Review), nameof(Content), nameof(Delivery), nameof(DeliveryStatus), nameof(Summary), nameof(ContentText), nameof(ContentStatus), nameof(CanChoose), nameof(CanRead), nameof(CanRegister) }) Notify(property);
-        RefreshCommand?.Refresh(); ReadCommand?.Refresh(); CancelCommand?.Refresh(); RegisterCommand?.Refresh();
+        foreach (var property in new[] { nameof(Review), nameof(Content), nameof(Delivery), nameof(DeliveryStatus), nameof(Preparation), nameof(PreparationStatus), nameof(Summary), nameof(ContentText), nameof(ContentStatus), nameof(CanChoose), nameof(CanRead), nameof(CanRegister), nameof(CanPrepareCombination) }) Notify(property);
+        RefreshCommand?.Refresh(); ReadCommand?.Refresh(); CancelCommand?.Refresh(); RegisterCommand?.Refresh(); PrepareCombinationCommand?.Refresh();
+    }
+
+    public Task PrepareCombinationAsync()
+    {
+        if (!CanPrepareCombination) return Task.CompletedTask;
+        _stop = new(); Busy = true; Notice = "Conferindo o commit registrado e o destino da combinação.";
+        return _operation = PrepareCombinationCoreAsync(_stop);
+    }
+    private async Task PrepareCombinationCoreAsync(CancellationTokenSource stop)
+    {
+        await Task.Yield();
+        try
+        {
+            var preview = await _preparations!.PreviewAsync(Project.Id, TaskRecord.Id, stop.Token);
+            stop.Token.ThrowIfCancellationRequested(); if (_stopping) return;
+            if (ConfirmCombination?.Invoke(preview) != true) { Notice = "Combinação não confirmada. Nenhuma pasta de integração foi criada."; return; }
+            stop.Token.ThrowIfCancellationRequested(); _preparation = null; RefreshProperties();
+            Notice = "Combinando em uma pasta separada. O projeto original será preservado; nenhum modelo será chamado.";
+            _preparation = await _preparations.PrepareAsync(Project.Id, TaskRecord.Id, preview, stop.Token);
+            Notice = _preparation.State == TaskIntegrationPreparationState.Conflicted
+                ? "Combinação com conflitos. Confira os arquivos na pasta separada; o projeto original foi preservado."
+                : "Arquivos combinados na pasta separada. Validação e publicação ainda pendentes; dependentes continuam bloqueados.";
+        }
+        catch (Exception exception)
+        {
+            ClearReview(); ShowError(exception); Notice += " Atualize para conferir a preparação salva e possíveis arquivos preservados.";
+            // The service saves failure/partial effects before returning. Do not show an older successful preparation.
+            _preparation = null;
+        }
+        finally { _stop = null; stop.Dispose(); Busy = false; }
     }
 }

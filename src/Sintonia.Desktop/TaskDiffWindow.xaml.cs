@@ -13,6 +13,9 @@ public partial class TaskDiffWindow : Window
         ViewModel.ConfirmDelivery ??= review => MessageBox.Show(this,
             $"Registrar o commit {review.Snapshot.HeadCommit} da tarefa {review.Task.Definition.Title}?\n\nO registro inclui os arquivos versionados de toda a worktree, inclusive fora da subpasta do projeto. Não cria commits nem integra arquivos; dependentes continuam bloqueados.",
             "Registrar commit revisado", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        ViewModel.ConfirmCombination ??= target => MessageBox.Show(this,
+            $"Combinar a entrega {ViewModel.Delivery?.Commit} com {target.Commit}?\n\nDestino de referência: {target.RepositoryDirectory}\nBranch: {target.Branch}\n\nSerá criada uma nova worktree separada para conferir o conjunto e seus conflitos. Pastas anteriores serão preservadas. Publicação, testes do projeto e liberação de dependentes continuam pendentes.",
+            "Preparar combinação", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         Loaded += async (_, _) => await ViewModel.RefreshAsync();
         Closing += async (_, e) =>
         {

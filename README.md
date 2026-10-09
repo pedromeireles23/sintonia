@@ -21,7 +21,7 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 ## Estado atual
 
-**M2 concluído; M3 com diagnóstico, worktrees, diffs e registro de commits revisados.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico, perfis, pastas de tarefas e registros de entrega sobrevivem à reabertura. Consulte branch e alterações pelo painel Git, prepare uma worktree explicitamente pela fila, revise seus diffs e registre o commit de uma entrega aprovada. Leitura permite duas IAs simultâneas, uma por provedor; escrita continua serial no projeto. Executor de integração Git está pendente. Build sem avisos/erros, 203 testes xUnit aprovados e fluxos WPF verificados.
+**M2 concluído; M3 com diagnóstico, worktrees, diffs, registro de commits e combinação em pasta separada.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico, perfis, pastas e entregas sobrevivem à reabertura. Consulte o painel Git, prepare uma worktree pela fila, revise seus diffs, registre a entrega aprovada e prepare sua combinação com o destino confirmado. Resultado/conflitos ficam persistidos numa nova pasta, preservando o original. Validação do conjunto, publicação no projeto e liberação de dependentes permanecem pendentes. Leitura permite duas IAs simultâneas, uma por provedor; escrita continua serial. Build sem avisos/erros, 216 testes xUnit verificados e fluxos WPF validados.
 
 Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. Integração Git está pendente.
 
@@ -45,6 +45,7 @@ A demonstração Electron criada durante a pesquisa foi um experimento de fluxo;
 - [Worktrees por tarefa](docs/TASK_WORKTREES.md).
 - [Revisão de diffs](docs/TASK_DIFFS.md).
 - [Registro de entregas e reserva de integração](docs/TASK_DELIVERIES.md).
+- [Preparação da combinação em pasta separada](docs/TASK_INTEGRATION_PREPARATION.md).
 - [Análise do Maestro](docs/MAESTRO_ANALYSIS.md).
 - [Decisões técnicas](docs/DECISIONS.md).
 
@@ -95,6 +96,10 @@ Após **Aprovar entrega**, salve suas mudanças em um commit na worktree por uma
 
 ![Commit revisado registrado em tamanho mínimo — Git real e runs simulados, sem chamada de modelos](docs/images/sintonia-entrega.png)
 
+Com o commit registrado e a origem limpa, use **Preparar combinação**. Confira os commits de origem/destino, branch e pasta original na confirmação. Uma nova worktree separada guarda o resultado do merge, sem criar commit ou publicar no original. O resumo mostra pasta, árvore combinada ou conflitos e pode ser copiado; os diffs abaixo continuam sendo os da tarefa. Cancelamento/interrupção preserva efeitos parciais; atualizar/reabrir consulta o estado salvo. Testes do projeto, publicação e dependentes continuam pendentes. [Fluxo e limites da preparação](docs/TASK_INTEGRATION_PREPARATION.md).
+
+![Combinação com conflito em tamanho mínimo — Git real em pasta de teste e runs simulados, sem modelos](docs/images/sintonia-combinacao.png)
+
 Abra **Diagnóstico Git** para conferir raiz, branch/commit, acompanhamento local e alterações preparadas, na pasta, novas ou em conflito. Uma subpasta mostra o repositório inteiro; confira a raiz indicada. O painel permite atualizar/cancelar sem modificar arquivos ou índice e mantém o projeto consultado mesmo ao navegar na central. Projetos sem Git continuam disponíveis. Integração está pendente. [Fluxo e limites do diagnóstico](docs/GIT_DIAGNOSTICS.md).
 
 ![Diagnóstico Git em tamanho mínimo — Git real em pasta de teste, sem chamada de modelos](docs/images/sintonia-git.png)
@@ -111,6 +116,7 @@ rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- -
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --worktrees
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --diffs
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --deliveries
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --combinations
 ```
 
 O primeiro teste percorre a demonstração; os demais verificam a central, os planos, a fila e os perfis com provedores de teste, sem consumir modelos. `--git`, `--worktrees`, `--diffs` e `--deliveries` usam Git real em pastas exclusivas de teste, com provedores/erros/interrupções/runs simulados e nenhuma chamada de modelos. Capturas em `artifacts/ui-smoke`, `artifacts/workspace-smoke`, `artifacts/proposal-smoke`, `artifacts/queue-smoke`, `artifacts/profile-smoke`, `artifacts/git-smoke`, `artifacts/worktree-smoke`, `artifacts/diff-smoke` e `artifacts/delivery-smoke`. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere abertura/encerramento do executável normal. A opção `--workspace-real` é prova manual finita, consome quota e não deve rodar em CI/loop.

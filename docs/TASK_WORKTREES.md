@@ -37,4 +37,6 @@ Com a worktree pronta e a tarefa parada, **Revisar diffs** abre a comparação d
 
 Após aprovar a entrega e salvar suas mudanças em um commit, o painel de diffs permite [registrar esse commit](TASK_DELIVERIES.md). A identificação persistida não altera arquivos nem integra a entrega; dependentes continuam bloqueados.
 
+**Preparar combinação** usa esse registro para combinar com o destino confirmado numa nova worktree separada, preservando as pastas existentes. Resultado/conflitos aparecem no resumo; validação/publicação e dependentes continuam pendentes. [Fluxo e limites da preparação](TASK_INTEGRATION_PREPARATION.md).
+
 Teste WPF `--worktrees` percorre recusa/confirmação pelos comandos visuais, preparação com Git real, escrita/autorização e ajuste com provedor simulado, reabertura, dependência bloqueada, troca de projeto, cancelamento parcial e fechamento da central. Layout normal/mínimo revisado, zero erros de binding. Preview evita status do original para não executar filtros clean; a conferência de retomada desabilita filtros somente no próprio comando.

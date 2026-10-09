@@ -2,6 +2,16 @@
 
 O executor combina o commit registrado de uma tarefa com o commit confirmado da branch original numa **nova pasta separada**. Guarda intenção e resultado no SQLite. Essa preparação não publica arquivos no projeto, cria um commit de merge, executa testes do projeto ou libera dependentes.
 
+## Usar no painel de diffs
+
+1. Aprove a entrega, salve as mudanças em Git e [registre o commit revisado](TASK_DELIVERIES.md).
+2. Use **Preparar combinação** no painel de diffs. A consulta exige a origem registrada e o destino limpos; confira os commits, branch e pasta original na confirmação.
+3. Confirmar cria uma nova pasta separada. Recusar não reserva nem cria checkout. Mudança após a prévia exige atualizar antes de tentar novamente.
+4. O resumo mostra estado salvo, pasta, destino consultado, árvore ou caminhos de conflito. O texto pode ser selecionado/copiado para consultar a pasta; use a rolagem do resumo quando necessário. Os diffs abaixo continuam sendo os da worktree da tarefa, identificada no cabeçalho.
+5. **Cancelar operação** aguarda o executor parar e salvar atenção. Atualizar/reabrir mostra o resultado persistido. Fechar painel/central cancela e aguarda; navegar não troca seu projeto/tarefa.
+
+Nova preparação conserva as pastas anteriores. O resumo não é uma consulta contínua dos arquivos combinados; o conjunto ainda precisa de validação configurável e publicação confirmada. Dependentes permanecem bloqueados.
+
 ## Contratos e persistência
 
 `TaskIntegrationPreparationService` consulta a prévia por `TaskDeliveryService`, adquire a trava por Git comum e confere novamente origem/destino antes da reserva. A tarefa precisa estar aprovada, com o mesmo commit/árvore/run registrados e worktree limpa. O destino precisa estar limpo, numa branch local e conter a base da tarefa. Uma prévia obsoleta não cria a pasta.
@@ -34,6 +44,8 @@ Prazo total de 60 segundos para o executor, streams assíncronos limitados a 64 
 ## Validação e próximos passos
 
 Testes usam Git real em pastas temporárias e runs/temporização simulados, sem chamar modelos. Conferem combinação, conflitos, árvores/HEAD/índices, ignorados, configurações/hooks, caminhos existentes, prévia obsoleta, filtros/submódulos, cancelamento com resposta tardia, reservas vivas, recuperação sem repetição e migração do schema 6.
+
+Teste WPF `--combinations` percorre registro exigido, botão, recusa/prévia obsoleta, combinação e conflito reais, original/índice/ignorado preservados, navegação/reabertura, cancelamento/resposta tardia e fechamento da central com efeitos parciais preservados. Layout normal/mínimo revisado, sem erros de binding; runs e temporização simulados. Regressões de registro/diffs também verificadas.
 
 Ainda faltam comandos/critérios de validação configuráveis para projetos gerais, resolução/revisão de conflitos, publicação confirmada no destino e disponibilidade da revisão correta para dependentes. Não há limpeza automática de worktrees. A preparação não equivale à integração concluída do M3.
 

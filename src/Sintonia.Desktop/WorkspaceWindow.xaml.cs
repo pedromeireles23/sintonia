@@ -20,10 +20,11 @@ public partial class WorkspaceWindow : Window
         InitializeComponent();
         var store = new SqliteWorkspaceStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sintonia", "workspace.db"));
         var worktrees = new GitTaskWorktreeManager();
+        var deliveries = new TaskDeliveryService(store, new GitTaskDeliveryInspector(worktrees));
         DataContext = viewModel ?? new WorkspaceViewModel(store,
             new WorkspaceChatService(store, [new CodexConversationProvider(), new ClaudeConversationProvider()], worktrees), Dispatcher,
             PickDirectory, InspectAsync, new TaskWorktreeService(store, worktrees), new TaskDiffService(store, new GitTaskDiffReader(worktrees)),
-            new TaskDeliveryService(store, new GitTaskDeliveryInspector(worktrees)));
+            deliveries, new TaskIntegrationPreparationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationPreparer(worktrees)));
         Loaded += async (_, _) => await ViewModel.InitializeAsync();
         Closing += CloseAsync;
     }
