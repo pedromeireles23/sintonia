@@ -23,9 +23,9 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 ## Estado atual
 
-**M2 concluído; M3 com publicação e arquivamento Git assistidos e M4 com revisão assistida do plano.** Cadastre projetos, escolha Codex/Claude e modelo, converse e retome sessões. Histórico, perfis, tarefas e entregas sobrevivem à reabertura. Prepare worktrees, revise diffs, registre commits, combine em pasta separada e execute critérios de validação configuráveis. Uma combinação Passed vigente pode ser publicada localmente; dependentes exigem a revisão integrada na sua pasta. Após publicar, arquive a worktree da entrega preservando arquivos, branch e histórico. O arquivo continua ocupando espaço; combinações permanecem. A chefia recebe resultados no chat e propõe ajustes para tarefas ainda não iniciadas, com revisão/confirmação. Limites por projeto: 3–7 sessões, 1–3 tentativas por tarefa e 1–300s por execução; teto global de sete sessões. Escrita paralela usa worktrees validadas distintas. Restauração/descarte de arquivos e quota restante/limites agregados de consumo continuam pendentes. [Sessões](docs/SESSION_CONCURRENCY.md), [publicação](docs/TASK_PUBLICATION.md), [arquivamento](docs/TASK_WORKTREE_CLEANUP.md) e [chefia/limites](docs/PLAN_UPDATES.md).
+**M2 concluído; M3 com publicação e arquivamento Git assistidos e M4 com revisão assistida do plano e consulta de quota Codex.** Cadastre projetos, escolha Codex/Claude e modelo, converse e retome sessões. Histórico, perfis, tarefas e entregas sobrevivem à reabertura. Prepare worktrees, revise diffs, registre commits, combine em pasta separada e execute critérios de validação configuráveis. Uma combinação Passed vigente pode ser publicada localmente; dependentes exigem a revisão integrada na sua pasta. Após publicar, arquive a worktree da entrega preservando arquivos, branch e histórico. O arquivo continua ocupando espaço; combinações permanecem. A chefia recebe resultados no chat e propõe ajustes para tarefas ainda não iniciadas, com revisão/confirmação. Limites por projeto: 3–7 sessões, 1–3 tentativas por tarefa e 1–300s por execução; teto global de sete sessões. Escrita paralela usa worktrees validadas distintas. Restauração/descarte de arquivos, quota Claude e limites agregados de consumo continuam pendentes. [Sessões](docs/SESSION_CONCURRENCY.md), [publicação](docs/TASK_PUBLICATION.md), [arquivamento](docs/TASK_WORKTREE_CLEANUP.md), [chefia/limites](docs/PLAN_UPDATES.md) e [uso dos provedores](docs/PROVIDER_USAGE.md).
 
-Build Debug/Release sem avisos/erros e fluxos WPF de sessões, validação/publicação, revisão do plano e arquivamento aprovados sem erros de binding. No arquivamento, passaram 69 Core, nove testes novos e 36 casos selecionados em Release, incluindo 35 regressões e a reexecução de um novo. A suíte contém 279 casos; o baseline anterior tinha 270 verificados e os casos não afetados não foram repetidos integralmente. [Evidências](docs/DEVELOPMENT_LOG.md). Testes de Git usam repositórios reais e processos/runs simulados; nenhum modelo foi chamado nestes incrementos.
+Build Debug/Release sem avisos/erros e fluxos WPF de sessões, validação/publicação, revisão do plano, arquivamento e uso aprovados sem erros de binding. No incremento de uso, passaram 69 Core e 93 casos selecionados de Infrastructure em Release, incluindo 18 novos de quota e 75 regressões. A suíte contém 297 casos; os casos não afetados não foram repetidos integralmente. [Evidências](docs/DEVELOPMENT_LOG.md). Testes de Git usam repositórios reais e processos/runs simulados; o painel usa dados de teste. Uma consulta real de metadados Codex confirmou os limites sem iniciar inferência. Nenhum modelo foi chamado nestes incrementos.
 
 Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. As provas reais foram finitas; os testes novos usam provedores simulados.
 
@@ -54,6 +54,7 @@ A demonstração Electron criada durante a pesquisa foi um experimento de fluxo;
 - [Validação configurável por projeto](docs/PROJECT_VALIDATION.md).
 - [Publicação Git e revisão integrada](docs/TASK_PUBLICATION.md).
 - [Acompanhamento da chefia, revisão do plano e limites](docs/PLAN_UPDATES.md).
+- [Uso e quota dos provedores](docs/PROVIDER_USAGE.md).
 - [Análise do Maestro](docs/MAESTRO_ANALYSIS.md).
 - [Decisões técnicas](docs/DECISIONS.md).
 
@@ -120,6 +121,10 @@ Abra **Diagnóstico Git** para conferir raiz, branch/commit, acompanhamento loca
 
 ![Diagnóstico Git em tamanho mínimo — Git real em pasta de teste, sem chamada de modelos](docs/images/sintonia-git.png)
 
+Abra **Uso dos provedores** para consultar os percentuais e a renovação da conta Codex, compartilhada entre projetos/aplicativos. **Atualizar uso** consulta novamente sem chamar modelos; **Cancelar consulta** aguarda o encerramento. Dados ausentes ficam indisponíveis e o horário identifica a consulta. Novos envios ao Codex são interrompidos quando o provedor informa uso incluído indisponível; percentuais e horários não garantem acesso futuro. Quota Claude aparece indisponível pela integração, com orientação para `/usage` no Claude Code. [Contrato e limitações](docs/PROVIDER_USAGE.md).
+
+![Uso dos provedores — dados de teste, sem chamada de modelos](docs/images/sintonia-uso.png)
+
 Verificação da janela real no Windows (abre, percorre o fluxo e fecha a janela de teste):
 
 ```powershell
@@ -130,6 +135,7 @@ rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- -
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --queue
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --profiles
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --git
+rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --usage
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --worktrees
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --diffs
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --deliveries
@@ -149,6 +155,8 @@ rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build
 ```
 
 Consulta somente versão/ajuda, com prazos e saída limitada. Encontrar um executável não confirma autenticação, assinatura, quota disponível ou integração real. Consulte [as verificações e limites do M1](docs/PROVIDER_PROBES.md).
+
+`rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- usage Codex` consulta somente metadados normalizados de limites da conta, sem thread/turno ou modelo. `usage Claude` informa ausência de consulta verificada sem lançar processo. WPF `--usage` usa leitores/dados simulados, com capturas em `artifacts/usage-smoke`; não consome modelos.
 
 A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- permissions Claude` consome quota da assinatura: faz no máximo dois turnos em pasta exclusiva de `artifacts/provider-probes`, recusa uma escrita e permite outra com caminho/conteúdo conferidos. Não deve rodar em CI/loop.
 

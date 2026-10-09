@@ -13,7 +13,7 @@ public sealed class ClaudeConversationProvider(ExecutableLaunch? executable = nu
     {
         token.ThrowIfCancellationRequested();
         return Task.FromResult(ProviderUsageSnapshot.Unavailable(Kind,
-            "Quota da assinatura indisponível nesta integração. Consulte /usage no Claude Code ou as configurações de uso em claude.ai. Não há consulta de quota verificada no protocolo atual do Sintonia."));
+            "Quota da assinatura indisponível nesta integração. Consulte /usage no Claude Code ou as configurações de uso em claude.ai."));
     }
     private ExecutableLaunch Launch => executable ?? ExecutableLocator.Find(Kind)
         ?? throw new ProviderException("Claude não encontrado. Instale e entre no Claude Code com sua assinatura.");

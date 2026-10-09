@@ -28,6 +28,7 @@
                     <Button Content="Fila de tarefas" Click="OpenTasks" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="TaskQueue" />
                     <Button Content="Perfis de função" Click="OpenFunctionProfiles" IsEnabled="{Binding CanManageFunctionProfiles}" Margin="0,0,0,8" AutomationProperties.AutomationId="ManageFunctionProfiles" />
                     <Button Content="Diagnóstico Git" Click="OpenGitDiagnostics" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="GitDiagnostics" />
+                    <Button Content="Uso dos provedores" Click="OpenProviderUsage" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ProviderUsage" />
                     <Button Content="Critérios de validação" Click="OpenValidationConfiguration" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ProjectValidation" />
                     <Button Content="Abrir demonstração" Click="OpenDemo" Background="#2D5642" Foreground="White" />
                 </StackPanel>

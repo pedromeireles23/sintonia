@@ -34,7 +34,7 @@ Prazo excedido cancela o provedor e registra Failed com mensagem de timeout e re
 
 Schema 12 guarda tentativas/prazo em `project_execution_limits`, com a mesma revisão da configuração de sessões. Migração preserva o histórico e usa os padrões para projetos existentes. Rascunhos inválidos ou obsoletos não substituem a configuração salva.
 
-Os adaptadores atuais não fornecem uma quota restante uniforme e verificada das assinaturas. Não há limite agregado de créditos, tokens ou custo, nem estimativa apresentada como quota real. Consumo disponível permanece uma capacidade pendente; limites de tempo, tentativas e concorrência estão implementados.
+O painel **Uso dos provedores** consulta percentuais/janelas/renovação verificados da conta Codex; recusa explícita do backend interrompe novos envios antes da thread/turno. Quota Claude ainda não tem consulta verificada nesta integração e aparece indisponível. Os dados são compartilhados por conta e não representam orçamento do projeto. Não há limite agregado de créditos, tokens ou custo, nem estimativa apresentada como quota real. Limites de tempo, tentativas e concorrência estão implementados. [Contrato de consulta e admissão](PROVIDER_USAGE.md).
 
 ## Validação
 

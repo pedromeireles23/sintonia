@@ -71,14 +71,17 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 
 ## M4 — Distribuição assistida
 
-Estado: fluxo assistido conectado. A chefia recebe estado/resultados pelo chat e sua proposta revisada pode atualizar tarefas ainda não iniciadas, com confirmação e revisão transacional. Tentativas (1–3), prazo (1–300s) e concorrência (3–7) configuráveis por projeto. Consulta de limites Codex verificada no adaptador, com bloqueio antes do turno somente mediante indisponibilidade explícita do backend; painel WPF ainda em implementação. Quota Claude e consumo agregado permanecem pendentes. Não há rodadas ou reenvios automáticos. [Fluxo e limites](docs/PLAN_UPDATES.md), [quota e fontes](docs/PROVIDER_USAGE.md).
+Estado: fluxo assistido conectado. A chefia recebe estado/resultados pelo chat e sua proposta revisada pode atualizar tarefas ainda não iniciadas, com confirmação e revisão transacional. Tentativas (1–3), prazo (1–300s) e concorrência (3–7) configuráveis por projeto. Painel WPF de limites Codex conectado, com bloqueio antes do turno somente mediante indisponibilidade explícita do backend; quota Claude aparece indisponível por ausência de consulta verificada. Consumo por execução/limites agregados permanecem pendentes. Não há rodadas ou reenvios automáticos. [Fluxo e limites](docs/PLAN_UPDATES.md), [quota e fontes](docs/PROVIDER_USAGE.md).
+
+Uso dos provedores: build Debug/Release sem avisos/erros; 69 Core e 93 casos selecionados de Infrastructure em Release aprovados, incluindo 18 novos de quota, 39 regressões de protocolo e 36 de workspace/fila/concorrência/revisão de planos. WPF --usage/--workspace/--chief-plan aprovados, zero erros de binding e capturas normal/mínima revisadas. Uma consulta real de metadados Codex confirmou o contrato sem iniciar modelos. A suíte contém 297 casos; testes não afetados não foram repetidos integralmente.
 
 - [x] Escolher uma função de chefe do projeto com provedor/modelo configurável.
 - [x] Transformar um objetivo em proposta estruturada de tarefas, validada e salva para revisão.
 - [x] Acompanhar resultados das sessões de trabalho e atualizar o plano pelo chat central, mediante envio, revisão e confirmação explícitos.
 - [x] Permitir edição de função, provedor/modelo, escopo, dependências e critérios da proposta pelo usuário.
 - [x] Implementar limites configuráveis de tentativas, tempo e concorrência, com reserva compartilhada e configuração revisionada.
-- [ ] Exibir e limitar consumo disponível quando os provedores oferecerem dados de quota/consumo verificados; não estimar saldo de assinatura.
+- [x] Exibir quota Codex verificada e respeitar indisponibilidade explícita antes do envio; documentar consulta Claude indisponível, sem estimar saldo de assinatura.
+- [ ] Registrar consumo verificado por execução e implementar limites agregados compatíveis com os dados fornecidos; suporte Claude depende de contrato próprio.
 - [x] Distinguir término de execução, aprovação da entrega e integração Git publicada.
 
 Aceite: um objetivo no chat pode ser planejado pelo chefe e dividido entre sessões das duas ferramentas, com plano revisável, dependências e limites controlados pelo aplicativo. Chefia não substitui permissões ou aprovação das entregas.

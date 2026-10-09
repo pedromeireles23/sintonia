@@ -15,10 +15,12 @@ public partial class WorkspaceWindow : Window
 {
     private bool _closed;
     private bool _closing;
+    private readonly IReadOnlyList<IProviderUsageReader> _usageReaders;
     public WorkspaceViewModel ViewModel => (WorkspaceViewModel)DataContext;
-    public WorkspaceWindow(WorkspaceViewModel? viewModel = null)
+    public WorkspaceWindow(WorkspaceViewModel? viewModel = null, IEnumerable<IProviderUsageReader>? usageReaders = null)
     {
         InitializeComponent();
+        _usageReaders = usageReaders?.ToArray() ?? [new CodexConversationProvider(), new ClaudeConversationProvider()];
         var store = new SqliteWorkspaceStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sintonia", "workspace.db"));
         var worktrees = new GitTaskWorktreeManager();
         var deliveries = new TaskDeliveryService(store, new GitTaskDeliveryInspector(worktrees));
@@ -49,6 +51,11 @@ public partial class WorkspaceWindow : Window
     {
         if (ViewModel.Project is { } project)
             new GitDiagnosticsWindow(new(project, new GitRepositoryInspector())) { Owner = this }.Show();
+    }
+    private void OpenProviderUsage(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.Project is { } project)
+            new ProviderUsageWindow(new(project, ViewModel.Provider, _usageReaders)) { Owner = this }.Show();
     }
     private async void OpenProposals(object sender, RoutedEventArgs e)
     {
@@ -84,6 +91,7 @@ public partial class WorkspaceWindow : Window
         try
         {
             await Task.WhenAll(OwnedWindows.OfType<GitDiagnosticsWindow>().Select(window => window.ViewModel.StopAsync())
+                .Concat(OwnedWindows.OfType<ProviderUsageWindow>().Select(window => window.ViewModel.StopAsync()))
                 .Concat(OwnedWindows.OfType<TaskDiffWindow>().Select(window => window.ViewModel.StopAsync()))
                 .Concat(OwnedWindows.OfType<TaskValidationWindow>().Select(window => window.ViewModel.StopAsync()))
                 .Concat(OwnedWindows.OfType<ProjectValidationWindow>().Select(window => window.ViewModel.StopAsync()))
