@@ -70,6 +70,8 @@ Próximo incremento M3: executor de integração serial a partir do commit regis
 
 ## Critério da primeira versão útil
 
+Proteção do executor preparada: trava de arquivo por Git comum mantém reservas vivas durante recuperação e é liberada pelo Windows no término do processo. Um processo de teste separado verifica exclusividade, preservação durante recuperação e atenção após encerramento. O executor deverá adquirir a trava antes da reserva e conservá-la até persistir seu resultado. Nenhum merge foi acrescentado neste ajuste.
+
 Selecionar a pasta de um projeto, atribuir uma tarefa ao Claude e outra ao Codex, ver ambos executando e revisar suas entregas no mesmo painel. A integração segura das mudanças paralelas também precisa de worktrees, revisão e teste do conjunto.
 
 ## Restrições e pontos a validar

@@ -33,6 +33,12 @@ public enum TaskIntegrationState { Reserved, Released, NeedsAttention }
 public sealed record TaskIntegrationReservation(string Id, TaskDelivery Delivery, TaskIntegrationTarget Target,
     DateTimeOffset ReservedAt, TaskIntegrationState State = TaskIntegrationState.Reserved, string? Error = null);
 
+/// <summary>Held throughout native integration work, including persistence of its final state.</summary>
+public interface IRepositoryIntegrationLock
+{
+    IDisposable Acquire(string commonGitDirectory);
+}
+
 public interface IGitTaskDeliveryInspector
 {
     Task<TaskDeliveryCommit> CaptureAsync(TaskDiffSnapshot snapshot, CancellationToken cancellationToken);

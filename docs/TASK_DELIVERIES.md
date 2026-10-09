@@ -30,6 +30,8 @@ O SQLite reserva por Git comum, inclusive entre instâncias do mesmo banco. A re
 
 Cada reserva tem ID próprio. Liberar uma reserva antiga não libera uma nova. Falha/cancelamento registra `NeedsAttention`; liberação sem efeitos registra `Released`. Nenhum estado representa integração concluída. Recuperação de `Reserved` registra atenção, preserva a entrega e não repete Git. A reserva não funciona como trava do sistema de arquivos ou de programas externos.
 
+`RepositoryIntegrationLock` mantém um arquivo aberto com compartilhamento exclusivo por Git comum. A operação deve adquirir essa trava antes de reservar e conservá-la até salvar seu resultado. A recuperação tenta a mesma trava: preserva reservas de executores vivos e marca atenção somente quando consegue adquiri-la. O Windows libera o bloqueio ao encerrar o processo; o arquivo marcador permanece para evitar uma corrida de exclusão/recriação. Erros de acesso são propagados, sem presumir que o executor morreu. A janela principal já impede uma segunda instância na mesma sessão do Windows; esta proteção adicional coordena integração/recuperação também entre processos.
+
 Não há botão de reserva enquanto o executor de integração estiver pendente. Aprovação, registro e reserva permanecem insuficientes para liberar dependentes. A futura integração deverá fixar origem/destino, preservar alterações e arquivos ignorados, testar a combinação e registrar o resultado real.
 
 ## Validação

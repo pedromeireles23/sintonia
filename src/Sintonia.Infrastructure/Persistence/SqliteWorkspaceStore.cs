@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Sintonia.Core;
+using Sintonia.Infrastructure.Git;
 
 namespace Sintonia.Infrastructure.Persistence;
 
@@ -210,9 +211,29 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         Execute(connection, transaction, "UPDATE work_tasks SET state=$state WHERE state=1", ("$state", (int)WorkspaceTaskState.Interrupted));
         Execute(connection, transaction, "UPDATE task_worktrees SET state=2,error=$error WHERE state=0",
             ("$error", "O aplicativo encerrou durante a preparação. Confira a pasta e prepare novamente; nenhum efeito foi repetido."));
-        Execute(connection, transaction, "UPDATE task_integrations SET state=2,error=$error WHERE state=0",
-            ("$error", "O aplicativo encerrou com uma reserva de integração. Confira origem/destino e possíveis efeitos; nenhuma integração foi repetida."));
-        transaction.Commit();
+        // Hold each acquired OS lock until the transaction commits. A live executor owns this lock
+        // before reserving and until it has saved its result; recovery must leave that reservation intact.
+        var locks = new List<IDisposable>();
+        try
+        {
+            var abandoned = new List<string>();
+            using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction; command.CommandText = "SELECT id,common_key FROM task_integrations WHERE state=0";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    var held = RepositoryIntegrationLock.TryAcquire(reader.GetString(1));
+                    if (held is null) continue;
+                    locks.Add(held); abandoned.Add(reader.GetString(0));
+                }
+            }
+            foreach (var id in abandoned)
+                Execute(connection, transaction, "UPDATE task_integrations SET state=2,error=$error WHERE id=$id AND state=0",
+                    ("$id", id), ("$error", "O aplicativo encerrou com uma reserva de integração. Confira origem/destino e possíveis efeitos; nenhuma integração foi repetida."));
+            transaction.Commit();
+        }
+        finally { foreach (var held in locks) held.Dispose(); }
         return true;
     });
 

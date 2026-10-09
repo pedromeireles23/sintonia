@@ -35,5 +35,12 @@ switch (args.FirstOrDefault())
         }
         return 0;
     case "wait": await Task.Delay(TimeSpan.FromMinutes(5)); return 0;
+    case "hold-file":
+        using (var held = new FileStream(args[1], FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+        {
+            Console.WriteLine("LOCKED");
+            await Task.Delay(TimeSpan.FromMinutes(5));
+        }
+        return 0;
     default: return 1;
 }

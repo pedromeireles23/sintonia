@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Diagnostics;
+using System.Text;
 using Microsoft.Data.Sqlite;
 using Sintonia.Core;
 using Sintonia.Infrastructure.Git;
@@ -27,6 +29,37 @@ public sealed class TaskDeliveryTests
     }
     private static ChatRun NewRun(WorkspaceTask task) => new(Guid.NewGuid().ToString(), task.ConversationId, "teste", null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
     private static TaskDeliveryService Service(SqliteWorkspaceStore store, TaskWorktreeTests.Fixture fixture) => new(store, new GitTaskDeliveryInspector(fixture.Manager));
+
+    [Fact]
+    public async Task RecoveryLeavesLiveIntegrationAloneAndRecoversAfterOwnerProcessExits()
+    {
+        using var fixture = new TaskWorktreeTests.Fixture(); var (store, project, task, review) = await PrepareAsync(fixture);
+        var service = Service(store, fixture); var delivery = await service.RegisterAsync(project.Id, review, CancellationToken.None);
+        var target = await service.PreviewIntegrationAsync(project.Id, task.Id, CancellationToken.None);
+        var key = Path.TrimEndingDirectorySeparator(Path.GetFullPath(target.CommonGitDirectory)).ToUpperInvariant();
+        var lockPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sintonia", "integration-locks",
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key))) + ".lock");
+        Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
+        using var owner = Process.Start(new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "fixtures", "Sintonia.ProcessFixture.exe"))
+        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, ArgumentList = { "hold-file", lockPath } })!;
+        try
+        {
+            Assert.Equal("LOCKED", await owner.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)));
+            var reservation = await store.ReserveTaskIntegrationAsync(project.Id, delivery, target);
+            var other = new SqliteWorkspaceStore(fixture.Database); await other.InitializeAsync();
+            await other.RecoverInterruptedRunsAsync();
+            Assert.Equal(TaskIntegrationState.Reserved, (await other.GetTaskIntegrationsAsync(project.Id)).Single().State);
+            Assert.Throws<InvalidOperationException>(() => new RepositoryIntegrationLock().Acquire(target.CommonGitDirectory));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => other.ReserveTaskIntegrationAsync(project.Id, delivery, target));
+            owner.Kill(entireProcessTree: true); await owner.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            await other.RecoverInterruptedRunsAsync();
+            Assert.Equal(TaskIntegrationState.NeedsAttention, (await other.GetTaskIntegrationsAsync(project.Id)).Single().State);
+            using var nextOwner = new RepositoryIntegrationLock().Acquire(target.CommonGitDirectory);
+            Assert.Throws<InvalidOperationException>(() => new RepositoryIntegrationLock().Acquire(target.CommonGitDirectory));
+            Assert.Equal(reservation.Id, (await store.GetTaskIntegrationsAsync(project.Id)).Single().Id);
+        }
+        finally { if (!owner.HasExited) { owner.Kill(entireProcessTree: true); await owner.WaitForExitAsync(); } }
+    }
 
     [Fact]
     public async Task RegistersExactReviewedCommitWithoutChangingGitAndKeepsItOnReopen()
