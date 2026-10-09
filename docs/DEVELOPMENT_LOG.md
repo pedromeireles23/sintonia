@@ -2,13 +2,6 @@
 
 Registro resumido de incrementos e pontos de retomada. Consulte `git log` para hashes e cronologia exata dos commits.
 
-## 09/10/2026 — Configuração e processos de validação geral
-
-- Schema 8 guarda até dez comandos por projeto, com revisão contra edição concorrente e cópia de argumentos. Nome do critério, executável .exe absoluto, argumentos separados, pasta relativa e prazo de 1–600 segundos; nenhuma stack obrigatória ou conversão de respostas dos modelos em comandos.
-- Runner usa processo direto e streams assíncronos limitados. Falha, timeout e cancelamento distintos, com saída conservada e encerramento de filhos. Diagnósticos antigos continuam limitados a 60 segundos. Não instala dependências nem copia arquivos ignorados.
-- Validação: build completo sem avisos/erros; 18 testes selecionados aprovados, incluindo 13 novos de configuração/runner e cinco regressões de processos. Isolamento por projeto, revisão/reabertura/migração, argumentos literais, pasta, streams/falha/limites, timeout/cancelamento com filho e entradas ausentes. Sem modelos.
-- Próximo incremento: operação serial na combinação com reserva, intenção/resultados persistidos e árvore conferida antes/depois. Editor e execução WPF, publicação e dependentes ainda pendentes.
-
 ## 08/10/2026 — Preparação do repositório
 
 - Repositório inicialmente vazio clonado na pasta existente do usuário.
@@ -216,3 +209,20 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Navegação/reabertura preservam projeto/tarefa e consultam o resultado. Cancelamento/fechamento aguarda o executor e atenção persistida, descarta resposta tardia e conserva arquivos parciais. Combinação não valida/publica/libera dependentes.
 - Validação: build sem avisos/erros e 216 testes xUnit verificados (62 Core + 154 Infrastructure). WPF --combinations com Git real/runs simulados cobre registro exigido, recusa, prévia obsoleta, combinação/conflito, original/índice/ignorado preservados, navegação/reabertura, cancelamento/tardio e fechamento da central. Regressões --deliveries/--diffs também passaram; zero erros de binding. Capturas normal/mínima revisadas; resumo limitado com rolagem conserva espaço de revisão no mínimo. Nenhum modelo chamado. Release atualizado, abertura/encerramento conferidos.
 - Próximo incremento: comandos/critérios de validação por projeto, execução limitada/cancelável na pasta combinada e resultado vinculado à árvore conferida. Depois, publicação confirmada e disponibilidade da revisão para dependentes; worktrees continuam preservadas. M3 parcial.
+
+## 09/10/2026 — Configuração e processos de validação geral
+
+- Schema 8 guarda até dez comandos por projeto, com revisão contra edição concorrente e cópia de argumentos. Nome do critério, executável .exe absoluto, argumentos separados, pasta relativa e prazo de 1–600 segundos; nenhuma stack obrigatória ou conversão de respostas dos modelos em comandos.
+- Runner usa processo direto e streams assíncronos limitados. Falha, timeout e cancelamento distintos, com saída conservada e encerramento de filhos. Diagnósticos antigos continuam limitados a 60 segundos. Não instala dependências nem copia arquivos ignorados.
+- Validação: build completo sem avisos/erros; 18 testes selecionados aprovados, incluindo 13 novos de configuração/runner e cinco regressões de processos. Isolamento por projeto, revisão/reabertura/migração, argumentos literais, pasta, streams/falha/limites, timeout/cancelamento com filho e entradas ausentes. Sem modelos.
+- Próximo incremento: operação serial na combinação com reserva, intenção/resultados persistidos e árvore conferida antes/depois. Editor e execução WPF, publicação e dependentes ainda pendentes.
+
+## 09/10/2026 — Conferência e histórico de validação da combinação
+
+- Schema 9 persiste intenção/resultados vinculados à preparação, árvore, comandos/revisão e reserva. Execução serial com trava por Git comum, falha/timeout interrompendo sequência, saídas/códigos/horários preservados, cancelamento tardio sem sucesso e recuperação viva/abandonada sem repetir comandos. Término/liberação atômicos; critérios obsoletos recusados no início e na transação de sucesso.
+- Conferência compara índice e hashes de todos os arquivos versionados antes/depois de cada comando, ignorando cache/assume-unchanged sem alterar o índice. Arquivos novos ou conteúdo alterado impedem Passed; ignorados podem permanecer. Listas NUL nativas preservam acentos/espaços, corrigindo também a verificação de filtros/drivers no manager de worktrees. Comandos mantêm configuração/rede normais das ferramentas, com redirecionamento Git herdado retirado somente do processo.
+- Validação automatizada cobre estados, conjunto completo de critérios, logs/reabertura, migrações, preservação de índices/original, arquivos alterados, revisão obsoleta/durante execução, concorrência, recuperação e cancelamento. Runs/processos de teste e Git real; nenhum modelo chamado. Fluxo WPF --combinations aprovado com zero erros de binding.
+- Job Object no Windows controla descendentes associados e os encerra antes de retornar, inclusive após a saída do processo principal. Falha de associação/encerramento recusa sucesso; não mantém serviços em background nem constitui sandbox ou captura trabalho iniciado por mecanismos externos.
+- Verificados 247 testes xUnit (65 Core + 182 Infrastructure), build sem avisos/erros. Execução completa encontrou uma variável Git herdada removida de forma incompleta; corrigida removendo as variáveis pelas chaves herdadas, com 20 testes selecionados aprovados. Dois casos adicionais conferem interrupção interna em atenção e cancelamento pedido pelo usuário. Contagem agregada; não houve nova execução completa após essas correções. Release atualizado e abertura/encerramento conferidos.
+- Limites: Passed registra a árvore versionada conferida; ambiente, ferramentas e entradas ignoradas não são imutáveis. Logs ainda não têm checkpoint contínuo durante execução; interrupção pode perder saída não salva. Não publica, resolve conflitos ou libera dependentes.
+- Próximo incremento: editor por projeto e execução/histórico WPF, mostrando comandos/pastas/árvore/revisão antes de iniciar e aguardando cancelamento/fechamento. Depois publicação confirmada e disponibilidade de revisão integrada para dependentes.

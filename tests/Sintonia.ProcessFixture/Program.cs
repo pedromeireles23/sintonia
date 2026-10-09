@@ -22,7 +22,7 @@ if (args.Contains("--help"))
 switch (args.FirstOrDefault())
 {
     case "validation-context":
-        Console.WriteLine(JsonSerializer.Serialize(new { Directory = Environment.CurrentDirectory, Arguments = args.Skip(1), GitIndex = Environment.GetEnvironmentVariable("GIT_INDEX_FILE") })); return 0;
+        Console.WriteLine(JsonSerializer.Serialize(new { Directory = Environment.CurrentDirectory, Arguments = args.Skip(1), GitIndex = Environment.GetEnvironmentVariable("GIT_INDEX_FILE"), GitProtocol = Environment.GetEnvironmentVariable("GIT_ALLOW_PROTOCOL") })); return 0;
     case "validation-write":
         await File.WriteAllTextAsync(args[1], args[2]); Console.WriteLine("Arquivo alterado pela fixture"); return 0;
     case "echo": Console.WriteLine(JsonSerializer.Serialize(args.Skip(1))); return 0;
@@ -37,6 +37,10 @@ switch (args.FirstOrDefault())
             Console.WriteLine($"CHILD:{child.Id}");
             await Task.Delay(TimeSpan.FromMinutes(5));
         }
+        return 0;
+    case "orphan-child":
+        using (var child = Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false, CreateNoWindow = true, ArgumentList = { "wait" } })!)
+            Console.WriteLine($"CHILD:{child.Id}");
         return 0;
     case "wait": await Task.Delay(TimeSpan.FromMinutes(5)); return 0;
     case "hold-file":

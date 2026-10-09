@@ -21,7 +21,9 @@ A comunicação real usa Codex App Server por stdio e Claude Code com stream-jso
 
 ## Estado atual
 
-**M2 concluído; M3 com diagnóstico, worktrees, diffs, registro de commits e combinação em pasta separada.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico, perfis, pastas e entregas sobrevivem à reabertura. Consulte o painel Git, prepare uma worktree pela fila, revise seus diffs, registre a entrega aprovada e prepare sua combinação com o destino confirmado. Resultado/conflitos ficam persistidos numa nova pasta, preservando o original. Validação do conjunto, publicação no projeto e liberação de dependentes permanecem pendentes. Leitura permite duas IAs simultâneas, uma por provedor; escrita continua serial. Build sem avisos/erros, 216 testes xUnit verificados e fluxos WPF validados.
+**M2 concluído; M3 com diagnóstico, worktrees, diffs, registro de commits e combinação em pasta separada.** Cadastre pastas, escolha Codex/Claude e modelo, converse, acompanhe atividade e abra/retome sessões. Histórico, perfis, pastas e entregas sobrevivem à reabertura. Consulte o painel Git, prepare uma worktree pela fila, revise seus diffs, registre a entrega aprovada e prepare sua combinação com o destino confirmado. Resultado/conflitos ficam persistidos numa nova pasta, preservando o original. O núcleo já executa validações configuráveis e registra a árvore/comandos/resultados; editor e execução visual são o próximo incremento. Publicação no projeto e liberação de dependentes permanecem pendentes. Leitura permite duas IAs simultâneas, uma por provedor; escrita continua serial.
+
+Build sem avisos/erros, 247 testes xUnit verificados e fluxo WPF de combinação validado sem erros de binding. Testes novos usam Git real e processos/runs simulados, sem chamadas de modelos; [evidências e limites](docs/PROJECT_VALIDATION.md).
 
 Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. Integração Git está pendente.
 
@@ -46,6 +48,7 @@ A demonstração Electron criada durante a pesquisa foi um experimento de fluxo;
 - [Revisão de diffs](docs/TASK_DIFFS.md).
 - [Registro de entregas e reserva de integração](docs/TASK_DELIVERIES.md).
 - [Preparação da combinação em pasta separada](docs/TASK_INTEGRATION_PREPARATION.md).
+- [Validação configurável por projeto](docs/PROJECT_VALIDATION.md).
 - [Análise do Maestro](docs/MAESTRO_ANALYSIS.md).
 - [Decisões técnicas](docs/DECISIONS.md).
 

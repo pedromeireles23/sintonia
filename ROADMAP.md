@@ -47,7 +47,9 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 ## M3 — Trabalho paralelo com Git
 
-Estado: diagnóstico Git, worktrees, diffs, registro do commit revisado e preparação da combinação conectados à central/fila. Executor combina entrega/destino confirmado numa nova worktree separada/destacada, registrando intenção, árvore ou conflitos no schema 7. Reserva serial, trava por Git comum, recuperação de operações abandonadas e arquivos/índices/ignorados originais preservados. Resumo copiável, confirmação, cancelamento, reabertura e fechamento validados no WPF. Combinação não publica nem libera dependentes; integração concluída exige validação e confirmação no destino. Próximo incremento: critérios/comandos de validação para projetos gerais e registro da árvore validada. Projetos sem Git continuam disponíveis; escrita permanece serial. Build sem avisos/erros, 216 testes xUnit verificados e fluxos WPF validados; Git real/runs simulados, sem chamadas de modelos.
+Estado: diagnóstico Git, worktrees, diffs, registro do commit revisado e preparação da combinação conectados à central/fila. Nova worktree separada/destacada conserva árvore ou conflitos, preservando original/índices/ignorados. Núcleo de validação configurável registra intenção/resultados no schema 9, mantém reserva/trava, executa comandos limitados/canceláveis e confere índice/conteúdo/critério antes de salvar sucesso. Recuperação preserva operações vivas e não repete comandos abandonados. Editor/execução WPF de validação são o próximo incremento. Combinação/Passed não publicam nem liberam dependentes; integração concluída exige confirmação e publicação no destino. Projetos sem Git continuam disponíveis; escrita permanece serial. Git real e processos/runs de teste, sem chamadas de modelos neste incremento.
+
+Validação atual: build sem avisos/erros, 247 testes xUnit verificados e WPF --combinations aprovado, zero erros de binding. Release local atualizado e abertura/encerramento conferidos. O núcleo de validação não é apresentado como fluxo visual concluído.
 
 - [x] Diagnosticar Git por projeto sem alterar arquivos, índice ou regras de confiança.
 - [x] Criar worktrees por tarefa de escrita e retomar checkouts registrados pela mesma tarefa.
@@ -83,7 +85,7 @@ Aceite: uma imagem é gerada e entregue como arquivo revisável. Evolução: ima
 
 ## M6 — Fluxos para projetos gerais
 
-- [ ] Permitir configurar comandos de validação e critérios adequados à stack ou ao tipo de projeto.
+- [ ] Permitir configurar comandos de validação e critérios adequados à stack ou ao tipo de projeto (núcleo/persistência/execução prontos; editor WPF pendente).
 - [ ] Integrar entregas de código, documentação, análise e arquivos conforme o projeto.
 - [ ] Preparar exemplos de projetos distintos que combinem entregas das duas ferramentas.
 

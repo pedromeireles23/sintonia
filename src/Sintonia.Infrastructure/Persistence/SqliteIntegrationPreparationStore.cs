@@ -11,6 +11,12 @@ public sealed partial class SqliteWorkspaceStore
         preparation.ValidateDefinition();
         if (preparation.State != TaskIntegrationPreparationState.Preparing) throw new ArgumentException("Registre a intenção antes da combinação.");
         using var transaction = connection.BeginTransaction(); EnsureActiveReservation(connection, transaction, preparation.Reservation);
+        using (var occupied = connection.CreateCommand())
+        {
+            occupied.Transaction = transaction; occupied.CommandText = "SELECT COUNT(*) FROM task_integration_validations WHERE id=$id";
+            occupied.Parameters.AddWithValue("$id", preparation.Reservation.Id);
+            if (Convert.ToInt32(occupied.ExecuteScalar()) != 0) throw new InvalidOperationException("Esta reserva já pertence a uma validação.");
+        }
         Execute(connection, transaction, "INSERT INTO task_integration_preparations(id,definition,checkout_key,state) VALUES($id,$definition,$checkout,0)",
             ("$id", preparation.Reservation.Id), ("$definition", JsonSerializer.Serialize(preparation)), ("$checkout", PathKey(preparation.CheckoutDirectory)));
         transaction.Commit(); return true;

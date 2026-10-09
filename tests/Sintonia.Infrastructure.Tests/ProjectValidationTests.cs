@@ -59,17 +59,19 @@ public sealed class ProjectValidationTests
     {
         using var fixture = new TaskWorktreeTests.Fixture(); var directory = Path.Combine(fixture.Root, "documentação"); Directory.CreateDirectory(directory);
         string[] literals = ["ação com espaços", "$(literal)", "`backtick`", "&|;%PATH%"];
-        var old = Environment.GetEnvironmentVariable("GIT_INDEX_FILE");
+        var old = Environment.GetEnvironmentVariable("GIT_INDEX_FILE"); var oldProtocol = Environment.GetEnvironmentVariable("GIT_ALLOW_PROTOCOL");
         try
         {
             Environment.SetEnvironmentVariable("GIT_INDEX_FILE", "índice herdado");
+            Environment.SetEnvironmentVariable("GIT_ALLOW_PROTOCOL", "herdado");
             var result = await new ValidationCommandRunner().RunAsync(Command(["validation-context", .. literals]) with { WorkingDirectory = "documentação" }, 0, fixture.Root, CancellationToken.None);
             Assert.Equal(ValidationState.Passed, result.State); result.ValidateDefinition();
             using var json = JsonDocument.Parse(result.StandardOutput); Assert.Equal(directory, json.RootElement.GetProperty("Directory").GetString());
             Assert.Equal(literals, json.RootElement.GetProperty("Arguments").EnumerateArray().Select(v => v.GetString()));
             Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("GitIndex").ValueKind);
+            Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("GitProtocol").ValueKind);
         }
-        finally { Environment.SetEnvironmentVariable("GIT_INDEX_FILE", old); }
+        finally { Environment.SetEnvironmentVariable("GIT_INDEX_FILE", old); Environment.SetEnvironmentVariable("GIT_ALLOW_PROTOCOL", oldProtocol); }
     }
 
     [Fact]
@@ -94,6 +96,17 @@ public sealed class ProjectValidationTests
         Assert.Equal(cancel ? ValidationState.Cancelled : ValidationState.TimedOut, result.State); result.ValidateDefinition();
         var id = int.Parse(result.StandardOutput.Split('\n').Single(s => s.StartsWith("CHILD:", StringComparison.Ordinal))[6..]);
         try { using var child = Process.GetProcessById(id); Assert.True(child.HasExited || child.WaitForExit(3000)); }
+        catch (ArgumentException) { }
+    }
+
+    [Fact]
+    public async Task RootExitCannotLeaveItsChildRunningAfterTheValidationReturns()
+    {
+        using var fixture = new TaskWorktreeTests.Fixture();
+        var result = await new ValidationCommandRunner().RunAsync(Command("orphan-child"), 0, fixture.Root, CancellationToken.None);
+        Assert.Equal(ValidationState.Passed, result.State); Assert.Equal(0, result.ExitCode);
+        var id = int.Parse(result.StandardOutput.Split('\n').Single(s => s.StartsWith("CHILD:", StringComparison.Ordinal))[6..]);
+        try { using var child = Process.GetProcessById(id); Assert.True(child.HasExited, "A validação retornou com um filho ainda ativo."); }
         catch (ArgumentException) { }
     }
 

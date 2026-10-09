@@ -20,7 +20,13 @@ public static class ProcessProbe
         string workingDirectory, TimeSpan timeout, CancellationToken token)
     {
         if (timeout <= TimeSpan.Zero || timeout > TimeSpan.FromMinutes(10)) throw new ArgumentOutOfRangeException(nameof(timeout));
-        return RunCoreAsync(launch, arguments, workingDirectory, timeout, token, Git.GitRepositoryInspector.CleanEnvironment(), captureCancellation: true);
+        // Validation tools retain normal repository/network configuration. Remove inherited redirection,
+        // without imposing the read-only Git diagnostic's no-network flags on user-owned commands.
+        var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+            if (entry.Key is string key && key.StartsWith("GIT_", StringComparison.OrdinalIgnoreCase)) environment[key] = null;
+        environment["GIT_TERMINAL_PROMPT"] = "0";
+        return RunCoreAsync(launch, arguments, workingDirectory, timeout, token, environment, captureCancellation: true);
     }
 
     private static async Task<ProcessProbeResult> RunCoreAsync(ExecutableLaunch launch, IReadOnlyList<string> arguments,
@@ -41,7 +47,9 @@ public static class ProcessProbe
         using var process = new Process { StartInfo = start };
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         lifetime.CancelAfter(timeout);
+        using var job = captureCancellation ? new ValidationProcessJob() : null;
         process.Start();
+        if (job is not null) await job.AttachAsync(process).ConfigureAwait(false);
         process.StandardInput.Close();
         var stdout = ReadBoundedAsync(process.StandardOutput, lifetime.Token);
         var stderr = ReadBoundedAsync(process.StandardError, lifetime.Token);
@@ -49,11 +57,13 @@ public static class ProcessProbe
         try
         {
             await process.WaitForExitAsync(lifetime.Token).ConfigureAwait(false);
+            if (job is not null) await job.StopAsync().ConfigureAwait(false);
             await Task.WhenAll(stdout, stderr).WaitAsync(lifetime.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
         {
             timedOut = !cancellationToken.IsCancellationRequested;
+            if (job is not null) await job.StopAsync().ConfigureAwait(false);
             await StopAsync(process).ConfigureAwait(false);
         }
         finally

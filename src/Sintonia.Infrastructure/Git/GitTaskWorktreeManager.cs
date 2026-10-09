@@ -99,17 +99,20 @@ public sealed class GitTaskWorktreeManager : IGitTaskWorktreeManager
 
     internal async Task CheckTreeAsync(string directory, string commit, CancellationToken token, bool forIntegration = false)
     {
-        var files = await RunAsync(directory, token, "ls-tree", "-r", "-z", "--format=%(objectmode) %(path)", commit).ConfigureAwait(false);
+        // The generic %(path) formatter quotes some names even with -z on installed Git.
+        // Use the native default format, whose NUL records preserve the path verbatim.
+        var files = await RunAsync(directory, token, "ls-tree", "--full-tree", "-r", "-z", commit).ConfigureAwait(false);
         RequireSuccess(files);
         if (files.StandardOutput.Length > 0 && !files.StandardOutput.EndsWith('\0')) throw new FormatException("Árvore Git incompleta.");
         var paths = new List<string>();
         foreach (var entry in files.StandardOutput.Split('\0').SkipLast(1))
         {
-            if (entry.Length < 8 || entry[6] != ' ') throw new FormatException("Árvore Git inválida.");
+            var separator = entry.IndexOf('\t');
+            if (separator < 8 || entry[6] != ' ') throw new FormatException("Árvore Git inválida.");
             if (entry.StartsWith("160000 ", StringComparison.Ordinal)) throw new InvalidOperationException("A preparação de worktrees com submódulos ainda não é suportada.");
             if (forIntegration && entry.StartsWith("120000 ", StringComparison.Ordinal))
                 throw new InvalidOperationException("A combinação ainda não suporta links simbólicos versionados. Preserve os arquivos e confira o projeto.");
-            paths.Add(entry[7..]);
+            paths.Add(entry[(separator + 1)..]);
         }
         for (var offset = 0; offset < paths.Count;)
         {

@@ -127,6 +127,8 @@ public sealed class TaskIntegrationPreparationTests
     [Theory]
     [InlineData("filter")]
     [InlineData("merge")]
+    [InlineData("filter-utf8")]
+    [InlineData("merge-utf8")]
     [InlineData("submodule")]
     public async Task UnsupportedAttributesAndSubmodulesAreRefusedBeforeCheckoutAndDoNotRunCommands(string kind)
     {
@@ -139,7 +141,8 @@ public sealed class TaskIntegrationPreparationTests
         }
         else
         {
-            await File.WriteAllTextAsync(Path.Combine(directory, ".gitattributes"), "portal/portal.txt " + kind + "=external\n");
+            var path = kind.EndsWith("-utf8", StringComparison.Ordinal) ? "portal/ação*" : "portal/portal.txt";
+            await File.WriteAllTextAsync(Path.Combine(directory, ".gitattributes"), path + " " + kind.Replace("-utf8", "", StringComparison.Ordinal) + "=external\n");
             await fixture.GitAsync(directory, "add", ".");
         }
         await fixture.GitAsync(directory, "commit", "-m", "entrega com requisito não suportado");

@@ -47,6 +47,6 @@ Testes usam Git real em pastas temporárias e runs/temporização simulados, sem
 
 Teste WPF `--combinations` percorre registro exigido, botão, recusa/prévia obsoleta, combinação e conflito reais, original/índice/ignorado preservados, navegação/reabertura, cancelamento/resposta tardia e fechamento da central com efeitos parciais preservados. Layout normal/mínimo revisado, sem erros de binding; runs e temporização simulados. Regressões de registro/diffs também verificadas.
 
-Ainda faltam comandos/critérios de validação configuráveis para projetos gerais, resolução/revisão de conflitos, publicação confirmada no destino e disponibilidade da revisão correta para dependentes. Não há limpeza automática de worktrees. A preparação não equivale à integração concluída do M3.
+O [núcleo de validação configurável](PROJECT_VALIDATION.md) já executa comandos na combinação e registra resultados vinculados à árvore/revisão, com reserva e conferência de conteúdo. Editor/execução WPF, resolução/revisão de conflitos, publicação confirmada no destino e disponibilidade da revisão correta para dependentes ainda estão pendentes. Não há limpeza automática de worktrees. A preparação não equivale à integração concluída do M3.
 
 Comportamento do merge conforme [git merge](https://git-scm.com/docs/git-merge); checkout destacado e bloqueio conforme [git worktree](https://git-scm.com/docs/git-worktree).

@@ -61,7 +61,7 @@ public sealed class GitTaskIntegrationPreparer(GitTaskWorktreeManager manager, s
             new[] { "-c", "core.sparseCheckout=false", "-c", "core.sparseCheckoutCone=false", "-c", "core.protectNTFS=true", "-c", "merge.default=text",
                 "-c", "merge.renormalize=false", "-c", "merge.renameLimit=1000", "-c", "rerere.enabled=false", "-c", "merge.autoStash=false",
                 "-c", "commit.gpgSign=false", "-c", "user.name=Sintonia", "-c", "user.email=sintonia@localhost" }.Concat(command).ToArray());
-    private async Task ValidateCheckoutAsync(TaskIntegrationPreparation intent, CancellationToken token)
+    internal async Task ValidateCheckoutAsync(TaskIntegrationPreparation intent, CancellationToken token)
     {
         GitTaskWorktreeManager.CheckPath(intent.CheckoutDirectory);
         var list = await RunAsync(intent.CheckoutDirectory, token, "worktree", "list", "--porcelain", "-z").ConfigureAwait(false); RequireSuccess(list);
