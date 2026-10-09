@@ -67,6 +67,7 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
 {
     private string _model = "";
     private JsonElement? _result;
+    private RunTokenUsage? _usage;
     private readonly ConcurrentDictionary<string, byte> _denials = new();
     private readonly StringBuilder _fallback = new();
     public void Accept(string line)
@@ -113,6 +114,8 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
                 break;
             case "result":
                 _result = root.Clone();
+                _usage = RunTokenUsageParser.ClaudeResult(root);
+                if (_usage is { } usage) progress.Report(new(ConversationEventKind.TokenUsage, usage.Describe(), TokenUsage: usage));
                 if (root.TryGetProperty("permission_denials", out var denials))
                     foreach (var denial in denials.EnumerateArray()) RecordDenial(denial.GetProperty("tool_name").GetString()!);
                 break;
@@ -128,7 +131,7 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
         var text = result.TryGetProperty("result", out var body) ? body.GetString() : _fallback.ToString();
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(_model)) throw new ProviderException("Claude terminou sem resposta ou modelo identificado.");
         if (text.Length > 256_000) text = text[..256_000] + "\n[Resposta truncada pelo limite local]";
-        return new(sessionId, _model, text, _denials.IsEmpty ? ConversationOutcome.Completed : ConversationOutcome.Blocked, _denials.Keys.ToArray());
+        return new(sessionId, _model, text, _denials.IsEmpty ? ConversationOutcome.Completed : ConversationOutcome.Blocked, _denials.Keys.ToArray(), _usage);
     }
 
     internal void RecordDenial(string tool)

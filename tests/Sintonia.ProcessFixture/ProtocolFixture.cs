@@ -37,12 +37,29 @@ internal static class ProtocolFixture
                 case "thread/read": Reply(id, new { thread = new { id = ThreadId, cwd = scenario == "rpc-wrong-directory" ? "C:\\elsewhere" : Environment.CurrentDirectory, modelProvider = "openai" } }); break;
                 case "thread/start":
                 case "thread/resume":
+                    if (method.GetString() == "thread/resume" && scenario == "rpc-tokens-baseline")
+                        Tokens("previous-turn", Breakdown(1000, 200, 100, 20, 50));
                     if (scenario.StartsWith("rpc-usage-", StringComparison.Ordinal)) File.WriteAllText(Path.Combine(Environment.CurrentDirectory, "thread-started.txt"), "SIMULAÇÃO");
                     Reply(id, new { thread = new { id = ThreadId }, model = "fixture-model", modelProvider = "openai", approvalPolicy = parameters.GetProperty("approvalPolicy").GetString(),
                         sandbox = new { type = scenario == "rpc-unsafe" ? "dangerFullAccess" : parameters.GetProperty("sandbox").GetString() == "read-only" ? "readOnly" : "workspaceWrite" } }); break;
                 case "turn/start":
                     var turn = Guid.NewGuid().ToString();
                     Reply(id, new { turn = new { id = turn } });
+                    if (scenario.StartsWith("rpc-tokens-", StringComparison.Ordinal))
+                    {
+                        if (scenario == "rpc-tokens-malformed")
+                            Notify("thread/tokenUsage/updated", new { threadId = ThreadId, turnId = turn, tokenUsage = new { total = new { inputTokens = "SEGREDO" } } });
+                        else
+                        {
+                            var resumed = parameters.GetProperty("threadId").GetString() == ThreadId && scenario is "rpc-tokens-baseline" or "rpc-tokens-no-baseline";
+                            var baseInput = resumed ? 1000 : 0; var baseOutput = resumed ? 200 : 0;
+                            Tokens("another-turn", Breakdown(99999, 99999, 1, 1, 1));
+                            var firstUsage = Breakdown(baseInput + 10, baseOutput + 3, (resumed ? 100 : 0) + 2, (resumed ? 20 : 0) + 1, (resumed ? 50 : 0) + 1);
+                            Tokens(turn, firstUsage); Tokens(turn, firstUsage);
+                            if (scenario == "rpc-tokens-reset") { Tokens(turn, Breakdown(4, 1, 0, 0, 0)); Tokens(turn, Breakdown(7, 3, 1, 1, 1)); }
+                            else Tokens(turn, Breakdown(baseInput + 30, baseOutput + 10, (resumed ? 100 : 0) + 6, (resumed ? 20 : 0) + 3, (resumed ? 50 : 0) + 4));
+                        }
+                    }
                     Notify("item/agentMessage/delta", new { threadId = ThreadId, turnId = turn, itemId = "m1", delta = "Resposta " });
                     Notify("item/completed", new { threadId = ThreadId, turnId = turn, item = new { id = "m1", type = "agentMessage", text = "Resposta final.", phase = "final_answer" } });
                     if (scenario is "rpc-file-preview" or "rpc-file-no-preview")
@@ -57,9 +74,9 @@ internal static class ProtocolFixture
                         pendingTurn = turn;
                         Emit(new { id = "permission-1", method = "item/commandExecution/requestApproval", @params = new { threadId = ThreadId, turnId = turn, command = "comando de teste" } });
                     }
-                    else if (scenario == "rpc-interrupt") pendingTurn = turn;
+                    else if (scenario is "rpc-interrupt" or "rpc-tokens-wait") pendingTurn = turn;
                     else if (scenario == "rpc-exit") return 7;
-                    else Finish(turn, scenario == "rpc-failed" ? "failed" : "completed");
+                    else Finish(turn, scenario is "rpc-failed" or "rpc-tokens-failed" ? "failed" : "completed");
                     break;
                 case "turn/interrupt": Reply(id, new { }); Finish(pendingTurn!, "interrupted"); pendingTurn = null; break;
                 case "echo": Reply(id, parameters); break;
@@ -152,8 +169,11 @@ internal static class ProtocolFixture
                 }
             }
         }
-        Emit(new { type = "result", session_id = session, subtype = args[0] == "claude-failed" ? "error_max_turns" : "success",
-            is_error = args[0] == "claude-failed", result = prompt, errors = new[] { "Limite de teste" },
+        var failed = args[0] is "claude-failed" or "claude-tokens-failed";
+        Emit(new { type = "result", session_id = session, subtype = failed ? "error_max_turns" : "success",
+            is_error = failed, result = prompt, errors = new[] { "Limite de teste" },
+            usage = args[0].StartsWith("claude-tokens-", StringComparison.Ordinal) ? new { input_tokens = 10, output_tokens = 5, cache_read_input_tokens = 20, cache_creation_input_tokens = 3 } : null,
+            modelUsage = new { restored_history_and_subagents = new { inputTokens = 999999, outputTokens = 999999 } }, total_cost_usd = 99999,
             permission_denials = args[0] == "claude-denied" ? new[] { new { tool_name = "Write" } } : [] });
         if ((await Console.In.ReadToEndAsync()).Length != 0) return 16; // No late answer after withdrawal/terminal result.
         return 0;
@@ -163,6 +183,10 @@ internal static class ProtocolFixture
         turn = new { id = turn, status, error = new { message = "Falha controlada" },
             items = new[] { new { id = "m1", type = "agentMessage", text = "Resposta final.", phase = "final_answer" } } } });
     private static void Notify(string method, object parameters) => Emit(new { method, @params = parameters });
+    private static object Breakdown(long input, long output, long read, long write, long reasoning) => new
+    { inputTokens = input, outputTokens = output, totalTokens = input + output, cachedInputTokens = read, cacheWriteInputTokens = write, reasoningOutputTokens = reasoning };
+    private static void Tokens(string turn, object total) => Notify("thread/tokenUsage/updated", new { threadId = ThreadId, turnId = turn,
+        tokenUsage = new { total, last = Breakdown(888, 222, 20, 10, 30) } });
     private static void Reply(JsonElement id, object result) => Emit(new { id, result });
     private static void Emit(object data) => Console.WriteLine(JsonSerializer.Serialize(data));
 }

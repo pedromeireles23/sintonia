@@ -82,10 +82,18 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             var checkpoint = Task.CompletedTask;
             var dataGate = new object();
             var lastCheckpoint = DateTimeOffset.UtcNow;
+            RunTokenUsage? usage = null;
             var live = new InlineProgress(ev =>
             {
                 lock (dataGate)
                 {
+                    var firstUsage = false;
+                    if (ev.TokenUsage is { } measurement)
+                    {
+                        var valid = ValidUsage(measurement, conversation.Provider);
+                        if (valid is null) { ev = new(ConversationEventKind.Diagnostic, "Contagem de tokens incompatível; medição ignorada."); }
+                        else { firstUsage = usage is null; usage = valid; ev = ev with { Text = valid.Describe() }; }
+                    }
                     if (ev.Kind == ConversationEventKind.Session)
                         conversation = conversation with { NativeSessionId = ev.NativeSessionId, Model = ev.Model };
                     if (ev.Kind == ConversationEventKind.TextDelta)
@@ -95,10 +103,10 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
                         events.Enqueue(new(run.Id, ev.Kind, ev.Text));
                         while (events.Count > 500) events.TryDequeue(out _);
                     }
-                    if (ev.Kind == ConversationEventKind.Session || DateTimeOffset.UtcNow - lastCheckpoint > TimeSpan.FromSeconds(2))
+                    if (ev.Kind == ConversationEventKind.Session || firstUsage || DateTimeOffset.UtcNow - lastCheckpoint > TimeSpan.FromSeconds(2))
                     {
                         lastCheckpoint = DateTimeOffset.UtcNow;
-                        var saved = run with { Response = text.ToString() };
+                        var saved = run with { Response = text.ToString(), TokenUsage = usage };
                         var session = conversation;
                         checkpoint = ChainCheckpointAsync(checkpoint, saved, session);
                     }
@@ -109,6 +117,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             {
                 var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt, conversation.Model,
                     conversation.NativeSessionId, instructions, conversation.Access, permissionHandler), live, deadline.Token).ConfigureAwait(false);
+                lock (dataGate) usage = ValidUsage(result.TokenUsage, conversation.Provider) ?? usage;
                 deadline.Token.ThrowIfCancellationRequested();
                 conversation = conversation with { NativeSessionId = result.NativeSessionId, Model = result.Model };
                 run = run with { Response = result.Text, State = result.Outcome == ConversationOutcome.Completed ? ChatRunState.Completed : ChatRunState.Blocked,
@@ -127,7 +136,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
                 run = run with { Response = text.ToString(), State = ChatRunState.Failed, Error = exception.Message };
             }
             await checkpoint.ConfigureAwait(false);
-            run = run with { FinishedAt = DateTimeOffset.UtcNow };
+            lock (dataGate) run = run with { FinishedAt = DateTimeOffset.UtcNow, TokenUsage = usage };
             await store.FinishRunAsync(run, conversation, events.ToArray()).ConfigureAwait(false);
             return run;
         }
@@ -138,6 +147,12 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
     {
         await previous.ConfigureAwait(false);
         await store.CheckpointRunAsync(run, conversation).ConfigureAwait(false);
+    }
+    private static RunTokenUsage? ValidUsage(RunTokenUsage? usage, ProviderKind provider)
+    {
+        if (usage is null || usage.Provider != provider) return null;
+        try { usage.ValidateDefinition(); return usage; }
+        catch (ArgumentException) { return null; }
     }
     private sealed class InlineProgress(Action<ConversationEvent> report) : IProgress<ConversationEvent>
     {

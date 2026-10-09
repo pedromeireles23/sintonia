@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 13) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 14) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -85,7 +85,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 publication_id TEXT NOT NULL REFERENCES task_publications(id), definition TEXT NOT NULL,
                 state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 4), finished_at TEXT, error TEXT);
             CREATE UNIQUE INDEX IF NOT EXISTS one_archived_worktree ON task_worktree_cleanups(task_id) WHERE state=1;
-            PRAGMA user_version=13;
+            CREATE TABLE IF NOT EXISTS run_token_usage(run_id TEXT PRIMARY KEY REFERENCES runs(id), definition TEXT NOT NULL);
+            PRAGMA user_version=14;
             """);
         transaction.Commit();
         return true;
@@ -162,12 +163,12 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     public Task<IReadOnlyList<ChatRun>> GetRunsAsync(string conversationId) => RunAsync<IReadOnlyList<ChatRun>>(connection =>
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id,conversation_id,prompt,response,state,started_at,finished_at,error FROM runs WHERE conversation_id=$id ORDER BY rowid";
+        command.CommandText = "SELECT r.id,r.conversation_id,r.prompt,r.response,r.state,r.started_at,r.finished_at,r.error,u.definition FROM runs r LEFT JOIN run_token_usage u ON u.run_id=r.id WHERE r.conversation_id=$id ORDER BY r.rowid";
         command.Parameters.AddWithValue("$id", conversationId);
         using var reader = command.ExecuteReader();
         var list = new List<ChatRun>();
         while (reader.Read()) list.Add(new(reader.GetString(0), reader.GetString(1), reader.GetString(2), Optional(reader, 3), (ChatRunState)reader.GetInt32(4),
-            DateTimeOffset.Parse(reader.GetString(5), System.Globalization.CultureInfo.InvariantCulture), reader.IsDBNull(6) ? null : DateTimeOffset.Parse(reader.GetString(6), System.Globalization.CultureInfo.InvariantCulture), Optional(reader, 7)));
+            DateTimeOffset.Parse(reader.GetString(5), System.Globalization.CultureInfo.InvariantCulture), reader.IsDBNull(6) ? null : DateTimeOffset.Parse(reader.GetString(6), System.Globalization.CultureInfo.InvariantCulture), Optional(reader, 7), ReadTokenUsage(reader, 8)));
         return list;
     });
 
@@ -185,6 +186,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     public Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null, WorkspaceExecutionSlot? expectedSlot = null, ProposedTask? expectedDefinition = null, ProjectExecutionSettings? expectedSettings = null) => RunAsync(connection =>
     {
         if (run.State != ChatRunState.Running) throw new ArgumentException("Uma tentativa deve começar em execução.");
+        if (run.TokenUsage is not null) throw new ArgumentException("Uma tentativa nova não pode herdar consumo anterior.");
         using var transaction = connection.BeginTransaction();
         EnsureConversationNotReserved(connection, transaction, run.ConversationId, expectedWorktree);
         var slot = ReserveExecutionScope(connection, transaction, run, expectedWorktree, expectedSlot);
@@ -208,6 +210,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         if (Execute(connection, transaction, "UPDATE runs SET response=$response WHERE id=$id AND conversation_id=$conversation AND state=0",
             ("$response", run.Response), ("$id", run.Id), ("$conversation", conversation.Id)) != 1)
             throw new InvalidOperationException("A execução do checkpoint não está ativa nesta conversa.");
+        SaveTokenUsage(connection, transaction, run, conversation.Provider);
         transaction.Commit();
         return true;
     });
@@ -221,6 +224,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         if (Execute(connection, transaction, "UPDATE runs SET response=$response,state=$state,finished_at=$finished,error=$error WHERE id=$id AND conversation_id=$conversation AND state=0",
             ("$response", run.Response), ("$state", (int)run.State), ("$finished", run.FinishedAt?.ToString("O")), ("$error", run.Error), ("$id", run.Id), ("$conversation", run.ConversationId)) != 1)
             throw new InvalidOperationException("A execução já foi encerrada ou não existe.");
+        SaveTokenUsage(connection, transaction, run, conversation.Provider);
         foreach (var ev in events.TakeLast(500)) Execute(connection, transaction, "INSERT INTO events(run_id,kind,text) VALUES($id,$kind,$text)",
             ("$id", run.Id), ("$kind", (int)ev.Kind), ("$text", ev.Text.Length > 8000 ? ev.Text[..8000] : ev.Text));
         Execute(connection, transaction, "UPDATE work_tasks SET state=$state WHERE conversation_id=$conversation AND last_run_id=$run AND state=1",

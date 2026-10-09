@@ -5,7 +5,7 @@ public enum ChatRunState { Running, Completed, Blocked, Failed, Cancelled, Inter
 public sealed record WorkspaceConversation(string Id, string ProjectId, string Title, ProviderKind Provider,
     string? Model, string? NativeSessionId, string FunctionName, string Instructions, ConversationAccess Access, bool IsTask = false);
 public sealed record ChatRun(string Id, string ConversationId, string Prompt, string? Response, ChatRunState State,
-    DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string? Error);
+    DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, string? Error, RunTokenUsage? TokenUsage = null);
 public sealed record ChatEvent(string RunId, ConversationEventKind Kind, string Text);
 
 public interface IWorkspaceStore

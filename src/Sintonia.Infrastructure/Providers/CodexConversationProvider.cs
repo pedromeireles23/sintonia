@@ -65,8 +65,9 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
         var changePreviews = new ConcurrentDictionary<string, string>();
         var denials = new ConcurrentQueue<string>();
         var responses = new ConcurrentBag<Task>();
-        string? threadId = null;
+        string? threadId = request.NativeSessionId;
         string? turnId = null;
+        var usage = new CodexRunTokenTracker(request.NativeSessionId is null, progress);
         rpc.Notification += notification =>
         {
             var method = notification.GetProperty("method").GetString();
@@ -74,6 +75,7 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
                 || thread.GetString() != threadId) return;
             switch (method)
             {
+                case "thread/tokenUsage/updated": usage.Accept(data); break;
                 case "item/started":
                     var startedItem = data.GetProperty("item");
                     if (startedItem.GetProperty("type").GetString() == "fileChange")
@@ -135,8 +137,10 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
             // Function instructions are turn input; native global/project instructions remain intact.
             var prompt = string.IsNullOrWhiteSpace(request.Instructions) ? request.Prompt
                 : $"Função nesta tarefa:\n{request.Instructions}\n\nPedido do usuário:\n{request.Prompt}";
+            usage.Arm();
             var start = await rpc.RequestAsync("turn/start", new { threadId, input = new[] { new { type = "text", text = prompt } } }, token).ConfigureAwait(false);
             turnId = start.GetProperty("turn").GetProperty("id").GetString();
+            usage.SetTurn(turnId!);
             var winner = await Task.WhenAny(completed.Task, rpc.Completion).WaitAsync(token).ConfigureAwait(false);
             if (winner == rpc.Completion)
             {
@@ -158,7 +162,7 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
                 : messages.LastOrDefault(m => m.Final).Text ?? messages.LastOrDefault().Text;
             if (string.IsNullOrWhiteSpace(result)) throw new ProviderException("Codex concluiu sem uma resposta textual.");
             return new(threadId, model, result, denials.IsEmpty ? ConversationOutcome.Completed : ConversationOutcome.Blocked,
-                denials.Distinct().ToArray());
+                denials.Distinct().ToArray(), usage.Snapshot);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -175,6 +179,7 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
             cancellationToken.ThrowIfCancellationRequested();
             throw new ProviderException("Codex excedeu o limite de cinco minutos e foi interrompido.");
         }
+        finally { usage.Close(); }
     }
 
     private static async Task InitializeAsync(JsonRpcClient rpc, CancellationToken token)
