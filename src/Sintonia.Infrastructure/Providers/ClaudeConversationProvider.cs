@@ -6,9 +6,15 @@ using Sintonia.Infrastructure.Diagnostics;
 
 namespace Sintonia.Infrastructure.Providers;
 
-public sealed class ClaudeConversationProvider(ExecutableLaunch? executable = null) : IConversationProvider
+public sealed class ClaudeConversationProvider(ExecutableLaunch? executable = null) : IConversationProvider, IProviderUsageReader
 {
     public ProviderKind Kind => ProviderKind.Claude;
+    public Task<ProviderUsageSnapshot> ReadUsageAsync(string directory, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        return Task.FromResult(ProviderUsageSnapshot.Unavailable(Kind,
+            "Quota da assinatura indisponível nesta integração. Consulte /usage no Claude Code ou as configurações de uso em claude.ai. Não há consulta de quota verificada no protocolo atual do Sintonia."));
+    }
     private ExecutableLaunch Launch => executable ?? ExecutableLocator.Find(Kind)
         ?? throw new ProviderException("Claude não encontrado. Instale e entre no Claude Code com sua assinatura.");
 

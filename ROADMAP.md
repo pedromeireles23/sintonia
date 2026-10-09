@@ -71,7 +71,7 @@ Aceite: duas tarefas modificam cópias diferentes; conflitos são visíveis; nen
 
 ## M4 — Distribuição assistida
 
-Estado: fluxo assistido conectado. A chefia recebe estado/resultados pelo chat e sua proposta revisada pode atualizar tarefas ainda não iniciadas, com confirmação e revisão transacional. Tentativas (1–3), prazo (1–300s) e concorrência (3–7) configuráveis por projeto. Quota restante das assinaturas e limites agregados de consumo não têm contrato verificado nos adaptadores atuais; esse item permanece pendente. Não há rodadas ou reenvios automáticos. [Fluxo e limites](docs/PLAN_UPDATES.md).
+Estado: fluxo assistido conectado. A chefia recebe estado/resultados pelo chat e sua proposta revisada pode atualizar tarefas ainda não iniciadas, com confirmação e revisão transacional. Tentativas (1–3), prazo (1–300s) e concorrência (3–7) configuráveis por projeto. Consulta de limites Codex verificada no adaptador, com bloqueio antes do turno somente mediante indisponibilidade explícita do backend; painel WPF ainda em implementação. Quota Claude e consumo agregado permanecem pendentes. Não há rodadas ou reenvios automáticos. [Fluxo e limites](docs/PLAN_UPDATES.md), [quota e fontes](docs/PROVIDER_USAGE.md).
 
 - [x] Escolher uma função de chefe do projeto com provedor/modelo configurável.
 - [x] Transformar um objetivo em proposta estruturada de tarefas, validada e salva para revisão.

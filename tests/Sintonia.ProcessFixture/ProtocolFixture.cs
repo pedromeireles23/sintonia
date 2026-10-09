@@ -24,9 +24,20 @@ internal static class ProtocolFixture
             {
                 case "initialize": Reply(id, new { userAgent = "fixture" }); break;
                 case "account/read": Reply(id, new { account = new { type = scenario == "rpc-api" ? "apiKey" : "chatgpt" } }); break;
+                case "account/rateLimits/read":
+                    if (scenario == "rpc-usage-wait") { await Task.Delay(TimeSpan.FromMinutes(1)); break; }
+                    if (scenario == "rpc-usage-unsupported") { Emit(new { id, error = new { code = -32601, message = "SEGREDO: resposta interna não deve aparecer no painel" } }); break; }
+                    if (scenario == "rpc-usage-invalid") { Reply(id, new { rateLimits = new { primary = new { usedPercent = "inválido" } } }); break; }
+                    if (scenario == "rpc-usage-denied-invalid") { Reply(id, new { ordinaryUsageAllowed = false, rateLimits = new { primary = new { usedPercent = "inválido" } } }); break; }
+                    Reply(id, new { ordinaryUsageAllowed = scenario is "rpc-usage-denied" or "rpc-usage-denied-invalid" ? false : scenario == "rpc-usage-unknown" ? (bool?)null : true,
+                        accountId = "SEGREDO: identidade não deve sair do parser", rateLimits = new { primary = new { usedPercent = 90 } },
+                        rateLimitsByLimitId = new Dictionary<string, object> { ["codex"] = new { limitId = "codex", limitName = "Codex",
+                            primary = new { usedPercent = scenario is "rpc-usage-full-allowed" or "rpc-usage-unknown" ? 100 : 25, windowDurationMins = 300, resetsAt = 1893456000L },
+                            secondary = new { usedPercent = 40, windowDurationMins = 10080, resetsAt = (long?)null } } } }); break;
                 case "thread/read": Reply(id, new { thread = new { id = ThreadId, cwd = scenario == "rpc-wrong-directory" ? "C:\\elsewhere" : Environment.CurrentDirectory, modelProvider = "openai" } }); break;
                 case "thread/start":
                 case "thread/resume":
+                    if (scenario.StartsWith("rpc-usage-", StringComparison.Ordinal)) File.WriteAllText(Path.Combine(Environment.CurrentDirectory, "thread-started.txt"), "SIMULAÇÃO");
                     Reply(id, new { thread = new { id = ThreadId }, model = "fixture-model", modelProvider = "openai", approvalPolicy = parameters.GetProperty("approvalPolicy").GetString(),
                         sandbox = new { type = scenario == "rpc-unsafe" ? "dangerFullAccess" : parameters.GetProperty("sandbox").GetString() == "read-only" ? "readOnly" : "workspaceWrite" } }); break;
                 case "turn/start":

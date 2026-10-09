@@ -5,7 +5,7 @@ using Sintonia.Infrastructure.Diagnostics;
 
 namespace Sintonia.Infrastructure.Providers;
 
-public sealed class CodexConversationProvider(ExecutableLaunch? executable = null) : IConversationProvider
+public sealed partial class CodexConversationProvider(ExecutableLaunch? executable = null) : IConversationProvider
 {
     public ProviderKind Kind => ProviderKind.Codex;
     private ExecutableLaunch Launch
@@ -107,6 +107,7 @@ public sealed class CodexConversationProvider(ExecutableLaunch? executable = nul
         try
         {
             await InitializeAsync(rpc, token).ConfigureAwait(false);
+            await CheckIncludedUsageAsync(rpc, progress, token).ConfigureAwait(false);
             if (request.NativeSessionId is not null)
             {
                 var stored = await rpc.RequestAsync("thread/read", new { threadId = request.NativeSessionId, includeTurns = false }, token).ConfigureAwait(false);
