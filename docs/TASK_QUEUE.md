@@ -30,7 +30,7 @@ O pedido de uma tarefa contém objetivo, função/instruções, acesso recomenda
 ## Limites e recuperação
 
 - Até três tentativas por tarefa, todas iniciadas pelo usuário. Não há loops de modelos ou novas tentativas automáticas.
-- Chat e fila compartilham até duas execuções globais e uma por provedor. Leitura independente admite concorrência; escrita trabalha sozinha no mesmo projeto.
+- Chat e fila compartilham até sete execuções globais, com limite de 3–7 por projeto (padrão 3), sem exclusividade por provedor. Escrita no original trabalha sozinha; tarefas com worktrees distintas e validadas admitem concorrência. [Regras de sessões](SESSION_CONCURRENCY.md).
 - Autorizações usam o host já existente e aparecem também na janela da fila. Confirmar plano, encaminhar ou aprovar entrega não concede permissões de ferramentas.
 - Cancelar aguarda encerramento do processo antes de liberar capacidade. Não desfaz arquivos já modificados; confira efeitos antes de iniciar outra tentativa.
 - Encerrar a central cancela e aguarda os jobs do chat e da fila. Reabertura marca runs/tarefas em execução como interrompidos, sem reenvio.

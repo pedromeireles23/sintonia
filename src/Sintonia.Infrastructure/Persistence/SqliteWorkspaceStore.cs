@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 9) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 10) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -69,7 +69,10 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE TABLE IF NOT EXISTS task_integration_validations(id TEXT PRIMARY KEY REFERENCES task_integrations(id),
                 preparation_id TEXT NOT NULL REFERENCES task_integration_preparations(id), project_id TEXT NOT NULL REFERENCES projects(id),
                 definition TEXT NOT NULL, state INTEGER NOT NULL CHECK(state BETWEEN 0 AND 6), finished_at TEXT, error TEXT);
-            PRAGMA user_version=9;
+            CREATE TABLE IF NOT EXISTS project_execution_settings(project_id TEXT PRIMARY KEY REFERENCES projects(id),
+                session_limit INTEGER NOT NULL CHECK(session_limit BETWEEN 3 AND 7), revision INTEGER NOT NULL CHECK(revision>=0));
+            CREATE TABLE IF NOT EXISTS run_execution_scopes(run_id TEXT PRIMARY KEY REFERENCES runs(id), definition TEXT NOT NULL);
+            PRAGMA user_version=10;
             """);
         transaction.Commit();
         return true;
@@ -166,14 +169,17 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         return list;
     });
 
-    public Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null) => RunAsync(connection =>
+    public Task BeginRunAsync(ChatRun run, string? taskId = null, TaskWorktree? expectedWorktree = null, WorkspaceExecutionSlot? expectedSlot = null) => RunAsync(connection =>
     {
         if (run.State != ChatRunState.Running) throw new ArgumentException("Uma tentativa deve começar em execução.");
         using var transaction = connection.BeginTransaction();
         EnsureConversationNotReserved(connection, transaction, run.ConversationId, expectedWorktree);
+        var slot = ReserveExecutionScope(connection, transaction, run, expectedWorktree, expectedSlot);
         ReserveTask(connection, transaction, run, taskId, expectedWorktree);
         Execute(connection, transaction, "INSERT INTO runs(id,conversation_id,prompt,state,started_at) VALUES($id,$conversation,$prompt,$state,$started)",
             ("$id", run.Id), ("$conversation", run.ConversationId), ("$prompt", run.Prompt), ("$state", (int)ChatRunState.Running), ("$started", run.StartedAt.ToString("O")));
+        Execute(connection, transaction, "INSERT INTO run_execution_scopes(run_id,definition) VALUES($id,$definition)",
+            ("$id", run.Id), ("$definition", System.Text.Json.JsonSerializer.Serialize(slot)));
         if (taskId is not null) Execute(connection, transaction, "UPDATE work_tasks SET last_run_id=$run WHERE id=$task", ("$run", run.Id), ("$task", taskId));
         transaction.Commit();
         return true;

@@ -119,7 +119,7 @@ public sealed class TaskWorktreeTests
     }
 
     [Fact]
-    public async Task SeparateCheckoutsDoNotEnableConcurrentWritersInSameProject()
+    public async Task SeparateValidatedCheckoutsAllowConcurrentWritersInSameProject()
     {
         using var fixture = new Fixture(); await fixture.InitializeAsync(); var (store, project, batch) = await fixture.SeedAsync(independentWrites: true);
         var service = new TaskWorktreeService(store, fixture.Manager);
@@ -128,8 +128,11 @@ public sealed class TaskWorktreeTests
         var worker = new Worker(wait: true); var other = new Worker(ProviderKind.Claude); var chat = new WorkspaceChatService(store, [worker, other], fixture.Manager);
         using var stop = new CancellationTokenSource(); var active = chat.SendTaskAsync(project.Id, batch.Tasks[0].Id, new Progress(), stop.Token);
         await worker.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => chat.SendTaskAsync(project.Id, batch.Tasks[1].Id, new Progress(), CancellationToken.None));
-        Assert.Empty(other.Requests); stop.Cancel(); Assert.Equal(ChatRunState.Cancelled, (await active).State);
+        var second = await chat.SendTaskAsync(project.Id, batch.Tasks[1].Id, new Progress(), CancellationToken.None);
+        Assert.Equal(ChatRunState.Completed, second.State); Assert.Single(other.Requests);
+        Assert.NotEqual(worker.Requests[0].WorkingDirectory, other.Requests[0].WorkingDirectory);
+        Assert.Equal("base", await File.ReadAllTextAsync(Path.Combine(project.Directory, "portal.txt")));
+        stop.Cancel(); Assert.Equal(ChatRunState.Cancelled, (await active).State);
     }
 
     [Fact]

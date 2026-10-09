@@ -22,7 +22,7 @@ Tarefas que não prepararam worktree continuam usando o projeto original. Escrit
 
 ## Validação
 
-Testes com Git nativo em pastas temporárias verificam preservação do original/índice, commit confirmado, subpastas, arquivos com acentos/espaços, registro/bloqueio, retomada, falha/cancelamento com efeitos parciais, colisões, migração do schema 4, pasta/branch alteradas, sessão e diretório estáveis, dependências não integradas e escrita serial. Provedores são simulados; nenhuma chamada paga é feita nesses testes.
+Testes com Git nativo em pastas temporárias verificam preservação do original/índice, commit confirmado, subpastas, arquivos com acentos/espaços, registro/bloqueio, retomada, falha/cancelamento com efeitos parciais, colisões, migração do schema 4, pasta/branch alteradas, sessão e diretório estáveis, dependências não integradas e escrita paralela em checkouts validados distintos. [Limites de sessões](SESSION_CONCURRENCY.md). Provedores são simulados; nenhuma chamada paga é feita nesses testes.
 
 ## Fluxo na fila
 

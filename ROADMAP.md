@@ -31,7 +31,7 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 ## M2 — Primeiro produto utilizável
 
-Estado: concluído. Central real utilizável, com autorizações, chefia editável, fila persistente com início explícito/revisão/ajustes e biblioteca de perfis reutilizáveis. Validação: 141 testes xUnit e fluxos WPF de central, planos, fila e perfis; integração nativa tem as provas finitas documentadas. Escrita serial no mesmo projeto; limites de M1/M3/M4 permanecem explícitos.
+Estado: concluído. Central real utilizável, com autorizações, chefia editável, fila persistente com início explícito/revisão/ajustes e biblioteca de perfis reutilizáveis. Validação: 141 testes xUnit e fluxos WPF de central, planos, fila e perfis; integração nativa tem as provas finitas documentadas. Escrita direta exclusiva no mesmo projeto; limites de M1/M3/M4 permanecem explícitos.
 
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
@@ -47,7 +47,7 @@ Aceite: o usuário cadastra e alterna projetos, conversa com um provedor/modelo 
 
 ## M3 — Trabalho paralelo com Git
 
-Estado: diagnóstico Git, worktrees, diffs, registro do commit revisado e preparação da combinação conectados à central/fila. Nova worktree separada/destacada conserva árvore ou conflitos, preservando original/índices/ignorados. Núcleo de validação configurável registra intenção/resultados no schema 9, mantém reserva/trava, executa comandos limitados/canceláveis e confere índice/conteúdo/critério antes de salvar sucesso. Recuperação preserva operações vivas e não repete comandos abandonados. Editor/execução WPF de validação são o próximo incremento. Combinação/Passed não publicam nem liberam dependentes; integração concluída exige confirmação e publicação no destino. Projetos sem Git continuam disponíveis; escrita permanece serial. Git real e processos/runs de teste, sem chamadas de modelos neste incremento.
+Estado: diagnóstico Git, worktrees, diffs, registro do commit revisado e preparação da combinação conectados à central/fila. Nova worktree separada/destacada conserva árvore ou conflitos, preservando original/índices/ignorados. Núcleo de validação configurável registra intenção/resultados no schema 9, mantém reserva/trava, executa comandos limitados/canceláveis e confere índice/conteúdo/critério antes de salvar sucesso. Recuperação preserva operações vivas e não repete comandos abandonados. Editor/execução WPF de validação são o próximo incremento. Combinação/Passed não publicam nem liberam dependentes; integração concluída exige confirmação e publicação no destino. Projetos sem Git continuam disponíveis; escrita direta permanece exclusiva. Núcleo do limite de 3–7 sessões e escrita paralela em worktrees validadas implementado no schema 10; seletor WPF e despacho em grupo são o próximo incremento imediato. Git real e processos/runs de teste, sem chamadas de modelos neste incremento.
 
 Validação atual: build sem avisos/erros, 247 testes xUnit verificados e WPF --combinations aprovado, zero erros de binding. Release local atualizado e abertura/encerramento conferidos. O núcleo de validação não é apresentado como fluxo visual concluído.
 

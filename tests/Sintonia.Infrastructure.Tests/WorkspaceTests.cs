@@ -177,7 +177,7 @@ public sealed class WorkspaceTests : IDisposable
         await store.SaveConversationAsync(conversation);
         var run = new ChatRun(Guid.NewGuid().ToString(), conversation.Id, "pedido", null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
         await store.BeginRunAsync(run);
-        await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => store.BeginRunAsync(run with { Id = Guid.NewGuid().ToString() }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.BeginRunAsync(run with { Id = Guid.NewGuid().ToString() }));
         await Assert.ThrowsAsync<ArgumentException>(() => store.SaveConversationAsync(conversation with { Provider = ProviderKind.Claude }));
         await store.FinishRunAsync(run with { State = ChatRunState.Completed, Response = "entrega", FinishedAt = DateTimeOffset.UtcNow }, conversation, [new(run.Id, ConversationEventKind.Tool, "Read")]);
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.FinishRunAsync(run with { State = ChatRunState.Failed }, conversation, []));
@@ -204,7 +204,7 @@ public sealed class WorkspaceTests : IDisposable
     }
 
     [Fact]
-    public async Task ReservationsLimitProviderAndSerializeWritingUntilStopped()
+    public async Task ReservationsSerializeOriginalWritingUntilStopped()
     {
         var store = await StoreAsync();
         var project = await store.AddProjectAsync(_directory);

@@ -226,3 +226,11 @@ Registro resumido de incrementos e pontos de retomada. Consulte `git log` para h
 - Verificados 247 testes xUnit (65 Core + 182 Infrastructure), build sem avisos/erros. Execução completa encontrou uma variável Git herdada removida de forma incompleta; corrigida removendo as variáveis pelas chaves herdadas, com 20 testes selecionados aprovados. Dois casos adicionais conferem interrupção interna em atenção e cancelamento pedido pelo usuário. Contagem agregada; não houve nova execução completa após essas correções. Release atualizado e abertura/encerramento conferidos.
 - Limites: Passed registra a árvore versionada conferida; ambiente, ferramentas e entradas ignoradas não são imutáveis. Logs ainda não têm checkpoint contínuo durante execução; interrupção pode perder saída não salva. Não publica, resolve conflitos ou libera dependentes.
 - Próximo incremento: editor por projeto e execução/histórico WPF, mostrando comandos/pastas/árvore/revisão antes de iniciar e aguardando cancelamento/fechamento. Depois publicação confirmada e disponibilidade de revisão integrada para dependentes.
+
+## 09/10/2026 — Núcleo de 3–7 sessões por projeto
+
+- Pedido do usuário atualizado para mínimo 3 e máximo 7, com chefe e trabalhadores Codex/Claude no mesmo projeto. Configuração por projeto com revisão, padrão 3, teto global 7 e várias sessões do mesmo provedor.
+- Schema 10 guarda limite e escopo efetivo por run. Admissão no serviço e reserva transacional no SQLite impedem excesso entre stores, duplicação e conflito de pastas. Redução de limite não cancela sessões; cancelamento segura a vaga até encerramento/persistência.
+- Escrita em worktrees distintas, prontas e validadas agora admite concorrência. Original continua exclusivo para escrita; publicação e liberação de dependentes continuam pendentes.
+- Validação: build sem avisos/erros, 69 testes Core e 31 selecionados de Infrastructure aprovados. Limites 3/5/7, mistura/repetição de provedor, cancelamento tardio, concorrência entre stores, escopo congelado, sobreposição de projetos e migração cobertos. Git real verifica dois escritores em checkouts separados, sem modificar original. Nenhum modelo chamado.
+- Próximo incremento: seletor WPF 3–7 e início em grupo das tarefas disponíveis do plano aprovado, com cancelamento/fechamento aguardados.

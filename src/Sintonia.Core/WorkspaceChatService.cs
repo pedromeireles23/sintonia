@@ -3,13 +3,13 @@ using System.Text;
 
 namespace Sintonia.Core;
 
-/// <summary>Reserves capacity before persistence/inference. Writing conversations run alone in their project.</summary>
+/// <summary>Reserves capacity before persistence/inference; parallel writes require distinct validated checkouts.</summary>
 public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<IConversationProvider> providers,
     IGitTaskWorktreeManager? worktrees = null)
 {
     private readonly IReadOnlyDictionary<ProviderKind, IConversationProvider> _providers = providers.ToDictionary(p => p.Kind);
     private readonly object _gate = new();
-    private readonly Dictionary<string, WorkspaceConversation> _active = [];
+    private readonly Dictionary<string, WorkspaceExecutionSlot> _active = [];
 
     public Task<ChatRun> SendAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
         IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
@@ -55,18 +55,18 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             permissionHandler = null;
             instructions = PlanProposalFormat.ComposeChiefInstructions(instructions);
         }
+        var settings = await store.GetProjectExecutionSettingsAsync(project.Id).ConfigureAwait(false);
+        var slot = WorkspaceExecutionSlot.Create(project, conversation, expectedWorktree);
         lock (_gate)
         {
-            if (_active.Count >= 2 || _active.ContainsKey(conversation.Id) || _active.Values.Any(c => c.Provider == conversation.Provider))
-                throw new InvalidOperationException("Aguarde a execução ativa deste provedor. Limite: duas conversas, uma por IA.");
-            if (_active.Values.Any(c => c.ProjectId == project.Id && (c.Access == ConversationAccess.WorkspaceWrite || conversation.Access == ConversationAccess.WorkspaceWrite)))
-                throw new InvalidOperationException("Uma conversa com escrita trabalha sozinha neste projeto. Aguarde ou use outra pasta.");
-            _active.Add(conversation.Id, conversation);
+            if (!WorkspaceExecutionPolicy.CanAdmit(slot, _active.Values, settings.MaxConcurrentSessions, out var reason))
+                throw new InvalidOperationException(reason);
+            _active.Add(conversation.Id, slot);
         }
         try
         {
             var run = new ChatRun(Guid.NewGuid().ToString(), conversation.Id, prompt, null, ChatRunState.Running, DateTimeOffset.UtcNow, null, null);
-            await store.BeginRunAsync(run, taskId, expectedWorktree).ConfigureAwait(false);
+            await store.BeginRunAsync(run, taskId, expectedWorktree, slot).ConfigureAwait(false);
             var text = new StringBuilder();
             var events = new ConcurrentQueue<ChatEvent>();
             var checkpoint = Task.CompletedTask;
