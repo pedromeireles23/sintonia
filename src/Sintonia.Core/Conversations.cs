@@ -6,7 +6,8 @@ public enum ConversationOutcome { Completed, Blocked }
 
 public sealed record ConversationRequest(string WorkingDirectory, string Prompt, string? Model = null,
     string? NativeSessionId = null, string Instructions = "", ConversationAccess Access = ConversationAccess.ReadOnly,
-    Func<ConversationPermission, CancellationToken, Task<bool>>? PermissionHandler = null);
+    Func<ConversationPermission, CancellationToken, Task<bool>>? PermissionHandler = null,
+    Func<ConversationQuestionRequest, CancellationToken, Task<ConversationQuestionResponse?>>? QuestionHandler = null);
 public sealed record ConversationPermission(ProviderKind Provider, string Kind, string Description, string WorkingDirectory);
 public sealed record ConversationEvent(ConversationEventKind Kind, string Text, string? NativeSessionId = null,
     string? Model = null, RunTokenUsage? TokenUsage = null);

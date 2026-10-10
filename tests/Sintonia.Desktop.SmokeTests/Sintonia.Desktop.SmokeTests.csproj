@@ -6,5 +6,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Sintonia.Desktop/Sintonia.Desktop.csproj" />
+    <ProjectReference Include="../Sintonia.ProcessFixture/Sintonia.ProcessFixture.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <Target Name="CopyProcessFixture" AfterTargets="Build">
+    <MSBuild Projects="../Sintonia.ProcessFixture/Sintonia.ProcessFixture.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="FixtureTarget" />
+    </MSBuild>
+    <ItemGroup><FixtureFiles Include="%(FixtureTarget.RootDir)%(FixtureTarget.Directory)Sintonia.ProcessFixture.*" /></ItemGroup>
+    <Copy SourceFiles="@(FixtureFiles)" DestinationFolder="$(OutDir)fixtures" />
+  </Target>
 </Project>

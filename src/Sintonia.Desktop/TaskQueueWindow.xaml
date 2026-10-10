@@ -1,9 +1,17 @@
 <Window x:Class="Sintonia.Desktop.TaskQueueWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Sintonia.Desktop"
         Title="Sintonia — Fila de tarefas" Width="1200" Height="900" MinWidth="1050" MinHeight="760"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterOwner">
-    <Window.Resources><BooleanToVisibilityConverter x:Key="BoolVisibility" /></Window.Resources>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolVisibility" />
+        <Style x:Key="QueueReviewVisibility" TargetType="FrameworkElement">
+            <Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions>
+                <Condition Binding="{Binding Workspace.HasQuestions}" Value="True" /><Condition Binding="{Binding Busy}" Value="True" />
+            </MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Collapsed" /></MultiDataTrigger></Style.Triggers>
+        </Style>
+    </Window.Resources>
     <Border Background="#F4F7F4" Padding="22">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -92,6 +100,8 @@
                             <StackPanel Orientation="Horizontal"><Button Content="Permitir esta ação" Command="{Binding Workspace.AllowPermissionCommand}" /><Button Content="Recusar" Command="{Binding Workspace.DenyPermissionCommand}" Margin="8,0,0,0" /></StackPanel>
                         </StackPanel>
                     </Border>
+                    <local:ConversationQuestionsView Grid.Row="1" DataContext="{Binding Workspace.Questions}" MaxHeight="330" Margin="0,10,0,0"
+                        Visibility="{Binding DataContext.Workspace.HasQuestions, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}" />
                 </Grid>
             </Grid>
             <StackPanel Grid.Row="3" Margin="0,12,0,0">
@@ -100,9 +110,11 @@
                     <TextBlock Text="{Binding SessionUsage}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0" />
                 </WrapPanel>
                 <ScrollViewer MaxHeight="52" VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding TaskStatus}" FontWeight="SemiBold" Foreground="{StaticResource Accent}" /></ScrollViewer>
-                <TextBlock Text="Nota da revisão / ajuste solicitado" Style="{StaticResource Caption}" Margin="0,6,0,4" />
-                <TextBox Text="{Binding ReviewNote, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanReview}" TextWrapping="Wrap" AcceptsReturn="True" Height="52" MaxLength="4000" VerticalScrollBarVisibility="Auto" Padding="8" AutomationProperties.AutomationId="TaskReviewNote" />
-                <DockPanel Margin="0,10,0,0">
+                <StackPanel Style="{StaticResource QueueReviewVisibility}">
+                    <TextBlock Text="Nota da revisão / ajuste solicitado" Style="{StaticResource Caption}" Margin="0,6,0,4" />
+                    <TextBox Text="{Binding ReviewNote, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanReview}" TextWrapping="Wrap" AcceptsReturn="True" Height="52" MaxLength="4000" VerticalScrollBarVisibility="Auto" Padding="8" AutomationProperties.AutomationId="TaskReviewNote" />
+                </StackPanel>
+                <DockPanel Margin="0,10,0,0" Style="{StaticResource QueueReviewVisibility}">
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                         <Button Content="Iniciar tentativa" Command="{Binding StartCommand}" AutomationProperties.AutomationId="StartQueueTask" />
                         <Button Content="Cancelar" Command="{Binding CancelCommand}" Margin="8,0,0,0" />
@@ -110,6 +122,14 @@
                         <Button Content="Aprovar entrega" Command="{Binding ApproveCommand}" Background="{StaticResource Accent}" Foreground="White" Margin="8,0,0,0" AutomationProperties.AutomationId="ApproveDelivery" />
                     </StackPanel>
                 </DockPanel>
+                <Button Content="Cancelar execução" Command="{Binding CancelCommand}" Margin="0,10,0,0" HorizontalAlignment="Right">
+                    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding Workspace.HasQuestions}" Value="True" /><Condition Binding="{Binding Busy}" Value="True" />
+                        </MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible" /></MultiDataTrigger></Style.Triggers>
+                    </Style></Button.Style>
+                </Button>
                 <ScrollViewer MaxHeight="44" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0"><TextBlock Text="{Binding Notice}" Style="{StaticResource Caption}" /></ScrollViewer>
             </StackPanel>
         </Grid>

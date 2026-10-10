@@ -18,6 +18,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         if (args.FirstOrDefault() == "--workspace") return WorkspaceSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/workspace-smoke");
+        if (args.FirstOrDefault() == "--questions") return ConversationQuestionsSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/question-smoke");
         if (args.FirstOrDefault() == "--tokens") return WorkspaceSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/token-smoke", verifyTokenUsage: true);
         if (args.FirstOrDefault() == "--budget") return TokenBudgetSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/budget-smoke");
         if (args.FirstOrDefault() == "--proposals") return ProposalSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/proposal-smoke");

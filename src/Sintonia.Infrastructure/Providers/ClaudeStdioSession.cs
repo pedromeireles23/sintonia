@@ -145,7 +145,25 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
                 && hasInput && input.EnumerateObject().Any() && preview.Length <= 64_000
                 && tool is not ("AskUserQuestion" or "ExitPlanMode");
             var allow = false;
-            if (_request.Access == ConversationAccess.WorkspaceWrite && reviewable && _request.PermissionHandler is { } handler)
+            var updatedInput = input;
+            if (tool == "AskUserQuestion" && hasInput && preview.Length <= 64_000
+                && _request.QuestionHandler is { } questionsHandler
+                && ClaudeQuestionInput.TryParse(input, _request.WorkingDirectory, out var questions))
+            {
+                _progress.Report(new(ConversationEventKind.Diagnostic, "Claude aguarda respostas às perguntas."));
+                try
+                {
+                    var response = await questionsHandler(questions, stop.Token).WaitAsync(stop.Token).ConfigureAwait(false);
+                    allow = ConversationQuestionPolicy.TryGetAnswers(questions, response, out var answers);
+                    if (allow) updatedInput = ClaudeQuestionInput.WithAnswers(input, answers);
+                }
+                catch (OperationCanceledException) when (stop.IsCancellationRequested) { throw; }
+                catch (Exception)
+                {
+                    _progress.Report(new(ConversationEventKind.Diagnostic, "Falha ao obter respostas Claude; pergunta recusada."));
+                }
+            }
+            else if (_request.Access == ConversationAccess.WorkspaceWrite && reviewable && _request.PermissionHandler is { } handler)
             {
                 _progress.Report(new(ConversationEventKind.Diagnostic, "Aguardando autorização Claude: " + tool));
                 try
@@ -161,9 +179,10 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
             }
             stop.Token.ThrowIfCancellationRequested();
             if (!allow) _parser.RecordDenial(tool ?? "ferramenta");
-            else _progress.Report(new(ConversationEventKind.Diagnostic, "Autorização Claude concedida para esta ação: " + tool));
+            else _progress.Report(new(ConversationEventKind.Diagnostic, tool == "AskUserQuestion" ? "Respostas enviadas ao Claude."
+                : "Autorização Claude concedida para esta ação: " + tool));
             object decision = allow
-                ? new { behavior = "allow", updatedInput = input }
+                ? new { behavior = "allow", updatedInput }
                 : new { behavior = "deny", message = "Ação recusada pelo Sintonia. Não repita nem contorne a recusa." };
             _permissions.TryRemove(id, out _);
             await _process.WriteLineAsync(JsonSerializer.Serialize(new

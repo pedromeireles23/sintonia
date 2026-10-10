@@ -67,6 +67,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private readonly CancellationTokenSource _lifetime = new();
     private TaskCompletionSource<bool>? _permissionAnswer;
     private ConversationPermission? _permission;
+    private ConversationQuestionsViewModel? _questions;
     private WorkspaceProject? _project;
     private ConversationViewModel? _selected;
     private ProviderKind _provider;
@@ -222,6 +223,8 @@ public sealed class WorkspaceViewModel : ObservableObject
         && !string.IsNullOrWhiteSpace(Prompt);
     public ConversationPermission? Permission { get => _permission; private set { Set(ref _permission, value); Notify(nameof(HasPermission)); RefreshCommands(); } }
     public bool HasPermission => Permission is not null;
+    public ConversationQuestionsViewModel? Questions { get => _questions; private set { Set(ref _questions, value); Notify(nameof(HasQuestions)); } }
+    public bool HasQuestions => Questions is not null;
     public AsyncCommand AddProjectCommand { get; }
     public AsyncCommand RefreshModelsCommand { get; }
     public DelegateCommand NewConversationCommand { get; }
@@ -491,8 +494,10 @@ public sealed class WorkspaceViewModel : ObservableObject
         try
         {
             await _store.SaveConversationAsync(session.Record);
-            var run = taskId is null ? await _chat.SendAsync(project, session.Record, prompt, progress, stop.Token, AskPermissionAsync)
-                : await _chat.SendTaskAsync(project.Id, taskId, progress, stop.Token, AskPermissionAsync);
+            Task<ConversationQuestionResponse?> AskQuestions(ConversationQuestionRequest questions, CancellationToken token) =>
+                AskQuestionsAsync(questions, session.Title, token);
+            var run = taskId is null ? await _chat.SendAsync(project, session.Record, prompt, progress, stop.Token, AskPermissionAsync, AskQuestions)
+                : await _chat.SendTaskAsync(project.Id, taskId, progress, stop.Token, AskPermissionAsync, AskQuestions);
             finished = true; answer.TokenUsage = run.TokenUsage;
             answer.Text = run.Response ?? ""; answer.State = session.State = StateText(run.State);
             if (run.Error is not null) session.Messages.Add(new("Sintonia", run.Error));
@@ -681,6 +686,28 @@ public sealed class WorkspaceViewModel : ObservableObject
         finally
         {
             await _dispatcher.InvokeAsync(() => { Permission = null; _permissionAnswer = null; });
+            _permissionGate.Release();
+        }
+    }
+
+    private async Task<ConversationQuestionResponse?> AskQuestionsAsync(ConversationQuestionRequest questions, string context, CancellationToken token)
+    {
+        await _permissionGate.WaitAsync(token).ConfigureAwait(false);
+        ConversationQuestionsViewModel? panel = null;
+        try
+        {
+            var answer = new TaskCompletionSource<ConversationQuestionResponse?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await _dispatcher.InvokeAsync(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                panel = new(questions, context, response => answer.TrySetResult(response));
+                Questions = panel;
+            });
+            return await answer.Task.WaitAsync(token).ConfigureAwait(false);
+        }
+        finally
+        {
+            await _dispatcher.InvokeAsync(() => { panel?.Withdraw(); Questions = null; });
             _permissionGate.Release();
         }
     }

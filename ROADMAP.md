@@ -19,12 +19,14 @@ Aceite: a janela abre no Windows; as funções podem ser atribuídas aos dois pr
 
 ## M1 — Prova das duas integrações
 
-Estado: integração real de leitura/retomada/interrupção comprovada nos dois provedores; host Claude com recusa/autorização real de Write/Bash/Edit e uma leitura MCP pública comprovadas. Comparação de contratos/catálogos registrada, com diferenças de descoberta, autenticações/falhas MCP e categorias indisponíveis explícitas; outros MCPs e controles especiais continuam parciais. Evidências em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md), [docs/CLAUDE_TOOL_PERMISSIONS.md](docs/CLAUDE_TOOL_PERMISSIONS.md), [docs/CLAUDE_MCP_PERMISSIONS.md](docs/CLAUDE_MCP_PERMISSIONS.md) e [docs/PROVIDER_EXTENSIONS.md](docs/PROVIDER_EXTENSIONS.md).
+Estado: integração real de leitura/retomada/interrupção comprovada nos dois provedores; host Claude com recusa/autorização real de Write/Bash/Edit e uma leitura MCP pública comprovadas. Perguntas AskUserQuestion implementadas na central/fila e verificadas com processos de teste, ainda sem prova de emissão real. Comparação de contratos/catálogos registrada, com diferenças de descoberta, autenticações/falhas MCP e categorias indisponíveis explícitas; outros MCPs e controles especiais continuam parciais. Evidências em [docs/PROVIDER_PROBES.md](docs/PROVIDER_PROBES.md), [docs/CLAUDE_TOOL_PERMISSIONS.md](docs/CLAUDE_TOOL_PERMISSIONS.md), [docs/CLAUDE_MCP_PERMISSIONS.md](docs/CLAUDE_MCP_PERMISSIONS.md), [docs/CLAUDE_QUESTIONS.md](docs/CLAUDE_QUESTIONS.md) e [docs/PROVIDER_EXTENSIONS.md](docs/PROVIDER_EXTENSIONS.md).
 
 - [x] Detectar executáveis e versões sem acessar credenciais.
 - [x] Validar handshake, eventos e interrupção do Codex App Server por stdio.
 - [x] Validar Claude CLI: saída estruturada, nova sessão e retomada explícita.
 - [x] Comparar skills, plugins e MCPs esperados com capacidades disponíveis, documentando categorias indisponíveis e diferenças sem presumir paridade desktop.
+- [x] Implementar formulário AskUserQuestion e verificar contrato, cancelamento, retomada, concorrência e WPF com processos locais, sem modelos.
+- [ ] Confirmar emissão/resposta AskUserQuestion em uma prova real finita; próximo incremento com um turno delimitado e sem retry.
 - [ ] Validar o fluxo de permissões e negativas de cada provedor (Codex: negativa real de sandbox; Claude: recusa/autorização real de Write/Bash/Edit e fetch do Microsoft Learn MCP; outros MCPs/controles especiais ainda parciais).
 - [x] Testar caminhos com espaços, acentos, prompts extensos e encerramento de processos filhos.
 - [x] Registrar versões e comportamentos efetivamente testados.

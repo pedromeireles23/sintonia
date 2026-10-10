@@ -81,3 +81,11 @@ Decisão: retirar o marco de artes, a previsão de um adaptador de imagens próp
 Justificativa: esses recursos especializados duplicariam responsabilidades dos agentes e ampliariam o produto além do propósito solicitado. Uma imagem, um documento e código são entregas a coordenar; o canal deve tratar o trabalho conjunto sem implementar um sistema de produção para cada tipo de arquivo. Uma interface especializada exige uma necessidade concreta e nova decisão de escopo.
 
 Consequências: imagens continuam possíveis como entregas das tarefas, sem módulo próprio. A retirada não comprova geração de imagens pela integração nem paridade com os aplicativos originais; capacidades e extensões continuam exigindo validação. O escopo permite cadastrar projetos conforme a necessidade, mantendo contexto separado. Quantidade de projetos e sessões abertas é distinta de execuções ativas; os limites atuais de 3–7 por projeto e sete globalmente permanecem. M6/M7 conservam seus identificadores para preservar referências históricas. Documentos de escopo, contexto, arquitetura, roadmap e instruções foram alinhados; o próximo incremento de código continua sendo o M3 em andamento.
+
+## 012 — Respostas de perguntas separadas das permissões
+
+Data: 10/10/2026. Estado: implementada e validada com processos de teste; emissão pelo Claude real pendente.
+
+AskUserQuestion exige valores estruturados, portanto recebe callback e formulário próprios, sem aprovação booleana. Responder conserva a entrada e acrescenta apenas answers, sem alterar regras de permissão. A chefia e outras sessões em leitura podem esclarecer escolhas, mantendo escrita bloqueada. Todas as perguntas exigem resposta explícita; a fila conserva revisão da entrega. Perguntas e permissões compartilham espera serial, contexto/pasta capturados e cancelamento com retirada de formulários antigos. O formulário não persiste respostas nem reenvia ao reabrir.
+
+Isso estende a decisão 009 para uma interação concreta; não acrescenta SDK/runtime ou bypass. ExitPlanMode, elicitation e background permanecem sem fluxo específico. O comportamento do CLI real deve ser confirmado em uma prova finita antes de declarar compatibilidade. [Contrato, limites e validação](CLAUDE_QUESTIONS.md).

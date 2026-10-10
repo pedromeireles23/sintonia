@@ -23,6 +23,8 @@ rtk proxy dotnet run --project src/Sintonia.Desktop
 
 O teste WPF verifica a criação da janela nativa, bindings, concorrência demonstrativa, bloqueio antes da revisão, cinco aprovações e sessões. Salva capturas em `artifacts/ui-smoke` para inspeção visual. Todo o fluxo usa provedores simulados.
 
+`--questions` verifica o formulário Claude na central/fila com o adaptador stdio real e `Sintonia.ProcessFixture`, sem modelos ou rede. Inclui respostas, recusa, leitura, streaming durante espera, concorrência, cancelamento e reabertura. Comandos e seleção de regressões em [docs/CLAUDE_QUESTIONS.md](docs/CLAUDE_QUESTIONS.md).
+
 ## Regras de código
 
 - C# com nullable habilitado e contratos claros.

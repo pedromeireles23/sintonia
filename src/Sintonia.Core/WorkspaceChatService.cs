@@ -13,14 +13,16 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
 
     public Task<ChatRun> SendAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
         IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
-        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler = null)
+        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler = null,
+        Func<ConversationQuestionRequest, CancellationToken, Task<ConversationQuestionResponse?>>? questionHandler = null)
     {
         if (conversation.IsTask) throw new InvalidOperationException("Inicie ou ajuste esta conversa pela fila de tarefas.");
-        return SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, null);
+        return SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, questionHandler, null);
     }
 
     public async Task<ChatRun> SendTaskAsync(string projectId, string taskId, IProgress<ConversationEvent> progress,
-        CancellationToken cancellationToken, Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler = null)
+        CancellationToken cancellationToken, Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler = null,
+        Func<ConversationQuestionRequest, CancellationToken, Task<ConversationQuestionResponse?>>? questionHandler = null)
     {
         var project = (await store.GetProjectsAsync().ConfigureAwait(false)).Single(p => p.Id == projectId);
         var batch = (await store.GetTaskBatchesAsync(projectId).ConfigureAwait(false)).Single(b => b.Tasks.Any(t => t.Id == taskId));
@@ -46,12 +48,14 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             await revisions.VerifyRevisionAsync(project.Directory, dependency.Publication!.Commit!, cancellationToken).ConfigureAwait(false);
         }
         var conversation = (await store.GetConversationsAsync(projectId).ConfigureAwait(false)).Single(c => c.Id == task.ConversationId);
-        return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, taskId, task.Worktree, task.Definition).ConfigureAwait(false);
+        return await SendCoreAsync(project, conversation, prompt, progress, cancellationToken, permissionHandler, questionHandler, taskId, task.Worktree, task.Definition).ConfigureAwait(false);
     }
 
     private async Task<ChatRun> SendCoreAsync(WorkspaceProject project, WorkspaceConversation conversation, string prompt,
         IProgress<ConversationEvent> progress, CancellationToken cancellationToken,
-        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler, string? taskId, TaskWorktree? expectedWorktree = null, ProposedTask? expectedDefinition = null)
+        Func<ConversationPermission, CancellationToken, Task<bool>>? permissionHandler,
+        Func<ConversationQuestionRequest, CancellationToken, Task<ConversationQuestionResponse?>>? questionHandler,
+        string? taskId, TaskWorktree? expectedWorktree = null, ProposedTask? expectedDefinition = null)
     {
         if (project.Id != conversation.ProjectId || string.IsNullOrWhiteSpace(prompt) || prompt.Length > 200_000)
             throw new ArgumentException("Projeto incompatível ou pedido vazio/extenso.");
@@ -116,7 +120,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             try
             {
                 var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt, conversation.Model,
-                    conversation.NativeSessionId, instructions, conversation.Access, permissionHandler), live, deadline.Token).ConfigureAwait(false);
+                    conversation.NativeSessionId, instructions, conversation.Access, permissionHandler, questionHandler), live, deadline.Token).ConfigureAwait(false);
                 lock (dataGate) usage = ValidUsage(result.TokenUsage, conversation.Provider) ?? usage;
                 deadline.Token.ThrowIfCancellationRequested();
                 conversation = conversation with { NativeSessionId = result.NativeSessionId, Model = result.Model };

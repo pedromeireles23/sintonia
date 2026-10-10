@@ -135,6 +135,7 @@ internal static class ProtocolFixture
         Emit(new { type = "system", subtype = "init", session_id = session, model = "fixture-model", plugins = Array.Empty<object>(), mcp_servers = Array.Empty<object>() });
         Emit(new { type = "stream_event", session_id = session, @event = new { delta = new { type = "text_delta", text = "Parcial" } } });
         if (args[0] == "claude-exit") return 7;
+        if (args[0].StartsWith("claude-question", StringComparison.Ordinal)) return await RunClaudeQuestionAsync(args, session, prompt);
         if (args[0].StartsWith("claude-host", StringComparison.Ordinal))
         {
             var tool = args[0] switch { "claude-host-edit" => "Edit", "claude-host-command" => "Bash",
@@ -210,6 +211,54 @@ internal static class ProtocolFixture
             modelUsage = new { restored_history_and_subagents = new { inputTokens = 999999, outputTokens = 999999 } }, total_cost_usd = 99999,
             permission_denials = args[0] == "claude-denied" ? new[] { new { tool_name = "Write" } } : [] });
         if ((await Console.In.ReadToEndAsync()).Length != 0) return 16; // No late answer after withdrawal/terminal result.
+        return 0;
+    }
+
+    private static async Task<int> RunClaudeQuestionAsync(string[] args, string session, string prompt)
+    {
+        using var document = JsonDocument.Parse(prompt); var input = document.RootElement;
+        var request = new { type = "control_request", request_id = "question-1",
+            request = new { subtype = "can_use_tool", tool_name = "AskUserQuestion", input } };
+        Emit(request);
+        Emit(new { type = "stream_event", session_id = session, @event = new { delta = new { type = "text_delta", text = "DURANTE-PERGUNTA" } } });
+        if (args[0] == "claude-question-exit") return 7;
+        if (args[0] == "claude-question-duplicate") { Emit(request); await Console.In.ReadToEndAsync(); return 30; }
+        if (args[0] == "claude-question-premature")
+        {
+            Emit(new { type = "result", session_id = session, subtype = "success", is_error = false, result = "SIMULAÇÃO" });
+            await Console.In.ReadToEndAsync(); return 31;
+        }
+        var answerText = "SIMULAÇÃO: pergunta recusada";
+        if (args[0] == "claude-question-withdraw")
+        {
+            await Task.Delay(100);
+            Emit(new { type = "control_cancel_request", request_id = "question-1" });
+        }
+        else
+        {
+            using var answer = JsonDocument.Parse((await Console.In.ReadLineAsync())!);
+            var response = answer.RootElement.GetProperty("response");
+            if (response.GetProperty("request_id").GetString() != "question-1" || response.GetProperty("subtype").GetString() != "success") return 32;
+            var decision = response.GetProperty("response");
+            if (decision.TryGetProperty("updatedPermissions", out _)) return 33;
+            if (decision.GetProperty("behavior").GetString() == "allow")
+            {
+                var updated = decision.GetProperty("updatedInput");
+                foreach (var property in input.EnumerateObject().Where(property => property.Name != "answers"))
+                    if (!JsonElement.DeepEquals(property.Value, updated.GetProperty(property.Name))) return 34;
+                if (updated.EnumerateObject().Count() != input.EnumerateObject().Count() + (input.TryGetProperty("answers", out _) ? 0 : 1)) return 35;
+                answerText = updated.GetProperty("answers").GetRawText();
+            }
+        }
+        if (args[0] == "claude-question-write")
+        {
+            Emit(new { type = "control_request", request_id = "write-after-question", request = new { subtype = "can_use_tool", tool_name = "Write",
+                input = new { file_path = "NÃO-CRIAR.txt", content = "NÃO-CRIAR" } } });
+            using var writing = JsonDocument.Parse((await Console.In.ReadLineAsync())!);
+            if (writing.RootElement.GetProperty("response").GetProperty("response").GetProperty("behavior").GetString() != "deny") return 36;
+        }
+        Emit(new { type = "result", session_id = session, subtype = "success", is_error = false, result = answerText });
+        if ((await Console.In.ReadToEndAsync()).Length != 0) return 37; // No late answer after cancellation or terminal result.
         return 0;
     }
 
