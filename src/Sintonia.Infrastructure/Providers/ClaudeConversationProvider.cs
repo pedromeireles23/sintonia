@@ -174,6 +174,13 @@ public sealed class ClaudeStreamParser(string sessionId, IProgress<ConversationE
 
     public ConversationResult GetResult(int exitCode)
     {
+        if (_result is { } failed && failed.TryGetProperty("is_error", out var errorFlag) && errorFlag.ValueKind == JsonValueKind.True
+            && failed.TryGetProperty("errors", out var failures) && failures.ValueKind == JsonValueKind.Array
+            && failures.EnumerateArray().Any(error => error.ValueKind == JsonValueKind.String
+                && error.GetString() is { } message && message.Contains("OAuth", StringComparison.OrdinalIgnoreCase)
+                && message.Contains("refresh", StringComparison.OrdinalIgnoreCase) && message.Contains("failed", StringComparison.OrdinalIgnoreCase)))
+            throw new ProviderException("Claude não conseguiu renovar o login OAuth. Refaça o login por assinatura antes de enviar novamente.",
+                ProviderFailureKind.AuthenticationRefreshFailed);
         if (_result is not { } result || exitCode != 0) throw new ProviderException($"Claude terminou sem resultado válido (código {exitCode}).");
         if (result.GetProperty("is_error").GetBoolean() || result.GetProperty("subtype").GetString() != "success")
             throw new ProviderException("Claude: " + (result.TryGetProperty("errors", out var errors)

@@ -26,7 +26,7 @@ Estado: integração real de leitura/retomada/interrupção comprovada nos dois 
 - [x] Validar Claude CLI: saída estruturada, nova sessão e retomada explícita.
 - [x] Comparar skills, plugins e MCPs esperados com capacidades disponíveis, documentando categorias indisponíveis e diferenças sem presumir paridade desktop.
 - [x] Implementar formulário AskUserQuestion e verificar contrato, cancelamento, retomada, concorrência e WPF com processos locais, sem modelos.
-- [ ] Confirmar emissão/resposta AskUserQuestion em uma prova real finita; próximo incremento com um turno delimitado e sem retry.
+- [ ] Confirmar emissão/resposta AskUserQuestion em uma prova real finita; diagnóstico implementado, tentativa única interrompida por falha de renovação OAuth. Retomada exige novo login por assinatura, pasta nova, um turno delimitado e sem retry.
 - [ ] Validar o fluxo de permissões e negativas de cada provedor (Codex: negativa real de sandbox; Claude: recusa/autorização real de Write/Bash/Edit e fetch do Microsoft Learn MCP; outros MCPs/controles especiais ainda parciais).
 - [x] Testar caminhos com espaços, acentos, prompts extensos e encerramento de processos filhos.
 - [x] Registrar versões e comportamentos efetivamente testados.

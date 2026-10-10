@@ -10,6 +10,19 @@ using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["question-ready", "Claude"])
+    {
+        await ClaudeQuestionProbe.CheckReadyAsync(cancellation.Token); return 0;
+    }
+    if (args is ["verify-question", var questionDirectory])
+    {
+        ClaudeQuestionProbe.Verify(Path.GetFullPath(questionDirectory));
+        Console.WriteLine("PASS: evidência de pergunta conferida sem modelos; conteúdo do resultado não é persistido."); return 0;
+    }
+    if (args is ["question", "Claude"])
+    {
+        await ClaudeQuestionProbe.RunAsync(cancellation.Token); return 0;
+    }
     if (args is ["verify-mcp", var mcpDirectory])
     {
         ClaudeMcpPermissionProbe.Verify(Path.GetFullPath(mcpDirectory));
@@ -176,7 +189,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude [BashEdit/Mcp] | verify-permissions pasta | verify-mcp pasta | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude [BashEdit/Mcp] | verify-permissions pasta | verify-mcp pasta | question Claude | question-ready Claude | verify-question pasta | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>

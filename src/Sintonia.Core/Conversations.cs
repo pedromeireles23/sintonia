@@ -24,4 +24,8 @@ public interface IConversationProvider
         CancellationToken cancellationToken);
 }
 
-public sealed class ProviderException(string message) : Exception(message);
+public enum ProviderFailureKind { Unspecified, AuthenticationRefreshFailed }
+public sealed class ProviderException(string message, ProviderFailureKind failureKind = ProviderFailureKind.Unspecified) : Exception(message)
+{
+    public ProviderFailureKind FailureKind { get; } = failureKind;
+}
