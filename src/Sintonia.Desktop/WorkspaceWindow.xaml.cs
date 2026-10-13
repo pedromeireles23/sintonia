@@ -30,7 +30,7 @@ public partial class WorkspaceWindow : Window
             deliveries, new TaskIntegrationPreparationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationPreparer(worktrees)),
             new TaskIntegrationValidationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskIntegrationValidationInspector(worktrees), new ValidationCommandRunner()),
             new TaskPublicationService(store, deliveries, new RepositoryIntegrationLock(), new GitTaskPublisher(worktrees)),
-            new TaskWorktreeCleanupService(store, new RepositoryIntegrationLock(), worktrees));
+            new TaskWorktreeCleanupService(store, new RepositoryIntegrationLock(), worktrees), _usageReaders);
         Loaded += async (_, _) => await ViewModel.InitializeAsync();
         Closing += CloseAsync;
     }

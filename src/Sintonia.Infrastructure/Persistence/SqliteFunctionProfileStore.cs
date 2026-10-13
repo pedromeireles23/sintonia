@@ -52,6 +52,25 @@ public sealed partial class SqliteWorkspaceStore
         });
     }
 
+    /// <summary>Creates starter profiles once per database. Later deletions or renames are kept; existing names are not touched.</summary>
+    public Task<int> EnsureStarterFunctionProfilesAsync(IReadOnlyList<WorkspaceFunctionProfile> profiles)
+    {
+        var normalized = profiles.Select(WorkspaceFunctionProfiles.Normalize).ToArray();
+        return RunAsync(connection =>
+        {
+            using var transaction = connection.BeginTransaction();
+            if (Execute(connection, transaction, "INSERT OR IGNORE INTO workspace_markers(key) VALUES('starter-function-profiles-v1')") == 0) return 0;
+            var created = 0;
+            foreach (var profile in normalized)
+                created += Execute(connection, transaction, """
+                    INSERT OR IGNORE INTO function_profiles(id,name,name_key,function_name,provider,model,instructions,revision)
+                    VALUES($id,$name,$key,$function,$provider,$model,$instructions,0);
+                    """, Parameters(profile));
+            transaction.Commit();
+            return created;
+        });
+    }
+
     public Task DeleteFunctionProfileAsync(string id, int revision) => RunAsync(connection =>
     {
         if (Execute(connection, null, "DELETE FROM function_profiles WHERE id=$id AND revision=$revision", ("$id", id), ("$revision", revision)) != 1)

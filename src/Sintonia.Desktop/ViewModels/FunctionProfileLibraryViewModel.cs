@@ -24,7 +24,7 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
     }
     public ObservableCollection<WorkspaceFunctionProfile> Profiles { get; } = [];
     public IReadOnlyList<ProviderKind> Providers { get; } = Enum.GetValues<ProviderKind>();
-    public IReadOnlyList<string> FunctionNames { get; } = ["Conversa", PlanProposalFormat.ChiefFunctionName, "Desenvolvimento", "Revisão", "Documentação", "Análise", "Personalizada"];
+    public IReadOnlyList<string> FunctionNames { get; } = WorkspaceFunctionCatalog.Functions.Select(f => f.Name).ToArray();
     public WorkspaceFunctionProfile? SelectedProfile
     {
         get => _selected;
@@ -36,7 +36,18 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
         }
     }
     public string Name { get => _name; set => Change(ref _name, value); }
-    public string FunctionName { get => _function; set { Change(ref _function, value); Notify(nameof(InstructionLimit)); Notify(nameof(InstructionHint)); } }
+    public string FunctionName
+    {
+        get => _function;
+        set
+        {
+            Change(ref _function, value); Notify(nameof(InstructionLimit)); Notify(nameof(InstructionHint)); Notify(nameof(FunctionSummary));
+            // Fill the built-in instructions unless the user already wrote their own.
+            if (!_loadingDraft && WorkspaceFunctionCatalog.Find(value) is { } template && WorkspaceFunctionCatalog.IsReplaceable(Instructions))
+                Instructions = template.Instructions;
+        }
+    }
+    public string FunctionSummary => WorkspaceFunctionCatalog.Find(FunctionName)?.Summary ?? "Função personalizada: descreva nas instruções o que esperar desta função.";
     public ProviderKind Provider { get => _provider; set => Change(ref _provider, value); }
     public string Model { get => _model; set => Change(ref _model, value); }
     public string Instructions { get => _instructions; set => Change(ref _instructions, value); }
@@ -72,8 +83,9 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
         try
         {
             _selected = profile; Notify(nameof(SelectedProfile));
-            Name = profile?.Name ?? ""; FunctionName = profile?.FunctionName ?? "Desenvolvimento";
-            Provider = profile?.Provider ?? ProviderKind.Codex; Model = profile?.Model ?? ""; Instructions = profile?.Instructions ?? "";
+            var template = WorkspaceFunctionCatalog.Find("Desenvolvimento")!;
+            Name = profile?.Name ?? ""; FunctionName = profile?.FunctionName ?? template.Name;
+            Provider = profile?.Provider ?? template.SuggestedProvider; Model = profile?.Model ?? ""; Instructions = profile?.Instructions ?? template.Instructions;
             IsDirty = false;
             Notice = "Perfis são compartilhados entre projetos nesta instalação. Aplicar preenche uma nova conversa; permissões são escolhidas separadamente.";
         }

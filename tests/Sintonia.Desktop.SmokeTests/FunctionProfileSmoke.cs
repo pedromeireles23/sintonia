@@ -34,13 +34,20 @@ internal static class FunctionProfileSmoke
                 var project = vm.Project!; var allowDelete = false; var confirmations = 0;
                 var library = await vm.LoadFunctionProfileLibraryAsync(_ => { confirmations++; return allowDelete; });
                 window = new(library) { Owner = main }; window.Show();
+                var starters = WorkspaceFunctionCatalog.StarterProfiles().Count;
+                Require(vm.FunctionProfiles.Count == starters && vm.FunctionProfiles.All(p => p.Instructions.Length > 0)
+                    && vm.Functions.Any(f => f.Name == "Testes" && f.Instructions.Length > 0 && f.Summary.Length > 0), "Perfis iniciais não foram criados com instruções.");
+                library.NewCommand.Execute(null);
+                Require(library.FunctionName == "Desenvolvimento" && library.Instructions == WorkspaceFunctionCatalog.Find("Desenvolvimento")!.Instructions && !library.IsDirty,
+                    "Novo perfil não veio preenchido.");
                 library.Name = "Analista de requisitos"; library.FunctionName = "Análise de requisitos"; library.Provider = ProviderKind.Claude;
                 library.Model = "modelo-configurado"; library.Instructions = "Conferir as fontes e registrar evidências.\nManter literal `$(texto)` e instruções do projeto.";
                 await library.SaveAsync(); var original = library.SelectedProfile!;
-                Require(vm.FunctionProfiles.Count == 1 && !library.IsDirty && library.CanChoose, "Perfil não chegou à central.");
+                Require(vm.FunctionProfiles.Count == starters + 1 && !library.IsDirty && library.CanChoose, "Perfil não chegou à central.");
                 window.Width = window.MinWidth; window.Height = window.MinHeight;
                 Capture(window, Path.Combine(output, "01-profile-minimum.png"));
                 Require(claude.Requests.Count + codex.Requests.Count == 0, "Salvar perfil chamou modelo.");
+                vm.SelectedFunctionProfile = vm.FunctionProfiles.Single(p => p.Id == original.Id);
                 vm.Access = vm.AccessOptions[1]; vm.Prompt = "Analisar este projeto."; await vm.ApplyFunctionProfileAsync();
                 Require(vm.Provider == ProviderKind.Claude && vm.Model == original.Model && vm.Function.Name == original.FunctionName
                     && vm.Instructions == original.Instructions && vm.Access.Value == ConversationAccess.ReadOnly && vm.Prompt == "Analisar este projeto.", "Padrões/rascunho incorretos ao aplicar.");
@@ -63,6 +70,8 @@ internal static class FunctionProfileSmoke
                 catch (ArgumentException exception) when (exception.Message.Contains("Já existe")) { }
                 Require(library.IsDirty && !library.NewCommand.CanExecute(null), "Rascunho inválido não foi protegido.");
                 library.RevertCommand.Execute(null); await library.InitializeAsync();
+                library.SelectedProfile = library.Profiles.Single(p => p.Id == original.Id);
+                vm.SelectedFunctionProfile = vm.FunctionProfiles.Single(p => p.Id == original.Id);
                 vm.Prompt = "Outro rascunho"; await vm.ApplyFunctionProfileAsync();
                 Require(vm.SelectedConversation is null && vm.Provider == ProviderKind.Codex && vm.Model == "outro-modelo"
                     && vm.Prompt == "Outro rascunho", "Perfil editado não preencheu nova conversa.");
@@ -77,18 +86,22 @@ internal static class FunctionProfileSmoke
                 vm.SendCommand.Execute(null); await Until(() => vm.ActiveCount == 0);
                 Require(claude.Requests[^1].NativeSessionId == snapshot.NativeSessionId && claude.Requests[^1].Instructions == original.Instructions
                     && session.Record.FunctionName == original.FunctionName, "Retomada perdeu função/instruções originais.");
-                await library.DeleteAsync(); Require(confirmations == 1 && vm.FunctionProfiles.Count == 1, "Recusar exclusão removeu o perfil.");
+                await library.DeleteAsync(); Require(confirmations == 1 && vm.FunctionProfiles.Count == starters + 1, "Recusar exclusão removeu o perfil.");
                 allowDelete = true; await library.DeleteAsync();
-                Require(vm.FunctionProfiles.Count == 0 && session.Record.Instructions == original.Instructions, "Excluir perfil alterou conversa.");
+                Require(vm.FunctionProfiles.Count == starters && session.Record.Instructions == original.Instructions, "Excluir perfil alterou conversa.");
                 var savedBatch = (await store.GetTaskBatchesAsync(project.Id)).Single(b => b.Id == batch.Id);
                 Require(savedBatch.Tasks[0].Definition.Instructions == original.Instructions && savedBatch.Tasks[0].Definition.Provider == original.Provider,
                     "Editar/excluir perfil alterou a tarefa copiada.");
                 await service.SendTaskAsync(project.Id, savedBatch.Tasks[0].Id, new SilentProgress(), CancellationToken.None);
                 Require(claude.Requests[^1].Instructions == original.Instructions, "Fila perdeu instruções após exclusão do perfil.");
                 library.NewCommand.Execute(null); library.Name = "Coordenação geral"; library.FunctionName = PlanProposalFormat.ChiefFunctionName;
+                Require(library.Instructions == WorkspaceFunctionCatalog.Find(PlanProposalFormat.ChiefFunctionName)!.Instructions, "Trocar a função não preencheu as instruções.");
                 library.Provider = ProviderKind.Claude; library.Instructions = "Planeje documentação e análise para este projeto geral.";
+                library.FunctionName = "Revisão"; library.FunctionName = PlanProposalFormat.ChiefFunctionName;
+                Require(library.Instructions == "Planeje documentação e análise para este projeto geral.", "Trocar a função apagou instruções do usuário.");
                 Require(library.InstructionLimit == PlanProposalFormat.ChiefAdditionalInstructionsLimit, "Limite de chefia incorreto.");
-                await library.SaveAsync(); await vm.ApplyFunctionProfileAsync(); vm.Access = vm.AccessOptions[1]; vm.Prompt = "Planejar documentação.";
+                await library.SaveAsync(); vm.SelectedFunctionProfile = vm.FunctionProfiles.Single(p => p.Name == "Coordenação geral");
+                await vm.ApplyFunctionProfileAsync(); vm.Access = vm.AccessOptions[1]; vm.Prompt = "Planejar documentação.";
                 vm.SendCommand.Execute(null); await Until(() => vm.ActiveCount == 0);
                 Require(vm.Access.Value == ConversationAccess.ReadOnly && claude.Requests[^1].PermissionHandler is null
                     && claude.Requests[^1].Instructions.Contains("sintonia-plan") && vm.SelectedConversation!.Record.Instructions == library.Instructions,
@@ -96,7 +109,8 @@ internal static class FunctionProfileSmoke
                 var reopenedStore = new SqliteWorkspaceStore(database); await reopenedStore.InitializeAsync();
                 var restored = new WorkspaceViewModel(reopenedStore, new(reopenedStore, [codex, claude]), app.Dispatcher, () => projectPath,
                     (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])));
-                await restored.InitializeAsync(); Require(restored.FunctionProfiles.Single().Name == "Coordenação geral", "Perfil não sobreviveu à reabertura.");
+                await restored.InitializeAsync();
+                Require(restored.FunctionProfiles.Count == starters + 1 && restored.FunctionProfiles.Any(p => p.Name == "Coordenação geral"), "Perfil não sobreviveu à reabertura.");
                 restored.Project = restored.Projects.Single(p => p.Id == project.Id);
                 await Until(() => restored.Conversations.Any(c => c.Record.Id == snapshot.Id));
                 restored.SelectedConversation = restored.Conversations.Single(c => c.Record.Id == snapshot.Id);

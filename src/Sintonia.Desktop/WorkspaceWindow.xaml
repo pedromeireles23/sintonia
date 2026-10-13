@@ -4,7 +4,42 @@
         xmlns:local="clr-namespace:Sintonia.Desktop"
         Title="Sintonia — Central de projetos" Width="1450" Height="950" MinWidth="1120" MinHeight="760"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterScreen">
-    <Window.Resources><BooleanToVisibilityConverter x:Key="BoolVisibility" /></Window.Resources>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolVisibility" />
+        <local:ComboBoxTemplateSelector x:Key="FunctionTemplates">
+            <local:ComboBoxTemplateSelector.Selected><DataTemplate><TextBlock Text="{Binding Name}" Style="{StaticResource SingleLine}" /></DataTemplate></local:ComboBoxTemplateSelector.Selected>
+            <local:ComboBoxTemplateSelector.Dropdown><DataTemplate>
+                <StackPanel Margin="0,2" MaxWidth="360">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}" Margin="0,2,0,0" Visibility="{Binding HasSummary, Converter={StaticResource BoolVisibility}}" />
+                </StackPanel>
+            </DataTemplate></local:ComboBoxTemplateSelector.Dropdown>
+        </local:ComboBoxTemplateSelector>
+        <Style x:Key="LimitBar" TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
+            <Setter Property="Foreground" Value="{StaticResource Accent}" />
+            <Style.Triggers><DataTrigger Binding="{Binding IsLow}" Value="True"><Setter Property="Foreground" Value="{StaticResource WarningInk}" /></DataTrigger></Style.Triggers>
+        </Style>
+        <Style x:Key="LimitValue" TargetType="TextBlock" BasedOn="{StaticResource SingleLine}">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Style.Triggers><DataTrigger Binding="{Binding IsLow}" Value="True"><Setter Property="Foreground" Value="{StaticResource WarningInk}" /></DataTrigger></Style.Triggers>
+        </Style>
+        <Style x:Key="LimitStatus" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+            <Style.Triggers><DataTrigger Binding="{Binding Blocked}" Value="True"><Setter Property="Foreground" Value="{StaticResource WarningInk}" /></DataTrigger></Style.Triggers>
+        </Style>
+        <DataTemplate x:Key="LimitGauge">
+            <StackPanel ToolTip="{Binding Details}" Background="Transparent">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding RemainingText}" Style="{StaticResource LimitValue}" />
+                    <TextBlock Text="{Binding Label}" Style="{StaticResource Caption}" FontSize="11.5" VerticalAlignment="Center" />
+                </DockPanel>
+                <ProgressBar Minimum="0" Maximum="100" Value="{Binding RemainingPercent, Mode=OneWay}" Height="6" Margin="0,4,0,3" Style="{StaticResource LimitBar}" />
+                <TextBlock Text="{Binding ResetText}" Style="{StaticResource Caption}" FontSize="11" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Background="{StaticResource Canvas}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="230" /><ColumnDefinition Width="*" /><ColumnDefinition Width="280" /></Grid.ColumnDefinitions>
         <Border Background="{StaticResource Sidebar}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0" Padding="22">
@@ -131,7 +166,7 @@
                         </Grid>
                         <StackPanel IsEnabled="{Binding CanEditFunction}">
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <ComboBox ItemsSource="{Binding Functions}" SelectedItem="{Binding Function}" DisplayMemberPath="Name" Padding="7" Margin="0,0,10,0" />
+                                <ComboBox ItemsSource="{Binding Functions}" SelectedItem="{Binding Function}" ItemTemplateSelector="{StaticResource FunctionTemplates}" Padding="7" Margin="0,0,10,0" AutomationProperties.AutomationId="Function" />
                                 <ComboBox Grid.Column="1" ItemsSource="{Binding AccessOptions}" SelectedItem="{Binding Access}" DisplayMemberPath="Name" Padding="7" IsEnabled="{Binding CanEditAccess}" />
                             </Grid>
                             <TextBox Text="{Binding Instructions, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MaxLength="8000" Height="70" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" Padding="8" />
@@ -169,12 +204,38 @@
             <TextBlock Grid.Row="5" Text="{Binding Notice}" Style="{StaticResource Caption}" MaxHeight="52" AutomationProperties.AutomationId="Notice" />
         </Grid>
         <Grid Grid.Column="2" Margin="0,22,18,18">
-            <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition>
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition>
                 <RowDefinition.Style><Style TargetType="RowDefinition"><Setter Property="Height" Value="210" />
                     <Style.Triggers><DataTrigger Binding="{Binding HasQuestions}" Value="True"><Setter Property="Height" Value="120" /></DataTrigger></Style.Triggers>
                 </Style></RowDefinition.Style>
             </RowDefinition></Grid.RowDefinitions>
-            <Border Style="{StaticResource Card}" Padding="14">
+            <Border Style="{StaticResource Card}" Padding="14,12" Margin="0,0,0,12" DataContext="{Binding Limits}"
+                    Visibility="{Binding HasProviders, Converter={StaticResource BoolVisibility}}" AutomationProperties.AutomationId="SubscriptionLimits">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Content="Atualizar" Command="{Binding RefreshCommand}" Padding="10,2" FontSize="12"
+                                ToolTip="Consultar agora. Também atualiza a cada 10 minutos e após cada resposta, sem enviar mensagens ao modelo." AutomationProperties.AutomationId="RefreshLimits" />
+                        <TextBlock Text="RESTANTE DA ASSINATURA" Style="{StaticResource FieldLabel}" Margin="0" VerticalAlignment="Center"
+                                   ToolTip="Quanto resta das janelas de 5 horas e semanal de cada conta. O uso é da conta inteira, compartilhado com outros aplicativos." />
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding Providers}" AutomationProperties.AutomationId="SubscriptionLimitProviders">
+                        <ItemsControl.ItemTemplate><DataTemplate>
+                            <StackPanel Margin="0,0,0,10">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" Style="{StaticResource LimitStatus}" ToolTip="{Binding StatusDetail}" />
+                                    <TextBlock Text="{Binding Provider}" FontWeight="SemiBold" />
+                                </DockPanel>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="14" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                    <ContentControl Content="{Binding Session}" ContentTemplate="{StaticResource LimitGauge}" Focusable="False" />
+                                    <ContentControl Grid.Column="2" Content="{Binding Weekly}" ContentTemplate="{StaticResource LimitGauge}" Focusable="False" />
+                                </Grid>
+                            </StackPanel>
+                        </DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="14">
                 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <TextBlock Text="Conversas e sessões" FontWeight="SemiBold" FontSize="16" />
                     <TextBlock Grid.Row="1" Text="Selecione para abrir e continuar." Style="{StaticResource Caption}" Margin="0,6,0,12" />
@@ -188,7 +249,7 @@
                     </ListBox>
                 </Grid>
             </Border>
-            <Border Grid.Row="1" Style="{StaticResource Card}" Background="{StaticResource WarningSurface}" BorderBrush="{StaticResource WarningLine}" Padding="12" Margin="0,12,0,0" Visibility="{Binding HasPermission, Converter={StaticResource BoolVisibility}}">
+            <Border Grid.Row="2" Style="{StaticResource Card}" Background="{StaticResource WarningSurface}" BorderBrush="{StaticResource WarningLine}" Padding="12" Margin="0,12,0,0" Visibility="{Binding HasPermission, Converter={StaticResource BoolVisibility}}">
                 <StackPanel>
                     <TextBlock Text="Ação aguardando autorização" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding Permission.Provider}" FontWeight="SemiBold" Margin="0,6,0,0" />
@@ -198,9 +259,9 @@
                     <Button Content="Recusar" Command="{Binding DenyPermissionCommand}" Margin="0,6,0,0" />
                 </StackPanel>
             </Border>
-            <local:ConversationQuestionsView Grid.Row="1" DataContext="{Binding Questions}" Margin="0,12,0,0"
+            <local:ConversationQuestionsView Grid.Row="2" DataContext="{Binding Questions}" Margin="0,12,0,0"
                 Visibility="{Binding DataContext.HasQuestions, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVisibility}}" />
-            <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14" Margin="0,12,0,0">
+            <Border Grid.Row="3" Style="{StaticResource Card}" Padding="14" Margin="0,12,0,0">
                 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <TextBlock Text="Atividade da conversa" FontWeight="SemiBold" Margin="0,0,0,10" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding Events}" BorderThickness="0" Foreground="{StaticResource Muted}" FontSize="12" ScrollViewer.HorizontalScrollBarVisibility="Disabled">

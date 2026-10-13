@@ -58,4 +58,5 @@ public interface IWorkspaceStore
     Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
     Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);
     Task DeleteFunctionProfileAsync(string id, int revision);
+    Task<int> EnsureStarterFunctionProfilesAsync(IReadOnlyList<WorkspaceFunctionProfile> profiles);
 }

@@ -20,7 +20,7 @@ A interface usa grafite, painéis discretos e verde suave para ações e seleç�
 - **Trabalho paralelo com Git:** prepare worktrees distintas, confira diffs e conflitos, registre commits revisados e combine entregas em uma pasta separada.
 - **Validação e publicação assistidas:** configure comandos por projeto, valide a combinação e confirme sua publicação na branch local. A publicação pelo Sintonia não faz push para o remoto.
 - **Histórico local:** projetos, conversas, tentativas, eventos, planos e entregas ficam em SQLite e são preservados ao reabrir o aplicativo.
-- **Permissões e limites:** responda a autorizações por ação e perguntas do Claude, configure concorrência, tentativas e prazo e acompanhe quota Codex e tokens informados por execução.
+- **Permissões e limites:** responda a autorizações por ação e perguntas do Claude, configure concorrência, tentativas e prazo, veja quanto resta das janelas de 5 horas e semanal do Codex e do Claude e acompanhe os tokens informados por execução.
 
 Código, documentos, análises e outros arquivos seguem o fluxo geral de tarefas e entregas. A disponibilidade de ferramentas para produzi-los depende da instalação de cada agente.
 
@@ -79,7 +79,7 @@ O histórico fica em `%LOCALAPPDATA%/Sintonia/workspace.db`. Ao reabrir, execuç
 - **Tentativas e prazo:** de 1 a 3 tentativas por tarefa e de 1 a 300 segundos por execução, configuráveis por projeto. Não há rodadas ou reenvios automáticos. Cancelar uma execução não desfaz arquivos já alterados.
 - **Permissões:** o Sintonia usa decisões por ação e preserva regras e hooks dos provedores. O host Claude recusa `ExitPlanMode` e solicitações de dados MCP (elicitation); não oferece aprovação desses controles. A recusa em URL mode ainda não tem prova real. Permissões e worktrees não equivalem a isolamento do sistema operacional.
 - **Extensões e sessões:** a compatibilidade de todos os MCPs e ferramentas ainda não foi demonstrada. Não há importação ou controle geral de conversas externas, nem garantia de abrir as sessões nos aplicativos gráficos originais. Trabalho autônomo em background após o resultado terminal ainda não tem acompanhamento.
-- **Consumo:** quota Codex pode ser consultada; quota Claude está indisponível pela integração. Tokens cobrem a medição informada do agente principal, com dados parciais ou ausentes identificados. O limite agregado controla a admissão de novos envios; execuções ativas podem ultrapassar a reserva. Esses valores não representam custo nem saldo da assinatura.
+- **Consumo:** o restante das janelas de 5 horas e semanal do Codex e do Claude é consultado sem turno. A consulta Claude (`get_usage`) é experimental no CLI e exige versão recente. Tokens cobrem a medição informada do agente principal, com dados parciais ou ausentes identificados. O limite agregado controla a admissão de novos envios; execuções ativas podem ultrapassar a reserva. Esses valores não representam custo nem saldo da assinatura.
 - **Arquivamento:** worktrees de entregas publicadas podem ser arquivadas preservando arquivos, branch e histórico. O arquivo continua ocupando espaço; combinações permanecem. Restauração e descarte automático não estão implementados.
 
 O MVP corresponde ao M2; os fluxos Git do M3 e a distribuição assistida do M4 também estão implementados. M1 conserva lacunas de compatibilidade, M6 ainda pede exemplos de projetos distintos e M7 reúne pacote Windows, teste em outra máquina, licença, automação de build/testes e atualização com preservação de dados. Consulte os critérios no [roadmap](ROADMAP.md).

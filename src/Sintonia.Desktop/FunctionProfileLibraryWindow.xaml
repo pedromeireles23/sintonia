@@ -32,13 +32,15 @@
                             <TextBlock Text="Nome do perfil" FontWeight="SemiBold" />
                             <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Padding="8" Margin="0,5,0,14" MaxLength="80" AutomationProperties.AutomationId="FunctionProfileName" />
                             <TextBlock Text="Função" FontWeight="SemiBold" />
-                            <ComboBox ItemsSource="{Binding FunctionNames}" Text="{Binding FunctionName, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Padding="7" Margin="0,5,0,14" />
+                            <ComboBox ItemsSource="{Binding FunctionNames}" Text="{Binding FunctionName, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Padding="7" Margin="0,5,0,6" AutomationProperties.AutomationId="FunctionProfileFunction" />
+                            <TextBlock Text="{Binding FunctionSummary}" Style="{StaticResource Caption}" Foreground="{StaticResource Accent}" Margin="0,0,0,14" AutomationProperties.AutomationId="FunctionProfileSummary" />
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                 <StackPanel Margin="0,0,12,0"><TextBlock Text="Provedor padrão" FontWeight="SemiBold" /><ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider}" Padding="7" Margin="0,5,0,14" /></StackPanel>
                                 <StackPanel Grid.Column="1"><TextBlock Text="Modelo padrão (opcional)" FontWeight="SemiBold" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" Padding="8" Margin="0,5,0,14" AutomationProperties.AutomationId="FunctionProfileModel" /></StackPanel>
                             </Grid>
                             <TextBlock Text="Vazio usa o padrão da instalação. O provedor confirma disponibilidade e acesso ao enviar." Style="{StaticResource Caption}" Margin="0,0,0,14" />
-                            <TextBlock Text="Instruções adicionais" FontWeight="SemiBold" />
+                            <TextBlock Text="Instruções da função" FontWeight="SemiBold" />
+                            <TextBlock Text="Preenchidas ao escolher uma função do catálogo; edite à vontade. Texto seu não é substituído ao trocar a função." Style="{StaticResource Caption}" Margin="0,3,0,0" />
                             <TextBox Text="{Binding Instructions, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" Height="210" MaxLength="{Binding InstructionLimit}" VerticalScrollBarVisibility="Auto" Padding="8" Margin="0,5,0,8" AutomationProperties.AutomationId="FunctionProfileInstructions" />
                             <TextBlock Text="{Binding InstructionHint}" Style="{StaticResource Caption}" />
                             <TextBlock Text="O perfil preenche uma nova conversa em leitura. Alterar ou excluir este perfil preserva sessões e tarefas já criadas. Permissões de ferramentas continuam sob as regras do provedor." Style="{StaticResource Caption}" Margin="0,14,0,0" />

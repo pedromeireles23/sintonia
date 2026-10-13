@@ -2,6 +2,27 @@
 
 A biblioteca local guarda padrões para conversas em projetos gerais: análise, desenvolvimento, revisão, documentação e funções definidas pelo usuário. É compartilhada entre projetos nesta instalação do Sintonia.
 
+## Funções do catálogo e perfis iniciais
+
+O catálogo de funções (`WorkspaceFunctionCatalog`) é o mesmo na central e no editor. Cada função tem um resumo de uma linha e instruções prontas:
+
+| Função | Resumo | Provedor sugerido no perfil inicial |
+| --- | --- | --- |
+| Conversa | Perguntas e conversa livre com o contexto do projeto. | sem perfil inicial |
+| Chefe do projeto | Planeja o trabalho e propõe tarefas para revisão. | Claude |
+| Desenvolvimento | Implementa mudanças pequenas e validadas. | Codex |
+| Interface | Cria e ajusta telas com foco em usabilidade e acessibilidade. | Claude |
+| Testes | Escreve e executa testes do comportamento pedido. | Codex |
+| Revisão | Revisa entregas e aponta problemas concretos. | Claude |
+| Documentação | Escreve e atualiza a documentação do projeto. | Claude |
+| Análise | Investiga questões e recomenda um caminho. | Codex |
+| Personalizada | Instruções definidas por você para a tarefa. | sem perfil inicial |
+
+- Na primeira abertura com o schema 18, a biblioteca recebe um perfil por função do catálogo (exceto Conversa e Personalizada), com nome igual ao da função, instruções preenchidas e modelo vazio (padrão da instalação). O provedor sugerido é só um ponto de partida; edite à vontade.
+- A criação acontece uma única vez por banco (`workspace_markers`). Perfis excluídos ou renomeados depois não são recriados, e um perfil existente com o mesmo nome é preservado.
+- No editor, **Novo perfil** já vem com a função Desenvolvimento e suas instruções. Trocar a função preenche as instruções do catálogo somente se o campo estiver vazio ou ainda tiver o texto de outra função; texto escrito pelo usuário não é substituído. O resumo da função aparece abaixo do campo.
+- Na central, a lista de funções mostra o resumo de cada uma, e escolher uma função preenche as instruções da conversa, como antes.
+
 ## Criar e aplicar
 
 1. Abra **Perfis de função** na central e use **Novo perfil**.
@@ -39,4 +60,4 @@ Perfis não substituem configurações globais, skills, plugins ou MCPs do Codex
 
 ## Validação
 
-Testes do Core/Infrastructure cobrem normalização, limites, texto literal, duplicidade, revisões obsoletas, persistência, exclusão e migração com histórico preservado. O teste WPF `--profiles` percorre biblioteca, aplicação em dois projetos, retomada/reabertura, preservação de conversas/tarefas, edição/aplicação durante execução e chefia em leitura, sem erros de binding. Usa provedores de teste; não chama modelos reais.
+Testes do Core/Infrastructure cobrem normalização, limites, texto literal, duplicidade, revisões obsoletas, persistência, exclusão e migração com histórico preservado, além do catálogo (resumos, perfis iniciais válidos e substituição só de texto vazio ou do catálogo) e da criação única dos perfis iniciais, que não recria perfis excluídos nem altera nomes existentes. O teste WPF `--profiles` percorre biblioteca, aplicação em dois projetos, retomada/reabertura, preservação de conversas/tarefas, edição/aplicação durante execução e chefia em leitura, sem erros de binding. Usa provedores de teste; não chama modelos reais.

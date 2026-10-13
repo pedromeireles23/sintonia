@@ -4,7 +4,10 @@ using Sintonia.Core;
 
 namespace Sintonia.Desktop.ViewModels;
 
-public sealed record FunctionOption(string Name, string Instructions);
+public sealed record FunctionOption(string Name, string Instructions, string Summary = "")
+{
+    public bool HasSummary => Summary.Length > 0;
+}
 public sealed record AccessOption(string Name, ConversationAccess Value);
 /// <summary>Key is the text the editable picker shows and the identifier sent to the provider.</summary>
 public sealed record ModelOption(string Key, string Name, string Detail, string Description = "")
@@ -104,7 +107,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect,
         TaskWorktreeService? worktrees = null, TaskDiffService? diffs = null, TaskDeliveryService? deliveries = null,
         TaskIntegrationPreparationService? preparations = null, TaskIntegrationValidationService? validations = null, TaskPublicationService? publications = null,
-        TaskWorktreeCleanupService? cleanups = null)
+        TaskWorktreeCleanupService? cleanups = null, IEnumerable<IProviderUsageReader>? usageReaders = null)
     {
         _store = store; _chat = chat; _dispatcher = dispatcher; _pickDirectory = pickDirectory; _inspect = inspect;
         _worktrees = worktrees;
@@ -115,6 +118,8 @@ public sealed class WorkspaceViewModel : ObservableObject
         _publications = publications;
         _cleanups = cleanups;
         _function = Functions[0]; _access = AccessOptions[0];
+        // Account limits do not depend on the folder; Codex still needs a working directory for its app server.
+        Limits = new(usageReaders ?? [], dispatcher, () => Project?.Directory ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         AddProjectCommand = new(AddPickedProjectAsync, ShowError, () => Ready && !_stopping);
         RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && !_stopping && !_loadingProject
             && CatalogKey is { } key && !_catalogQueries.ContainsKey(key));
@@ -129,6 +134,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         RefreshTokenBudgetCommand = new(RefreshTokenBudgetAsync, ShowError, () => Ready && Project is not null && !_loadingProject && !_stopping);
     }
 
+    public SubscriptionLimitsViewModel Limits { get; }
     public ObservableCollection<WorkspaceProject> Projects { get; } = [];
     public ObservableCollection<ConversationViewModel> Conversations { get; } = [];
     public ObservableCollection<ModelOption> Models { get; } = [new(DefaultModel, DefaultModel, "Segue a configuração do provedor.")];
@@ -137,13 +143,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public WorkspaceFunctionProfile? SelectedFunctionProfile { get => _profile; set { Set(ref _profile, value); RefreshCommands(); } }
     public IReadOnlyList<ProviderKind> Providers { get; } = Enum.GetValues<ProviderKind>();
     public ObservableCollection<FunctionOption> Functions { get; } =
-    [
-        new("Conversa", ""),
-        new("Chefe do projeto", "Atue como chefe deste projeto. Delimite tarefas pequenas com critérios verificáveis, dependências e indicação de Codex ou Claude. Proponha um plano para revisão; não execute nem delegue automaticamente e não aprove entregas pelo usuário."),
-        new("Desenvolvimento", "Implemente a tarefa com mudanças pequenas. Examine as instruções do projeto, preserve alterações existentes e valide o resultado. Não use outros agentes sem pedido explícito."),
-        new("Revisão", "Revise o escopo solicitado, explique problemas concretos e critérios de validação. Não altere arquivos durante a revisão."),
-        new("Personalizada", "")
-    ];
+        new(WorkspaceFunctionCatalog.Functions.Select(f => new FunctionOption(f.Name, f.Instructions, f.Summary)));
     public IReadOnlyList<AccessOption> AccessOptions { get; } = [new("Conversa e leitura", ConversationAccess.ReadOnly), new("Permitir alterações no projeto", ConversationAccess.WorkspaceWrite)];
     public WorkspaceProject? Project
     {
@@ -342,9 +342,11 @@ public sealed class WorkspaceViewModel : ObservableObject
         {
             await _store.InitializeAsync();
             await _store.RecoverInterruptedRunsAsync();
+            await _store.EnsureStarterFunctionProfilesAsync(WorkspaceFunctionCatalog.StarterProfiles());
             await RefreshFunctionProfilesAsync();
             foreach (var project in await _store.GetProjectsAsync()) Projects.Add(project);
             Ready = true;
+            Limits.Start();
             Project = Projects.FirstOrDefault();
             if (Project is not null) Notice = "Escolha uma conversa ou inicie outra. O envio usa a assinatura conectada ao CLI.";
         }
@@ -716,6 +718,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         {
             await QueueTokenBudgetRefreshAsync(project);
             session.Running = false; _jobs.Remove(session.Record.Id); stop.Dispose(); RefreshCommands();
+            Limits.RequestRefresh(session.Record.Provider);
         }
     }
 
@@ -899,7 +902,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public async Task StopAsync()
     {
         _stopping = true; _lifetime.Cancel(); RefreshCommands();
-        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Concat(_catalogQueries.Values).Append(_settingsSave).ToArray();
+        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Concat(_catalogQueries.Values).Append(_settingsSave).Append(Limits.StopAsync()).ToArray();
         try { await Task.WhenAll(jobs); }
         catch (Exception exception) { ShowError(exception); }
         await _tokenRefresh;

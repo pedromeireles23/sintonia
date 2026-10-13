@@ -13,6 +13,24 @@ public sealed class FunctionProfileStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task StarterProfilesAreCreatedOnceWithInstructionsAndDeletionsAreKept()
+    {
+        var store = await StoreAsync();
+        await store.CreateFunctionProfileAsync("revisão", "Meu fluxo", ProviderKind.Codex, null, "Texto do usuário");
+        var created = await store.EnsureStarterFunctionProfilesAsync(WorkspaceFunctionCatalog.StarterProfiles());
+        var profiles = await store.GetFunctionProfilesAsync();
+        Assert.Equal(WorkspaceFunctionCatalog.StarterProfiles().Count - 1, created);
+        Assert.Equal("Texto do usuário", profiles.Single(p => p.Name == "revisão").Instructions);
+        Assert.All(profiles.Where(p => p.Name != "revisão"), p => Assert.Equal(WorkspaceFunctionCatalog.Find(p.FunctionName)!.Instructions, p.Instructions));
+        Assert.DoesNotContain(profiles, p => p.FunctionName is "Conversa" or WorkspaceFunctionCatalog.CustomFunctionName);
+        var development = profiles.Single(p => p.Name == "Desenvolvimento");
+        await store.DeleteFunctionProfileAsync(development.Id, development.Revision);
+        var reopened = await StoreAsync();
+        Assert.Equal(0, await reopened.EnsureStarterFunctionProfilesAsync(WorkspaceFunctionCatalog.StarterProfiles()));
+        Assert.DoesNotContain(await reopened.GetFunctionProfilesAsync(), p => p.Name == "Desenvolvimento");
+    }
+
+    [Fact]
     public async Task ProfilesPersistProviderModelInstructionsAndEditsAcrossRestarts()
     {
         var store = await StoreAsync(); Assert.Empty(await store.GetFunctionProfilesAsync());

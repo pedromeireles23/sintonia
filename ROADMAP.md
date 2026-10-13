@@ -46,6 +46,7 @@ Modelos e reasoning em 13/10/2026: a central mostra o padrão da instalação, a
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
 - [x] Mostrar padrão da instalação, versão em uso e reasoning; permitir trocar modelo/reasoning entre turnos.
 - [x] Atribuir funções com provedor/modelo padrão e instruções adicionais.
+- [x] Oferecer catálogo de funções com resumo e instruções e perfis iniciais preenchidos. [Perfis](docs/FUNCTION_PROFILES.md).
 - [x] Enviar tarefas para sessões novas ou retomadas.
 - [x] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.
 - [x] Mostrar mensagens, ferramentas utilizadas e resultados em tempo real.
@@ -93,6 +94,7 @@ Fechamento do orçamento e prova real: schema 15, configuração/snapshot WPF e 
 - [x] Permitir edição de função, provedor/modelo, escopo, dependências e critérios da proposta pelo usuário.
 - [x] Implementar limites configuráveis de tentativas, tempo e concorrência, com reserva compartilhada e configuração revisionada.
 - [x] Exibir quota Codex verificada e respeitar indisponibilidade explícita antes do envio; documentar consulta Claude indisponível, sem estimar saldo de assinatura.
+- [x] Mostrar na central o restante das janelas de 5 horas e semanal do Codex e do Claude (`get_usage` experimental), com atualização periódica e após respostas. [Contrato](docs/PROVIDER_USAGE.md).
 - [x] Registrar/exibir tokens informados por execução, com contratos próprios dos provedores, escopo/lacunas explícitos e histórico preservado.
 - [x] Implementar limite agregado sobre tokens informados, com reserva transacional por início, configuração/snapshot WPF e lacunas explícitas; sem prometer medição integral ou estimar quota da assinatura. [Contrato](docs/TOKEN_BUDGET.md).
 - [x] Distinguir término de execução, aprovação da entrega e integração Git publicada.

@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 17) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 18) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -91,7 +91,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE TABLE IF NOT EXISTS run_token_reservations(run_id TEXT PRIMARY KEY REFERENCES runs(id), tokens INTEGER NOT NULL CHECK(tokens>=0));
             CREATE TABLE IF NOT EXISTS conversation_model_settings(conversation_id TEXT PRIMARY KEY REFERENCES conversations(id),
                 reasoning_effort TEXT, effective_reasoning_effort TEXT, uses_installation_default INTEGER CHECK(uses_installation_default IN (0,1)));
-            PRAGMA user_version=17;
+            CREATE TABLE IF NOT EXISTS workspace_markers(key TEXT PRIMARY KEY);
+            PRAGMA user_version=18;
             """);
         check.Transaction = transaction;
         check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('conversation_model_settings') WHERE name='selected_model'";
