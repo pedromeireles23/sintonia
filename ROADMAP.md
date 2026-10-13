@@ -27,6 +27,7 @@ Estado: integração real de leitura/retomada/interrupção comprovada nos dois 
 - [x] Comparar skills, plugins e MCPs esperados com capacidades disponíveis, documentando categorias indisponíveis e diferenças sem presumir paridade desktop.
 - [x] Implementar formulário AskUserQuestion e verificar contrato, cancelamento, retomada, concorrência e WPF com processos locais, sem modelos.
 - [x] Confirmar emissão/resposta AskUserQuestion em uma prova real finita; após renovar o login por assinatura, pasta nova e um envio concluído em 13/10/2026, sem retry. Tentativa OAuth interrompida preservada; escolha múltipla/texto livre e formulário WPF conservam as provas com processos de teste.
+- [x] Delimitar contratos e testar recusas de ExitPlanMode/elicitation e controles desconhecidos no host, incluindo streaming, acesso e sucesso final sem negativa do CLI. [Comportamento e limites](docs/CLAUDE_CONTROLS.md); sem prova de emissão real dessas recusas.
 - [ ] Validar o fluxo de permissões e negativas de cada provedor (Codex: negativa real de sandbox; Claude: recusa/autorização real de Write/Bash/Edit e fetch do Microsoft Learn MCP; outros MCPs/controles especiais ainda parciais).
 - [x] Testar caminhos com espaços, acentos, prompts extensos e encerramento de processos filhos.
 - [x] Registrar versões e comportamentos efetivamente testados.

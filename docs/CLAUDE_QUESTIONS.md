@@ -18,7 +18,7 @@ O [contrato oficial de entrada do usuário](https://code.claude.com/docs/en/agen
 
 Limites locais: entrada de até 64 mil caracteres; uma a quatro perguntas, com duas a quatro opções cada; pergunta/descrição até 2.000 caracteres, cabeçalho até 12 sem controles, rótulo até 200, prévia até 10 mil e texto livre até 4.000. Perguntas/rótulos repetidos, propriedades JSON duplicadas, seleção desconhecida/duplicada, múltiplas escolhas em pergunta simples ou texto junto de seleção são recusados. O texto livre mantém espaços, quebras de linha e caracteres literais. Prévias são texto, sem executar HTML.
 
-Sem callback, com entrada/resposta inválida, recusa ou falha do callback, o host nega a pergunta. Não encaminha a operação para aprovação booleana. O schema SQLite permanece 15; o formulário é transitório, sem tabela de respostas. Histórico/eventos/resultados continuam usando os contratos existentes. `ExitPlanMode`, elicitation e acompanhamento de background após resultado terminal permanecem sem fluxo específico.
+Sem callback, com entrada/resposta inválida, recusa ou falha do callback, o host nega a pergunta. Não encaminha a operação para aprovação booleana. O schema SQLite permanece 15; o formulário é transitório, sem tabela de respostas. Histórico/eventos/resultados continuam usando os contratos existentes. `ExitPlanMode` permanece negado e elicitation recebe decline sem formulário ou dados; [recusas e contratos](CLAUDE_CONTROLS.md) verificados com processos de teste. Não há acompanhamento de background após resultado terminal.
 
 ## Validação e retomada
 

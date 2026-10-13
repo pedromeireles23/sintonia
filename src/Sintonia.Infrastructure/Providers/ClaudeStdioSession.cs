@@ -124,21 +124,29 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
     {
         try
         {
-            if (request.GetProperty("subtype").GetString() != "can_use_tool")
+            var subtype = request.GetProperty("subtype").GetString();
+            if (subtype != "can_use_tool")
             {
-                _parser.RecordDenial("controle não suportado");
+                var elicitation = subtype == "elicitation";
+                _parser.RecordDenial(elicitation ? "elicitation MCP" : "controle não suportado");
+                if (elicitation) _progress.Report(new(ConversationEventKind.Diagnostic,
+                    "Solicitação de dados MCP recusada: elicitation ainda não tem formulário no Sintonia."));
+                // Match the native default for an unhandled elicitation; never return user data or open its URL.
+                object response = elicitation
+                    ? new { subtype = "success", request_id = id, response = new { action = "decline" } }
+                    : new { subtype = "error", request_id = id, error = "Solicitação não suportada pelo Sintonia." };
+                stop.Token.ThrowIfCancellationRequested();
                 _permissions.TryRemove(id, out _);
                 await _process.WriteLineAsync(JsonSerializer.Serialize(new
                 {
-                    type = "control_response", response = new
-                    {
-                        subtype = "error", request_id = id, error = "Solicitação não suportada pelo Sintonia."
-                    }
+                    type = "control_response", response
                 }), stop.Token).ConfigureAwait(false);
                 return;
             }
             var tool = request.TryGetProperty("tool_name", out var name) && name.ValueKind == JsonValueKind.String
                 ? name.GetString() : null;
+            if (tool == "ExitPlanMode") _progress.Report(new(ConversationEventKind.Diagnostic,
+                "Saída do planejamento Claude recusada: esse fluxo ainda não é suportado pelo Sintonia."));
             var hasInput = request.TryGetProperty("input", out var input) && input.ValueKind == JsonValueKind.Object;
             var preview = hasInput ? JsonSerializer.Serialize(input, PreviewOptions) : "";
             var reviewable = !string.IsNullOrWhiteSpace(tool) && tool.Length <= 200 && !tool.Any(char.IsControl)

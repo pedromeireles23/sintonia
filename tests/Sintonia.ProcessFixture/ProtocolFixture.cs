@@ -136,6 +136,7 @@ internal static class ProtocolFixture
         Emit(new { type = "stream_event", session_id = session, @event = new { delta = new { type = "text_delta", text = "Parcial" } } });
         if (args[0] == "claude-exit") return 7;
         if (args[0].StartsWith("claude-question", StringComparison.Ordinal)) return await RunClaudeQuestionAsync(args, session, prompt);
+        if (args[0].StartsWith("claude-control", StringComparison.Ordinal)) return await RunClaudeControlAsync(args, session, prompt);
         if (args[0].StartsWith("claude-host", StringComparison.Ordinal))
         {
             var tool = args[0] switch { "claude-host-edit" => "Edit", "claude-host-command" => "Bash",
@@ -212,6 +213,67 @@ internal static class ProtocolFixture
             permission_denials = args[0] == "claude-denied" ? new[] { new { tool_name = "Write" } } : [] });
         if ((await Console.In.ReadToEndAsync()).Length != 0) return 16; // No late answer after withdrawal/terminal result.
         return 0;
+    }
+
+    private static async Task<int> RunClaudeControlAsync(string[] args, string session, string prompt)
+    {
+        using var config = JsonDocument.Parse(prompt);
+        var root = config.RootElement;
+        var id = root.GetProperty("requestId").GetString();
+        var request = new { type = "control_request", request_id = id, request = root.GetProperty("request") };
+        if (args[0] == "claude-control-late") Result();
+        if (args[0] == "claude-control-interleaved") WriteRequest("writing");
+        Emit(request);
+        Emit(new { type = "stream_event", session_id = session, @event = new { delta = new { type = "text_delta", text = "DURANTE-CONTROLE" } } });
+        if (args[0] == "claude-control-duplicate") Emit(request);
+        if (args[0] is "claude-control-invalid" or "claude-control-late" or "claude-control-duplicate")
+        {
+            await Console.In.ReadToEndAsync(); return 0;
+        }
+        var responses = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var count = args[0] == "claude-control-interleaved" ? 2 : 1;
+        for (var i = 0; i < count; i++)
+        {
+            using var frame = JsonDocument.Parse((await Console.In.ReadLineAsync())!);
+            if (frame.RootElement.GetProperty("type").GetString() != "control_response") return 40;
+            var response = frame.RootElement.GetProperty("response");
+            if (!responses.TryAdd(response.GetProperty("request_id").GetString()!, response.Clone())) return 41;
+        }
+        if (!responses.TryGetValue(id!, out var refused) || !RefusalMatches(refused)) return 42;
+        if (args[0] == "claude-control-interleaved" && !WriteMatches(responses["writing"])) return 43;
+        if (args[0] == "claude-control-followup")
+        {
+            WriteRequest("followup");
+            using var writing = JsonDocument.Parse((await Console.In.ReadLineAsync())!);
+            var response = writing.RootElement.GetProperty("response");
+            if (response.GetProperty("request_id").GetString() != "followup" || !WriteMatches(response)) return 44;
+        }
+        Result();
+        if ((await Console.In.ReadToEndAsync()).Length != 0) return 45;
+        return 0;
+
+        bool RefusalMatches(JsonElement response)
+        {
+            if (root.GetProperty("expected").GetString() == "error")
+                return response.GetProperty("subtype").GetString() == "error" && !response.TryGetProperty("response", out _);
+            if (response.GetProperty("subtype").GetString() != "success") return false;
+            var decision = response.GetProperty("response");
+            if (root.GetProperty("expected").GetString() == "decline")
+                return decision.EnumerateObject().Count() == 1 && decision.GetProperty("action").GetString() == "decline";
+            return decision.GetProperty("behavior").GetString() == "deny"
+                && decision.EnumerateObject().All(property => property.Name is "behavior" or "message");
+        }
+        bool WriteMatches(JsonElement response)
+        {
+            if (response.GetProperty("subtype").GetString() != "success") return false;
+            var decision = response.GetProperty("response");
+            return decision.GetProperty("behavior").GetString() == root.GetProperty("expectedWrite").GetString()
+                && !decision.TryGetProperty("updatedPermissions", out _);
+        }
+        void WriteRequest(string requestId) => Emit(new { type = "control_request", request_id = requestId,
+            request = new { subtype = "can_use_tool", tool_name = "Write", input = new { file_path = "SIMULAÇÃO.txt", content = "SIMULAÇÃO" } } });
+        void Result() => Emit(new { type = "result", session_id = session, subtype = "success", is_error = false,
+            result = "SIMULAÇÃO: sucesso anunciado após controle", permission_denials = Array.Empty<object>() });
     }
 
     private static async Task<int> RunClaudeQuestionAsync(string[] args, string session, string prompt)
