@@ -246,8 +246,10 @@ public sealed class WorkspaceViewModel : ObservableObject
             var source = catalog.Defaults is not { } defaults ? "padrão do catálogo; configuração não informada"
                 : defaults.ModelSource == defaults.ReasoningSource ? defaults.ModelSource
                 : $"modelo: {defaults.ModelSource}; reasoning: {defaults.ReasoningSource}";
-            // Claude aliases resolve per CLI version; the first segment of the catalog description names it (e.g. "Opus 5.5").
-            var version = Provider == ProviderKind.Claude && entry?.Description is { Length: > 0 } description ? description.Split(" · ")[0] + " · " : "";
+            // Claude aliases resolve per CLI version. Older catalogs name it in the first description segment ("Opus 5 · ...");
+            // newer ones put it in the display name, which the text above already shows.
+            var version = Provider == ProviderKind.Claude && entry?.Description is { } description && description.Contains(" · ", StringComparison.Ordinal)
+                ? description.Split(" · ")[0] + " · " : "";
             return $"{version}Reasoning {(effort is null ? "padrão do CLI" : ModelSettings.EffortLabel(effort))} · {source}";
         }
     }
