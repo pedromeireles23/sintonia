@@ -36,6 +36,7 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 
 ## Situação atual
 
+- Apresentação pública atualizada em 13/10/2026: [README](README.md) descreve o MVP funcional local, recursos implementados, uso inicial, requisitos, evidências e limites, com links para os guias. A descrição curta do GitHub apresenta a central Windows em C#/.NET 10 e WPF para coordenar Codex/Claude em múltiplos projetos. Esta revisão não fecha lacunas de integração nem os marcos de distribuição.
 - Repositório criado pelo usuário, inicialmente vazio, clonado na pasta de trabalho da Área de Trabalho.
 - Documentação inicial preparada: README, contexto, instruções para Codex e Claude, arquitetura, roadmap, contribuição e pesquisa.
 - M0 concluído: solução .NET com Core, Infrastructure, Desktop WPF/MVVM, testes xUnit e verificação executável da janela no Windows.

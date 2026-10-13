@@ -1,182 +1,127 @@
 # Sintonia
 
-Aplicativo desktop para Windows, em C#/.NET, que serve como canal de comunicação e coordenação entre agentes de IA do Codex e do Claude. Organiza várias sessões nos projetos que o usuário precisar, com contexto separado por projeto; os agentes executam o trabalho com suas ferramentas.
+Central desktop para Windows que conecta sessões do **Codex** e do **Claude** em múltiplos projetos. Desenvolvida em **C#/.NET 10 e WPF**, reúne conversas, planejamento, tarefas, revisão de entregas e integração Git numa interface em português.
 
-O usuário abre projetos, escolhe uma IA/modelo e acompanha as ferramentas trabalhando. Perfis reutilizáveis guardam funções, provedor/modelo padrão e instruções para sessões normais dos provedores. A chefia produz planos editáveis; a fila permite encaminhar, iniciar tarefas, revisar entregas e preparar seus resultados no chat para atualizar o plano. Entregas Git são combinadas, validadas e publicadas localmente mediante confirmação. Jogos são apenas um exemplo opcional de uso.
+Cada projeto mantém seu contexto e histórico. Os agentes executam o trabalho com as ferramentas de suas instalações; o Sintonia encaminha instruções e resultados, coordena dependências e acompanha as entregas.
 
-## Objetivos
+**Estado: MVP funcional para uso local.** Chat, sessões persistentes, fila, chefia e integração Git assistida estão implementados. A distribuição para outras máquinas e parte das validações de compatibilidade permanecem no [roadmap](ROADMAP.md).
 
-- Conectar sessões do Codex e do Claude para trabalharem em conjunto em múltiplos projetos.
-- Encaminhar instruções, contexto e resultados entre sessões e acompanhar suas entregas.
-- Preservar as skills, os plugins e as conexões MCP compatíveis com seus CLIs.
-- Abrir ou retomar sessões conforme o trabalho for liberado.
-- Separar alterações paralelas com Git e revisar entregas antes da integração.
-- Entregar um aplicativo utilizável e um projeto demonstrável em portfólio .NET.
+![Central do Sintonia com respostas reais do Codex e do Claude em uma pasta de teste](docs/images/sintonia-central.png)
 
-A produção de código, documentos, imagens e outros arquivos pertence aos agentes e às ferramentas disponíveis em suas instalações. O Sintonia organiza a comunicação e o fluxo geral de entregas. Em 09/10/2026, o usuário retirou o marco de artes e biblioteca de assets por duplicar essas responsabilidades; a justificativa está na decisão 011 de [docs/DECISIONS.md](docs/DECISIONS.md).
+## Funcionalidades
 
-## Stack escolhida
+- **Múltiplos projetos:** cadastre pastas e alterne entre conversas, tarefas e sessões com contexto separado.
+- **Chat com Codex e Claude:** escolha provedor e modelo, acompanhe respostas e eventos, cancele execuções e retome conversas.
+- **Perfis de função:** reutilize instruções e padrões de provedor/modelo para desenvolvimento, revisão, documentação, análise e outras tarefas.
+- **Chefia e planos revisáveis:** transforme um objetivo em uma proposta de tarefas, edite responsáveis, escopos, dependências e critérios e confirme o plano antes de encaminhá-lo à fila.
+- **Fila persistente:** inicie tarefas, revise resultados, solicite ajustes na mesma sessão e aprove entregas para liberar dependências.
+- **Trabalho paralelo com Git:** prepare worktrees distintas, confira diffs e conflitos, registre commits revisados e combine entregas em uma pasta separada.
+- **Validação e publicação assistidas:** configure comandos por projeto, valide a combinação e confirme sua publicação na branch local. A publicação pelo Sintonia não faz push para o remoto.
+- **Histórico local:** projetos, conversas, tentativas, eventos, planos e entregas ficam em SQLite e são preservados ao reabrir o aplicativo.
+- **Permissões e limites:** responda a autorizações por ação e perguntas do Claude, configure concorrência, tentativas e prazo e acompanhe quota Codex e tokens informados por execução.
 
-C# · .NET 10 · WPF · MVVM · SQLite · testes automatizados.
+Código, documentos, análises e outros arquivos seguem o fluxo geral de tarefas e entregas. A disponibilidade de ferramentas para produzi-los depende da instalação de cada agente.
 
-A comunicação real usa Codex App Server por stdio e Claude Code com stream-json. O login por assinatura dos CLIs é conferido antes dos turnos; não há configuração de API keys nem fallback automático de cobrança.
+## Como funciona
 
-## Estado atual
+1. **Cadastre um projeto** em **Adicionar projeto** e escolha a pasta de trabalho.
+2. **Converse ou planeje:** selecione Codex/Claude e um modelo. Para distribuir trabalho, use a função **Chefe do projeto** e descreva o objetivo.
+3. **Revise o plano** em **Revisar planos**, ajuste as tarefas e confirme. Em **Fila de tarefas**, use **Encaminhar à fila**. Essas confirmações não iniciam modelos.
+4. **Prepare e execute:** para escrita paralela, prepare uma worktree por tarefa em **Pasta de trabalho**. Use **Iniciar tentativa** ou **Iniciar tarefas disponíveis** e responda às solicitações de permissão.
+5. **Revise as entregas:** confira respostas, arquivos e critérios; aprove ou solicite ajustes. Para entregas em worktree, salve as mudanças em um commit e use **Registrar commit revisado** após conferir os diffs.
+6. **Integre o resultado:** prepare a combinação, execute os critérios de validação e confirme **Publicar no projeto**. Dependentes exigem a entrega aprovada e a revisão publicada presente em sua pasta de trabalho.
 
-**M2 concluído; M3 com publicação e arquivamento Git assistidos e M4 com revisão assistida do plano, consulta de quota Codex e tokens por execução.** Cadastre projetos, escolha Codex/Claude e modelo, converse e retome sessões. Histórico, perfis, tarefas e entregas sobrevivem à reabertura. Prepare worktrees, revise diffs, registre commits, combine em pasta separada e execute critérios de validação configuráveis. Uma combinação Passed vigente pode ser publicada localmente; dependentes exigem a revisão integrada na sua pasta. Após publicar, arquive a worktree da entrega preservando arquivos, branch e histórico. O arquivo continua ocupando espaço; combinações permanecem. A chefia recebe resultados no chat e propõe ajustes para tarefas ainda não iniciadas, com revisão/confirmação. Limites por projeto: 3–7 sessões, 1–3 tentativas por tarefa e 1–300s por execução; teto global de sete sessões. Escrita paralela usa worktrees validadas distintas. Chat e tentativas mostram os tokens informados pelo agente principal, identificando medições parciais e dados ausentes. Limite opcional de tokens informados e reserva por início estão conectados à central. Restauração/descarte de arquivos e quota Claude continuam pendentes. [Sessões](docs/SESSION_CONCURRENCY.md), [publicação](docs/TASK_PUBLICATION.md), [arquivamento](docs/TASK_WORKTREE_CLEANUP.md), [chefia/limites](docs/PLAN_UPDATES.md), [uso dos provedores](docs/PROVIDER_USAGE.md) e [tokens por execução](docs/RUN_TOKEN_USAGE.md).
+A chefia pode receber os resultados pelo chat e propor ajustes para tarefas ainda não iniciadas. Envio, revisão, início de tarefas e publicação continuam explícitos. Veja os guias de [chefia](docs/PLAN_UPDATES.md), [fila](docs/TASK_QUEUE.md) e [integração Git](docs/TASK_PUBLICATION.md).
 
-Build Debug/Release sem avisos/erros. A última seleção automatizada passou em 229 casos Infrastructure Release, incluindo 22 novos de recusa ExitPlanMode; os novos também passaram em Debug. A suíte completa de casos não afetados não foi repetida. O formulário de perguntas tem provas WPF com processos locais e zero erros de binding. Após renovar o login por assinatura, uma prova real confirmou uma pergunta AskUserQuestion, resposta Detalhes pelo callback e JSON final em leitura: um envio, sem retry, 18.094 tokens informados. A tentativa OAuth interrompida anterior está preservada. Provas posteriores confirmaram elicitation form/decline com MCP local sem modelo e recusa ExitPlanMode pelo host em um envio em leitura, com resultado Blocked e 16.434 tokens informados. Provas anteriores confirmaram recusa/autorização de leitura pública Microsoft Learn MCP e Bash/Edit no Claude, com sessão/modelo e efeitos conferidos. Consultas sem prompts compararam skills, plugins e MCPs, registrando diferenças de descoberta/autenticação sem presumir paridade desktop. [Perguntas, diagnóstico e retomada](docs/CLAUDE_QUESTIONS.md), [elicitation local](docs/CLAUDE_ELICITATION.md), [recusa ExitPlanMode](docs/CLAUDE_PLAN_EXIT.md), [controles especiais](docs/CLAUDE_CONTROLS.md), [MCP público](docs/CLAUDE_MCP_PERMISSIONS.md), [Bash/Edit](docs/CLAUDE_TOOL_PERMISSIONS.md), [compatibilidade](docs/PROVIDER_EXTENSIONS.md) e [histórico de validação](docs/DEVELOPMENT_LOG.md). Testes automatizados usam simulação/processos locais; chamadas reais pertencem somente aos diagnósticos opt-in.
+<details>
+<summary>Mais capturas da interface</summary>
 
-Ambos os provedores leram uma amostra e responderam corretamente dentro da janela real, usando assinaturas. Retomada e interrupção também foram verificadas. Codex e Claude têm autorização por ação na central, preservando regras/hooks existentes. No Claude, uma prova real recusou a criação de um arquivo e autorizou outra na mesma sessão, conferindo o conteúdo. A função **Chefe do projeto** gera propostas estruturadas em leitura. **Revisar planos** permite editar e confirmar; **Fila de tarefas** encaminha o plano, inicia tentativas e registra aprovação ou ajustes das entregas. As provas reais foram finitas; os testes novos usam provedores simulados.
+As capturas abaixo usam dados e provedores de teste; as operações Git usam repositórios reais em pastas de teste.
 
-![Sintonia — central com respostas reais dos dois provedores em pasta de teste](docs/images/sintonia-central.png)
+![Revisão de plano com dados de teste e provedor simulado](docs/images/sintonia-planos.png)
 
-O botão **Abrir demonstração** abre o M0, com fila/revisão inteiramente simuladas e identificadas; seus exemplos continuam somente em memória.
+![Sete sessões no mesmo projeto com provedores simulados e worktrees Git reais](docs/images/sintonia-sessoes.png)
 
-A demonstração Electron criada durante a pesquisa foi um experimento de fluxo; ela não é a implementação deste repositório. O produto será desenvolvido em C#/.NET.
+![Combinação com conflito em repositório Git de teste, sem chamadas de modelos](docs/images/sintonia-combinacao.png)
 
-## Documentação
+</details>
 
-- [CONTEXT.md](CONTEXT.md): decisões, requisitos e ponto de retomada.
-- [ROADMAP.md](ROADMAP.md): marcos e critérios de aceite.
-- [ARCHITECTURE.md](ARCHITECTURE.md): estrutura proposta e contratos.
-- [CONTRIBUTING.md](CONTRIBUTING.md): ambiente, validação e commits.
-- [AGENTS.md](AGENTS.md): instruções para assistentes de programação.
-- [CLAUDE.md](CLAUDE.md): entrada de contexto para Claude Code.
-- [Registro de desenvolvimento](docs/DEVELOPMENT_LOG.md).
-- [Perfis de função](docs/FUNCTION_PROFILES.md).
-- [Diagnóstico Git](docs/GIT_DIAGNOSTICS.md).
-- [Worktrees por tarefa](docs/TASK_WORKTREES.md).
-- [Arquivamento assistido de worktrees publicadas](docs/TASK_WORKTREE_CLEANUP.md).
-- [Revisão de diffs](docs/TASK_DIFFS.md).
-- [Registro de entregas e reserva de integração](docs/TASK_DELIVERIES.md).
-- [Preparação da combinação em pasta separada](docs/TASK_INTEGRATION_PREPARATION.md).
-- [Validação configurável por projeto](docs/PROJECT_VALIDATION.md).
-- [Publicação Git e revisão integrada](docs/TASK_PUBLICATION.md).
-- [Acompanhamento da chefia, revisão do plano e limites](docs/PLAN_UPDATES.md).
-- [Uso e quota dos provedores](docs/PROVIDER_USAGE.md).
-- [Compatibilidade de skills, plugins e MCPs](docs/PROVIDER_EXTENSIONS.md).
-- [Prova real de permissões Claude Bash/Edit](docs/CLAUDE_TOOL_PERMISSIONS.md).
-- [Perguntas de escolha do Claude na central e fila](docs/CLAUDE_QUESTIONS.md).
-- [Tokens por execução](docs/RUN_TOKEN_USAGE.md).
-- [Análise do Maestro](docs/MAESTRO_ANALYSIS.md).
-- [Decisões técnicas](docs/DECISIONS.md).
+## Executar a partir do código
 
-## Executar
+O projeto ainda não oferece instalador ou pacote de release. Para compilar e executar:
 
-Requisitos: Windows e SDK do .NET 10. O repositório fixa a linha 10.0.200 do SDK; aceita atualizações de patch.
+- Windows com uma sessão gráfica para a interface WPF.
+- SDK **.NET 10**, na linha **10.0.200** definida em [global.json](global.json), com atualizações de patch permitidas.
+- Codex CLI e/ou Claude Code disponíveis no `PATH`, em um layout de instalação suportado, com login por assinatura realizado em seus próprios CLIs.
+- Git para os fluxos de worktrees, diffs e integração. Projetos sem Git continuam usando chat e fila, com escrita direta exclusiva.
+
+As versões registradas nas provas são **Codex CLI 0.162.0-alpha.2** e **Claude Code 2.1.277**. Outras versões e layouts precisam de verificação; encontrar um executável não comprova autenticação, quota ou compatibilidade completa. Veja [instalações e provas dos provedores](docs/PROVIDER_PROBES.md).
+
+Na raiz do repositório:
 
 ```powershell
 rtk proxy dotnet restore Sintonia.sln --locked-mode
 rtk proxy dotnet build Sintonia.sln --no-restore
-rtk proxy dotnet test Sintonia.sln --no-build
 rtk proxy dotnet run --project src/Sintonia.Desktop --no-build
 ```
 
-O aplicativo não depende do RTK. Em outro ambiente, os comandos podem começar diretamente com `dotnet`.
+O RTK é usado no ambiente de desenvolvimento deste projeto; o aplicativo não depende dele. Em outro ambiente, execute os mesmos comandos começando por `dotnet`.
 
-Na central, clique em **Adicionar projeto**, escolha a pasta, IA e modelo e envie um pedido. **Nova conversa** permite escolher outra IA/modelo; a lista à direita abre o histórico e retoma a sessão ao enviar novamente. **Função e permissões** configura instruções e acesso de leitura/escrita. Quando Codex ou Claude pedirem autorização, confira a pasta e a prévia e escolha **Permitir esta ação** ou **Recusar**. As regras e os hooks dos provedores também podem permitir ou recusar ferramentas. **Cancelar** interrompe a conversa selecionada e suas decisões pendentes.
+A integração usa os logins por assinatura das instalações locais: ChatGPT no Codex e `claude.ai` no Claude. Não há configuração de chaves de API nem mudança automática para cobrança de API. Cada provedor conserva suas instruções, skills, plugins e MCPs compatíveis; recursos exclusivos dos aplicativos desktop e autenticações de conectores têm [limites documentados](docs/PROVIDER_EXTENSIONS.md).
 
-O host Claude aprova somente os parâmetros exibidos, sem criar regras permanentes. Em leitura, pedidos de ação ao host são recusados; perguntas de escolha têm um formulário próprio e podem ser respondidas sem habilitar escrita. Em **Claude aguarda sua resposta**, escolha opções ou preencha **Outra resposta** e use **Enviar respostas**; **Recusar perguntas** bloqueia a execução. A fila usa o mesmo formulário e mantém a revisão da entrega após o término. Contrato e WPF verificados com processos de teste; uma prova real confirmou pergunta simples/resposta pelo callback, sem exercitar escolha múltipla/texto livre ou interação WPF com modelo real. [Uso e limites](docs/CLAUDE_QUESTIONS.md).
+O histórico fica em `%LOCALAPPDATA%/Sintonia/workspace.db`. Ao reabrir, execuções abandonadas são identificadas como interrompidas, sem reenvio automático. O botão **Abrir demonstração** oferece o fluxo inicial inteiramente simulado, separado da central real.
 
-Prévias incompletas ou acima de 64 mil caracteres, entradas inválidas e `ExitPlanMode` são recusadas. Solicitações de dados MCP (elicitation) recebem recusa explícita, sem abrir URL, coletar dados ou habilitar escrita. A execução fica bloqueada mesmo se o Claude anunciar sucesso depois da recusa. Esses controles foram verificados com processos de teste; elicitation form/decline e recusa ExitPlanMode também têm provas reais delimitadas. URL mode real permanece pendente. [Contratos e limites](docs/CLAUDE_CONTROLS.md). O fluxo atual cobre um turno até seu resultado terminal; trabalho autônomo em background após esse resultado ainda não tem acompanhamento.
+## Limites atuais
 
-O histórico fica em `%LOCALAPPDATA%/Sintonia/workspace.db`. Execuções sem resultado terminal são marcadas como interrompidas ao reabrir; nenhum pedido é reenviado automaticamente.
+- **Concorrência:** de 3 a 7 execuções simultâneas por projeto, padrão 3, até 7 globalmente. Chat, chefia e fila compartilham as vagas; manter sessões abertas não ocupa uma vaga sem execução. Escrita paralela exige worktrees distintas e validadas; escrita direta permanece exclusiva.
+- **Tentativas e prazo:** de 1 a 3 tentativas por tarefa e de 1 a 300 segundos por execução, configuráveis por projeto. Não há rodadas ou reenvios automáticos. Cancelar uma execução não desfaz arquivos já alterados.
+- **Permissões:** o Sintonia usa decisões por ação e preserva regras e hooks dos provedores. O host Claude recusa `ExitPlanMode` e solicitações de dados MCP (elicitation); não oferece aprovação desses controles. A recusa em URL mode ainda não tem prova real. Permissões e worktrees não equivalem a isolamento do sistema operacional.
+- **Extensões e sessões:** a compatibilidade de todos os MCPs e ferramentas ainda não foi demonstrada. Não há importação ou controle geral de conversas externas, nem garantia de abrir as sessões nos aplicativos gráficos originais. Trabalho autônomo em background após o resultado terminal ainda não tem acompanhamento.
+- **Consumo:** quota Codex pode ser consultada; quota Claude está indisponível pela integração. Tokens cobrem a medição informada do agente principal, com dados parciais ou ausentes identificados. O limite agregado controla a admissão de novos envios; execuções ativas podem ultrapassar a reserva. Esses valores não representam custo nem saldo da assinatura.
+- **Arquivamento:** worktrees de entregas publicadas podem ser arquivadas preservando arquivos, branch e histórico. O arquivo continua ocupando espaço; combinações permanecem. Restauração e descarte automático não estão implementados.
 
-Abra **Perfis de função** para salvar configurações de análise, documentação, desenvolvimento ou outras funções. Na central, escolha o perfil em **Função e permissões** e use **Nova com perfil**. A ação preenche uma nova conversa em leitura, conserva a mensagem em rascunho e permite conferir os padrões antes de enviar. Salvar/aplicar não chama um modelo; editar ou excluir preserva conversas e tarefas já criadas. Modelo vazio usa o padrão da instalação. [Fluxo, edição e limites dos perfis](docs/FUNCTION_PROFILES.md).
+O MVP corresponde ao M2; os fluxos Git do M3 e a distribuição assistida do M4 também estão implementados. M1 conserva lacunas de compatibilidade, M6 ainda pede exemplos de projetos distintos e M7 reúne pacote Windows, teste em outra máquina, licença, automação de build/testes e atualização com preservação de dados. Consulte os critérios no [roadmap](ROADMAP.md).
 
-![Perfis de função em tamanho mínimo — dados de teste, sem chamada de modelos](docs/images/sintonia-perfis.png)
+## Validação e evidências
 
-Para planejar, selecione **Chefe do projeto** em **Função e permissões** e descreva o objetivo no chat. A chefia usa leitura e mantém a IA/modelo escolhido. Ao receber uma proposta válida, abra **Revisar planos**. Ajuste responsável, modelo, função, acesso recomendado, instruções, escopo, dependências e critérios; adicione ou remova tarefas conforme necessário. **Confirmar plano** registra sua aprovação para execução futura. Salvar ajustes como rascunho retira a aprovação anterior. O acesso recomendado de uma tarefa ainda depende das permissões do provedor quando houver execução.
+Codex e Claude já executaram tarefas reais por assinatura, com leitura, retomada e interrupção verificadas. Uma [prova finita de colaboração com Git](docs/REAL_COLLABORATION.md) combinou JSON produzido pelo Codex e documentação Markdown produzida pelo Claude, com dependência, revisão, validação, publicação e histórico preservados.
 
-![Revisão de plano em tamanho mínimo — dados de teste com provedor simulado](docs/images/sintonia-planos.png)
+O Claude tem provas delimitadas de recusa/autorização de [Write](docs/PROVIDER_PROBES.md), [Bash/Edit](docs/CLAUDE_TOOL_PERMISSIONS.md) e [leitura MCP pública](docs/CLAUDE_MCP_PERMISSIONS.md), além de [pergunta simples respondida pelo callback](docs/CLAUDE_QUESTIONS.md), [elicitation form recusada sem modelo](docs/CLAUDE_ELICITATION.md) e [recusa real de ExitPlanMode](docs/CLAUDE_PLAN_EXIT.md). Cada prova registra seu alcance e suas limitações.
 
-O [formato de propostas e seus limites](docs/PLAN_PROPOSALS.md) descreve validação e histórico. Propostas inválidas não viram tarefas; a resposta original do chat permanece disponível. Planos são separados por projeto e edições simultâneas não sobrescrevem revisões mais novas.
+Testes automatizados usam provedores simulados e processos de teste, com Git real quando necessário. Os testes WPF verificam fluxos e bindings em uma sessão Windows. Provas reais de modelos são opt-in, têm limites e não devem ser executadas em loops ou CI. Resultados de builds, seleções de testes e capturas estão no [registro de desenvolvimento](docs/DEVELOPMENT_LOG.md).
 
-Abra **Fila de tarefas**, escolha um plano aprovado e use **Encaminhar à fila**. Essa ação preserva a revisão e cria as tarefas, sem executar modelos. Em **Função, permissões e sessões**, escolha sessões (3–7), tentativas por tarefa (1–3) e tempo por execução (1–300s), e use **Aplicar limites**. Selecione uma tarefa e use **Iniciar tentativa**, ou **Iniciar tarefas disponíveis** para distribuir uma rodada nas vagas livres. Confira resposta, arquivos e critérios; **Aprovar entrega** registra sua decisão e **Solicitar ajustes** permite outra tentativa na mesma sessão. Dependências exigem aprovação e, quando a entrega usa worktree, publicação Git registrada. Autorizações aparecem no próprio painel. Cancelar não desfaz arquivos já alterados; confira o projeto antes de retomar.
-
-![Sete sessões de tarefas no mesmo projeto — provedores simulados e worktrees Git reais](docs/images/sintonia-sessoes.png)
-
-![Fila e revisão em tamanho mínimo — dados de teste com provedores simulados](docs/images/sintonia-fila.png)
-
-Cada tarefa respeita o limite salvo de tentativas explícitas. **Chefia e plano** prepara estado/resultados/revisões/commits no chat da chefia. Revise e envie; confirme a nova proposta em **Revisar planos** e use **Conferir e atualizar este plano** na fila. Apenas tarefas ainda não iniciadas e sem worktree podem mudar; sessões/resultados/histórico ficam preservados. [Acompanhamento](docs/PLAN_UPDATES.md) e [fila](docs/TASK_QUEUE.md). A [prova real finita com Git](docs/REAL_COLLABORATION.md) fez um turno de escrita por provedor: JSON Codex integrado antes da conferência Markdown Claude, com diffs, revisão, validação/publicação e tokens preservados. Fluxos visuais têm testes WPF separados com provedores simulados.
-
-![Chefia e plano após revisão da fila — dados de teste e provedores simulados, sem chamadas de modelos](docs/images/sintonia-chefia.png)
-
-Na fila, abra **Pasta de trabalho** e use **Preparar worktree** antes da primeira tentativa de uma tarefa com escrita. Confira diretório, branch e commit na confirmação. A nova pasta vem desse commit; alterações locais e arquivos ignorados permanecem no original. Confira instruções, configurações e dependências disponíveis antes de iniciar. Preparação não chama modelos; tentativas e ajustes conservam a mesma pasta/sessão. Cancelamento/interrupção preserva efeitos para conferência e retomada explícita. Aprovação em worktree exige publicação registrada para liberar dependentes. [Fluxo e limites das worktrees](docs/TASK_WORKTREES.md).
-
-![Pasta da tarefa em tamanho mínimo — Git real em pasta de teste, provedor simulado](docs/images/sintonia-worktree.png)
-
-Com a tarefa parada e a worktree pronta, use **Revisar diffs** na aba **Pasta de trabalho**. Selecione arquivo e comparação desde a base, no índice ou na pasta. A lista preserva renomeações, exclusões, arquivos novos e conflitos; binários/grandes têm indicação própria. **Atualizar diffs** renova a lista, **Ler novamente** repete a comparação e **Cancelar operação** interrompe a leitura. A janela conserva projeto/tarefa ao navegar e inclui todo o checkout. Consultar não aprova nem integra a entrega; mudanças posteriores exigem nova leitura. [Fluxo e limites da revisão](docs/TASK_DIFFS.md).
-
-![Diffs da tarefa — Git real em pasta de teste, sem chamada de modelos](docs/images/sintonia-diffs.png)
-
-Após **Aprovar entrega**, salve suas mudanças em um commit na worktree por uma ferramenta Git de sua escolha. Atualize os diffs, confira a comparação **Desde o commit de base** e use **Registrar commit revisado**. Confirme o commit/tarefa indicado. O registro guarda o conteúdo identificado e a tentativa aprovada; a janela mostra commit, horário e integração pendente. Mudanças ainda sem commit impedem o registro. Atualizar a fila mostra esse commit em **Pasta de trabalho**. Registrar não faz merge nem libera dependentes. [Fluxo e limites do registro](docs/TASK_DELIVERIES.md).
-
-![Commit revisado registrado em tamanho mínimo — Git real e runs simulados, sem chamada de modelos](docs/images/sintonia-entrega.png)
-
-Com o commit registrado e a origem limpa, use **Preparar combinação**. Confira commits, branch e pasta original. Uma nova worktree guarda o merge e mostra árvore ou conflitos; preparar conserva o original. Configure comandos em **Critérios de validação** na central. **Validar combinação** confirma comandos/pasta/árvore e mostra histórico/logs. Uma validação Passed vigente permite **Publicar no projeto**, mediante confirmação e nova conferência. Publicação avança a branch local com a árvore validada, registra o commit e libera dependentes compatíveis; não faz push. Falhas/interrupções preservam evidências e exigem conferência. [Preparação](docs/TASK_INTEGRATION_PREPARATION.md), [validação](docs/PROJECT_VALIDATION.md) e [publicação](docs/TASK_PUBLICATION.md).
-
-Após publicar, volte à fila e use **Arquivar worktree integrada** em **Pasta de trabalho**. Confira origem e destino: a pasta inteira é preservada num arquivo, incluindo configurações ignoradas e rascunhos. O registro ativo da worktree é retirado; branch, commits e histórico permanecem. Mudanças versionadas posteriores impedem o arquivamento. O espaço em disco continua ocupado e as combinações permanecem; não há restauração/descarte automático. [Arquivamento e recuperação](docs/TASK_WORKTREE_CLEANUP.md).
-
-![Worktree arquivada em tamanho mínimo — Git real em pasta de teste e runs simulados, sem modelos](docs/images/sintonia-arquivamento.png)
-
-![Combinação com conflito em tamanho mínimo — Git real em pasta de teste e runs simulados, sem modelos](docs/images/sintonia-combinacao.png)
-
-Abra **Diagnóstico Git** para conferir raiz, branch/commit, acompanhamento local e alterações preparadas, na pasta, novas ou em conflito. Uma subpasta mostra o repositório inteiro; confira a raiz indicada. O painel permite atualizar/cancelar sem modificar arquivos ou índice e mantém o projeto consultado mesmo ao navegar na central. Projetos sem Git continuam disponíveis. [Fluxo e limites do diagnóstico](docs/GIT_DIAGNOSTICS.md).
-
-![Diagnóstico Git em tamanho mínimo — Git real em pasta de teste, sem chamada de modelos](docs/images/sintonia-git.png)
-
-Abra **Uso dos provedores** para consultar os percentuais e a renovação da conta Codex, compartilhada entre projetos/aplicativos. **Atualizar uso** consulta novamente sem chamar modelos; **Cancelar consulta** aguarda o encerramento. Dados ausentes ficam indisponíveis e o horário identifica a consulta. Novos envios ao Codex são interrompidos quando o provedor informa uso incluído indisponível; percentuais e horários não garantem acesso futuro. Quota Claude aparece indisponível pela integração, com orientação para `/usage` no Claude Code. [Contrato e limitações](docs/PROVIDER_USAGE.md).
-
-![Uso dos provedores — dados de teste, sem chamada de modelos](docs/images/sintonia-uso.png)
-
-O chat mostra os tokens abaixo da resposta; na fila, **Tentativas** mostra o consumo informado da execução selecionada, inclusive em falhas ou cancelamentos quando houver medição. Entrada, saída e cache permanecem no histórico após reabrir. Medições parciais e dados ausentes são identificados; os valores cobrem o agente principal e não representam quota da assinatura ou custo em dinheiro. Configure limite/reserva em **Função, permissões e limites** e use **Aplicar limites**; **Atualizar consumo do projeto** mostra consumo/reservas/lacunas desde o cadastro. Novos envios dependem da margem disponível; execuções ativas podem ultrapassá-la. [Orçamento](docs/TOKEN_BUDGET.md). [Escopo e limitações da medição](docs/RUN_TOKEN_USAGE.md).
-
-![Tokens da tentativa selecionada em tamanho mínimo — dados de teste, sem chamada de modelos](docs/images/sintonia-tokens.png)
-
-Verificação da janela real no Windows (abre, percorre o fluxo e fecha a janela de teste):
+Para verificar o código já compilado:
 
 ```powershell
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build
+rtk proxy dotnet test Sintonia.sln --no-build
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --workspace
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --tokens
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --proposals
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --sessions
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --queue
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --profiles
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --git
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --usage
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --worktrees
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --diffs
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --deliveries
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --combinations
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --validation
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --publication
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --cleanup
-rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests --no-build -- --chief-plan
 ```
 
-O primeiro teste percorre a demonstração; os demais verificam a central, os planos, a fila e os perfis com provedores de teste, sem consumir modelos. `--git`, `--worktrees`, `--diffs` e `--deliveries` usam Git real em pastas exclusivas de teste, com provedores/erros/interrupções/runs simulados e nenhuma chamada de modelos. Capturas em `artifacts/ui-smoke`, `artifacts/workspace-smoke`, `artifacts/proposal-smoke`, `artifacts/queue-smoke`, `artifacts/profile-smoke`, `artifacts/git-smoke`, `artifacts/worktree-smoke`, `artifacts/diff-smoke` e `artifacts/delivery-smoke`. O script `tests/Sintonia.Desktop.SmokeTests/verify-startup.ps1` confere abertura/encerramento do executável normal. A opção `--workspace-real` é prova manual finita, consome quota e não deve rodar em CI/loop.
+O teste WPF é um executável separado de `dotnet test`. Outros fluxos e instruções de desenvolvimento estão em [CONTRIBUTING.md](CONTRIBUTING.md) e nos respectivos guias.
 
-`--tokens` verifica as medições simuladas no chat, incluindo ausência, cancelamento e reabertura; `--queue` confere os tokens separados por tentativa. Esses fluxos não consultam modelos reais.
+## Arquitetura e documentação
 
-O diagnóstico inicial de instalações já pode ser executado, separado da janela:
+**C# · .NET 10 · WPF · MVVM · SQLite · xUnit**
 
-```powershell
-rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build
-```
+| Projeto | Responsabilidade |
+| --- | --- |
+| `Sintonia.Core` | Modelos, contratos, estados, dependências e regras de execução. |
+| `Sintonia.Infrastructure` | Codex App Server por stdio, Claude Code por stream-json, processos, persistência e operações Git. |
+| `Sintonia.Desktop` | Interface WPF, ViewModels e composição dos serviços. |
+| `tests` | Testes do núcleo, infraestrutura, processos e fluxos WPF. |
+| `Sintonia.Diagnostics` | Diagnósticos de instalação, metadados e provas reais opt-in com limites. |
 
-Consulta somente versão/ajuda, com prazos e saída limitada. Encontrar um executável não confirma autenticação, assinatura, quota disponível ou integração real. Consulte [as verificações e limites do M1](docs/PROVIDER_PROBES.md).
+| Tema | Documentação |
+| --- | --- |
+| Estado e planejamento | [Contexto](CONTEXT.md), [roadmap](ROADMAP.md) e [registro de desenvolvimento](docs/DEVELOPMENT_LOG.md). |
+| Arquitetura e decisões | [Arquitetura](ARCHITECTURE.md), [escopo](docs/PRODUCT_SCOPE.md) e [decisões técnicas](docs/DECISIONS.md). |
+| Funções, planos e tarefas | [Perfis](docs/FUNCTION_PROFILES.md), [propostas](docs/PLAN_PROPOSALS.md), [chefia](docs/PLAN_UPDATES.md), [fila](docs/TASK_QUEUE.md) e [concorrência](docs/SESSION_CONCURRENCY.md). |
+| Fluxo Git | [Diagnóstico](docs/GIT_DIAGNOSTICS.md), [worktrees](docs/TASK_WORKTREES.md), [diffs](docs/TASK_DIFFS.md), [entregas](docs/TASK_DELIVERIES.md), [combinação](docs/TASK_INTEGRATION_PREPARATION.md), [validação](docs/PROJECT_VALIDATION.md), [publicação](docs/TASK_PUBLICATION.md) e [arquivamento](docs/TASK_WORKTREE_CLEANUP.md). |
+| Provedores e consumo | [Provas](docs/PROVIDER_PROBES.md), [extensões](docs/PROVIDER_EXTENSIONS.md), [perguntas Claude](docs/CLAUDE_QUESTIONS.md), [controles Claude](docs/CLAUDE_CONTROLS.md), [quota](docs/PROVIDER_USAGE.md), [tokens](docs/RUN_TOKEN_USAGE.md) e [limite agregado](docs/TOKEN_BUDGET.md). |
+| Desenvolvimento | [Contribuição](CONTRIBUTING.md), [instruções Codex](AGENTS.md) e [instruções Claude](CLAUDE.md). |
 
-`rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- usage Codex` consulta somente metadados normalizados de limites da conta, sem thread/turno ou modelo. `usage Claude` informa ausência de consulta verificada sem lançar processo. WPF `--usage` usa leitores/dados simulados, com capturas em `artifacts/usage-smoke`; não consome modelos.
+## Referência e licença
 
-A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- permissions Claude` consome quota da assinatura: faz no máximo dois turnos em pasta exclusiva de `artifacts/provider-probes`, recusa uma escrita e permite outra com caminho/conteúdo conferidos. Não deve rodar em CI/loop.
+O [Maestro](https://github.com/RunMaestro/Maestro) foi estudado como referência arquitetural. A implementação do Sintonia é independente; nenhum código do Maestro foi incorporado. A análise está em [docs/MAESTRO_ANALYSIS.md](docs/MAESTRO_ANALYSIS.md).
 
-A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- plan Claude` faz um turno de planejamento em leitura e valida duas tarefas, ambos os provedores e uma dependência. Consome quota; fora de CI/loop. A mesma opção aceita Codex, cuja geração real de plano ainda não foi exercitada neste incremento.
-
-A prova opcional `rtk proxy dotnet run --project tools/Sintonia.Diagnostics --no-build -- queue` faz no máximo dois turnos reais em leitura, um por provedor, com plano fornecido pelo diagnóstico em pasta exclusiva. Verifica resposta, revisão, contexto de dependência e reabertura SQLite; para na primeira falha, sem novas tentativas. Consome quota e não deve rodar em CI/loop.
-
-## Referência e autoria
-
-O [Maestro](https://github.com/RunMaestro/Maestro) foi estudado como referência arquitetural. A implementação do Sintonia será independente; nenhum código do Maestro foi incorporado. A licença de distribuição do Sintonia será definida antes da primeira publicação de release.
+A licença de distribuição será definida antes da primeira release.
