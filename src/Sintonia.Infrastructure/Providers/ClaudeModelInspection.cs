@@ -7,11 +7,21 @@ public sealed partial class ClaudeConversationProvider
 {
     public async Task<ProviderCapabilities> InspectAsync(string directory, CancellationToken token)
     {
+        var data = await RequestControlAsync(directory, "de modelos", null, token).ConfigureAwait(false);
+        return new(Kind, ReadModels(data), [], ["Padrão lido das settings do Claude Code (somente model e effortLevel). A versão exata é confirmada ao conectar a sessão."],
+            ReadConfiguredDefaults(directory));
+    }
+
+    /// <summary>Opens a session without a turn, sends initialize and, optionally, one more control request.
+    /// Returns the last reply. No user message is ever written; inbound controls are refused.</summary>
+    private async Task<JsonElement> RequestControlAsync(string directory, string label, object? followUp, CancellationToken token)
+    {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
         deadline.CancelAfter(TimeSpan.FromSeconds(60)); token = deadline.Token;
         await CheckSubscriptionAsync(directory, token).ConfigureAwait(false);
-        const string id = "sintonia-models-initialize";
+        const string initializeId = "sintonia-models-initialize", followUpId = "sintonia-metadata-request";
         var initialized = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answered = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         ProviderProcess? receiver = null;
         var controls = 0;
         await using var process = new ProviderProcess(Launch,
@@ -23,10 +33,11 @@ public sealed partial class ClaudeConversationProvider
                 if (root.GetProperty("type").GetString() == "control_response")
                 {
                     var response = root.GetProperty("response");
-                    if (response.GetProperty("request_id").GetString() != id) return;
+                    var target = response.GetProperty("request_id").GetString() switch { initializeId => initialized, followUpId => answered, _ => null };
+                    if (target is null) return;
                     if (response.GetProperty("subtype").GetString() == "success")
-                        initialized.TrySetResult(response.GetProperty("response").Clone());
-                    else initialized.TrySetException(new ProviderException("Claude recusou a consulta de modelos; detalhes internos omitidos."));
+                        target.TrySetResult(response.GetProperty("response").Clone());
+                    else target.TrySetException(new ProviderException($"Claude recusou a consulta {label}; detalhes internos omitidos."));
                 }
                 else if (root.GetProperty("type").GetString() == "control_request")
                 {
@@ -40,13 +51,16 @@ public sealed partial class ClaudeConversationProvider
                 }
             });
         receiver = process;
-        await process.WriteLineAsync(JsonSerializer.Serialize(new { type = "control_request", request_id = id, request = new { subtype = "initialize" } }), token).ConfigureAwait(false);
-        var winner = await Task.WhenAny(initialized.Task, process.Completion).WaitAsync(token).ConfigureAwait(false);
-        if (winner == process.Completion && !initialized.Task.IsCompleted)
-            throw new ProviderException("Claude encerrou a consulta de modelos antes de responder.");
-        var data = await initialized.Task.WaitAsync(token).ConfigureAwait(false);
-        return new(Kind, ReadModels(data), [], ["Padrão lido das settings do Claude Code (somente model e effortLevel). A versão exata é confirmada ao conectar a sessão."],
-            ReadConfiguredDefaults(directory));
+        async Task<JsonElement> RequestAsync(string id, object request, TaskCompletionSource<JsonElement> reply)
+        {
+            await process.WriteLineAsync(JsonSerializer.Serialize(new { type = "control_request", request_id = id, request }), token).ConfigureAwait(false);
+            var winner = await Task.WhenAny(reply.Task, process.Completion).WaitAsync(token).ConfigureAwait(false);
+            if (winner == process.Completion && !reply.Task.IsCompleted)
+                throw new ProviderException($"Claude encerrou a consulta {label} antes de responder.");
+            return await reply.Task.WaitAsync(token).ConfigureAwait(false);
+        }
+        var data = await RequestAsync(initializeId, new { subtype = "initialize" }, initialized).ConfigureAwait(false);
+        return followUp is null ? data : await RequestAsync(followUpId, followUp, answered).ConfigureAwait(false);
     }
 
     private string ConfigDirectory => configDirectory

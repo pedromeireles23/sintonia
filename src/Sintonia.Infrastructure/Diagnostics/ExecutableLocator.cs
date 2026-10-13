@@ -7,7 +7,25 @@ public sealed record ExecutableLaunch(string FileName, IReadOnlyList<string> Pre
 /// <summary>Resolves native executables and known npm layouts without evaluating shell wrappers.</summary>
 public static class ExecutableLocator
 {
-    public static ExecutableLaunch? Find(ProviderKind provider, string? searchPath = null)
+    public static ExecutableLaunch? Find(ProviderKind provider, string? searchPath = null, string? codexApplicationBin = null)
+    {
+        return FindOnPath(provider, searchPath) ?? (provider == ProviderKind.Codex
+            ? FindCodexApplication(codexApplicationBin ?? (searchPath is null
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenAI", "Codex", "bin") : null))
+            : null);
+    }
+
+    /// <summary>The Codex desktop app keeps its CLI in versioned folders outside PATH; use the newest copy only when PATH has none.</summary>
+    private static ExecutableLaunch? FindCodexApplication(string? binDirectory)
+    {
+        if (binDirectory is null || !Directory.Exists(binDirectory)) return null;
+        var newest = Directory.EnumerateFiles(binDirectory, "codex.exe",
+                new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 1, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .Select(file => new FileInfo(file)).OrderByDescending(file => file.LastWriteTimeUtc).FirstOrDefault();
+        return newest is null ? null : new(newest.FullName, [], "Executável do aplicativo Codex");
+    }
+
+    private static ExecutableLaunch? FindOnPath(ProviderKind provider, string? searchPath)
     {
         var name = provider switch { ProviderKind.Codex => "codex", ProviderKind.Claude => "claude", _ => throw new ArgumentOutOfRangeException(nameof(provider)) };
         var path = searchPath ?? Environment.GetEnvironmentVariable("PATH") ?? "";

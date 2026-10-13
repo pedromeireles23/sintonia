@@ -125,7 +125,7 @@ internal static class ProtocolFixture
             Emit(new { loggedIn = true, authMethod = args[0] == "claude-api" ? "api_key" : "claude.ai", apiProvider = "firstParty", subscriptionType = "pro" });
             return 0;
         }
-        if (args[0].StartsWith("claude-extensions", StringComparison.Ordinal)) return await RunClaudeExtensionsAsync(args);
+        if (args[0].StartsWith("claude-extensions", StringComparison.Ordinal) || args[0].StartsWith("claude-usage", StringComparison.Ordinal)) return await RunClaudeExtensionsAsync(args);
         if (args[0].StartsWith("claude-no-turn", StringComparison.Ordinal)) return await RunClaudeNoTurnAsync(args);
         var index = Array.FindIndex(args, a => a is "--session-id" or "--resume");
         var session = args[index + 1];
@@ -430,6 +430,31 @@ internal static class ProtocolFixture
                 Emit(new { type = "control_response", response = new { subtype = "success", request_id = id,
                     response = new { mcpServers = new[] { new { name = "example-mcp", status = "needs-auth", scope = "user", error = "SEGREDO erro",
                         tools = new[] { new { name = "example", description = "SEGREDO" } }, config = new { env = "SEGREDO", headers = "SEGREDO" } } } } } });
+            }
+            else if (subtype == "get_usage")
+            {
+                // The usage meter must skip the local transcript scan.
+                if (!root.GetProperty("request").TryGetProperty("skip_behaviors", out var skip) || !skip.GetBoolean()) return 27;
+                if (args[0] == "claude-usage-unsupported") { Emit(new { type = "control_response", response = new { subtype = "error", request_id = id, error = "get_usage is not supported in this context SEGREDO" } }); continue; }
+                object usage = args[0] switch
+                {
+                    "claude-usage-invalid" => new { rate_limits_available = true, rate_limits = new { five_hour = new { utilization = "SEGREDO alto", resets_at = "amanha" } } },
+                    "claude-usage-unavailable" => new { rate_limits_available = false, rate_limits = (object?)null, subscription_type = "SEGREDO plano" },
+                    _ => new
+                    {
+                        session = new { total_cost_usd = 99.5 }, subscription_type = "SEGREDO plano", rate_limits_available = true,
+                        rate_limits = new
+                        {
+                            five_hour = new { utilization = 3.6, resets_at = "2026-10-14T02:29:59.606935+00:00", used_dollars = 777, locked_reason = "SEGREDO" },
+                            seven_day = new { utilization = 6, resets_at = "2026-10-20T05:59:59+00:00" },
+                            seven_day_opus = new { utilization = 40, resets_at = "2026-10-20T05:59:59+00:00" },
+                            seven_day_sonnet = (object?)null, iguana_necktie = new { utilization = 0, limit_dollars = 100 },
+                            extra_usage = new { is_enabled = false, currency = "SEGREDO" }
+                        },
+                        spend = new { disclaimer = "SEGREDO" }, behaviors = (object?)null
+                    }
+                };
+                Emit(new { type = "control_response", response = new { subtype = "success", request_id = id, response = usage } });
             }
             else return 26;
         }

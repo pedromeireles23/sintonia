@@ -10,11 +10,20 @@ public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executa
     Action<ClaudeToolResult>? toolResultObserver = null, string? configDirectory = null) : IConversationProvider, IProviderUsageReader
 {
     public ProviderKind Kind => ProviderKind.Claude;
-    public Task<ProviderUsageSnapshot> ReadUsageAsync(string directory, CancellationToken token)
+    /// <summary>Plan limits from the CLI's experimental get_usage control, without a turn; skip_behaviors avoids scanning local transcripts.</summary>
+    public async Task<ProviderUsageSnapshot> ReadUsageAsync(string directory, CancellationToken token)
     {
-        token.ThrowIfCancellationRequested();
-        return Task.FromResult(ProviderUsageSnapshot.Unavailable(Kind,
-            "Quota da assinatura indisponível nesta integração. Consulte /usage no Claude Code ou as configurações de uso em claude.ai."));
+        try
+        {
+            var data = await RequestControlAsync(directory, "de uso", new { subtype = "get_usage", skip_behaviors = true }, token).ConfigureAwait(false);
+            return ClaudeUsageParser.Parse(data, DateTimeOffset.UtcNow);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        { throw new ProviderException("A consulta de uso do Claude excedeu o prazo e foi encerrada; nenhum turno foi iniciado."); }
+        catch (ProviderException error) when (error.Message.StartsWith("Claude recusou", StringComparison.Ordinal))
+        { throw new ProviderException("O Claude Code instalado não respondeu à consulta de limites (get_usage). Atualize o CLI; nenhum turno foi iniciado."); }
+        catch (Exception error) when (error is FormatException or JsonException or InvalidOperationException or KeyNotFoundException)
+        { throw new ProviderException("A resposta de uso do Claude veio em um formato incompatível; nenhum turno foi iniciado."); }
     }
     private ExecutableLaunch Launch => executable ?? ExecutableLocator.Find(Kind)
         ?? throw new ProviderException("Claude não encontrado. Instale e entre no Claude Code com sua assinatura.");

@@ -70,13 +70,38 @@ public sealed class ProviderUsageTests
         Assert.Contains("nenhum turno", error.Message); Assert.DoesNotContain("SEGREDO", error.Message); Assert.False(File.Exists(System.IO.Path.Combine(directory.Path, "thread-started.txt")));
     }
     [Fact]
-    public async Task CancellationStopsWaitingQueryAndClaudeExplicitlyReportsUnsupportedQuotaWithoutLaunching()
+    public async Task CancellationStopsWaitingQueryWithoutStartingInference()
     {
         using var directory = new DirectoryFixture(); using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new CodexConversationProvider(Fixture("rpc-usage-wait")).ReadUsageAsync(directory.Path, stop.Token));
         Assert.False(File.Exists(System.IO.Path.Combine(directory.Path, "thread-started.txt")));
-        var unavailable = await new ClaudeConversationProvider(new("must-not-launch.exe", [], "Não iniciar")).ReadUsageAsync(directory.Path, CancellationToken.None);
-        Assert.False(unavailable.HasData); Assert.Null(unavailable.OrdinaryUsageAllowed); Assert.Contains("indisponível", unavailable.UnavailableReason);
+    }
+
+    [Fact]
+    public async Task ClaudeUsageProjectsOnlyPlanWindowsFromGetUsageWithoutATurn()
+    {
+        using var directory = new DirectoryFixture(); using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var snapshot = await new ClaudeConversationProvider(Fixture("claude-usage")).ReadUsageAsync(directory.Path, stop.Token);
+        Assert.Equal(ProviderKind.Claude, snapshot.Provider); Assert.Null(snapshot.OrdinaryUsageAllowed);
+        Assert.Equal(new[] { "claude", "seven_day_opus" }, snapshot.Buckets.Select(b => b.Id));
+        var (session, weekly) = snapshot.PlanWindows();
+        Assert.Equal((4, 96, 300L), (session!.UsedPercent, session.RemainingPercent, session.DurationMinutes!.Value));
+        Assert.Equal(new DateTimeOffset(2026, 10, 14, 2, 29, 59, TimeSpan.Zero), new DateTimeOffset(session.ResetsAt!.Value.Ticks / TimeSpan.TicksPerSecond * TimeSpan.TicksPerSecond, TimeSpan.Zero));
+        Assert.Equal((6, 10080L), (weekly!.UsedPercent, weekly.DurationMinutes!.Value));
+        Assert.Equal(40, snapshot.Buckets[1].Secondary!.UsedPercent); Assert.Null(snapshot.Buckets[1].Primary);
+        Assert.DoesNotContain("SEGREDO", JsonSerializer.Serialize(snapshot)); Assert.DoesNotContain("777", JsonSerializer.Serialize(snapshot));
+        var unavailable = await new ClaudeConversationProvider(Fixture("claude-usage-unavailable")).ReadUsageAsync(directory.Path, stop.Token);
+        Assert.False(unavailable.HasData); Assert.Contains("não estão disponíveis", unavailable.UnavailableReason);
+    }
+
+    [Theory]
+    [InlineData("claude-usage-unsupported", "Atualize o CLI")]
+    [InlineData("claude-usage-invalid", "formato incompatível")]
+    public async Task ClaudeUsageFailuresAreSafeAndNeverSendAPrompt(string scenario, string message)
+    {
+        using var directory = new DirectoryFixture(); using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var error = await Assert.ThrowsAsync<ProviderException>(() => new ClaudeConversationProvider(Fixture(scenario)).ReadUsageAsync(directory.Path, stop.Token));
+        Assert.Contains(message, error.Message); Assert.Contains("nenhum turno", error.Message); Assert.DoesNotContain("SEGREDO", error.Message);
     }
     private sealed class SilentProgress : IProgress<ConversationEvent> { public void Report(ConversationEvent value) { } }
     private sealed class DirectoryFixture : IDisposable

@@ -46,6 +46,22 @@ public sealed class InstallationTests
     }
 
     [Fact]
+    public void CodexApplicationCliIsTheNewestCopyAndOnlyAFallbackToPath()
+    {
+        using var folder = new TestFolder();
+        var older = folder.Write("app/bin/aaa/codex.exe"); var newer = folder.Write("app/bin/bbb/codex.exe");
+        File.SetLastWriteTimeUtc(older, DateTime.UtcNow.AddDays(-2)); File.SetLastWriteTimeUtc(newer, DateTime.UtcNow.AddDays(-1));
+        File.SetLastWriteTimeUtc(folder.Write("app/bin/ccc/deeper/codex.exe"), DateTime.UtcNow);
+        var applicationBin = Path.Combine(folder.Path, "app", "bin"); var emptyPath = Path.Combine(folder.Path, "vazio");
+        Directory.CreateDirectory(emptyPath);
+        Assert.Equal(newer, ExecutableLocator.Find(ProviderKind.Codex, emptyPath, applicationBin)!.FileName);
+        var onPath = folder.Write("path/codex.exe");
+        Assert.Equal(onPath, ExecutableLocator.Find(ProviderKind.Codex, Path.Combine(folder.Path, "path"), applicationBin)!.FileName);
+        Assert.Null(ExecutableLocator.Find(ProviderKind.Claude, emptyPath, applicationBin));
+        Assert.Null(ExecutableLocator.Find(ProviderKind.Codex, emptyPath));
+    }
+
+    [Fact]
     public async Task MissingExecutableAndUnknownWrapperHaveDistinctDiagnoses()
     {
         using var folder = new TestFolder();

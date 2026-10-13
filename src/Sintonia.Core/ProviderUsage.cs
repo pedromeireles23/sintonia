@@ -29,6 +29,21 @@ public sealed record ProviderUsageSnapshot(ProviderKind Provider, DateTimeOffset
         foreach (var bucket in Buckets) bucket.ValidateDefinition();
     }
     public static ProviderUsageSnapshot Unavailable(ProviderKind provider, string reason) => new(provider, DateTimeOffset.UtcNow, [], null, reason);
+
+    /// <summary>Short (up to one day, e.g. five hours) and long (weekly) windows of the first bucket with data.
+    /// Without durations, the primary window is taken as the short one.</summary>
+    public (ProviderUsageWindow? Session, ProviderUsageWindow? Weekly) PlanWindows()
+    {
+        ProviderUsageWindow? session = null, weekly = null;
+        if (Buckets.FirstOrDefault(b => b.Primary is not null || b.Secondary is not null) is not { } bucket) return (session, weekly);
+        foreach (var (window, primary) in new[] { (bucket.Primary, true), (bucket.Secondary, false) })
+        {
+            if (window is null) continue;
+            if (window.DurationMinutes is { } minutes ? minutes <= 1440 : primary) session ??= window;
+            else weekly ??= window;
+        }
+        return (session, weekly);
+    }
 }
 public interface IProviderUsageReader
 {
