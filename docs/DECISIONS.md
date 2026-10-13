@@ -84,10 +84,12 @@ Consequências: imagens continuam possíveis como entregas das tarefas, sem mód
 
 ## 012 — Respostas de perguntas separadas das permissões
 
-Data: 10/10/2026. Estado: implementada e validada com processos de teste; emissão pelo Claude real pendente.
+Data: 10/10/2026. Estado: implementada e validada com processos de teste; pergunta simples/resposta pelo callback comprovadas com Claude real em 13/10/2026.
 
 AskUserQuestion exige valores estruturados, portanto recebe callback e formulário próprios, sem aprovação booleana. Responder conserva a entrada e acrescenta apenas answers, sem alterar regras de permissão. A chefia e outras sessões em leitura podem esclarecer escolhas, mantendo escrita bloqueada. Todas as perguntas exigem resposta explícita; a fila conserva revisão da entrega. Perguntas e permissões compartilham espera serial, contexto/pasta capturados e cancelamento com retirada de formulários antigos. O formulário não persiste respostas nem reenvia ao reabrir.
 
-Isso estende a decisão 009 para uma interação concreta; não acrescenta SDK/runtime ou bypass. ExitPlanMode, elicitation e background permanecem sem fluxo específico. O comportamento do CLI real deve ser confirmado em uma prova finita antes de declarar compatibilidade. [Contrato, limites e validação](CLAUDE_QUESTIONS.md).
+Isso estende a decisão 009 para uma interação concreta; não acrescenta SDK/runtime ou bypass. ExitPlanMode, elicitation e background permanecem sem fluxo específico. A compatibilidade real fica restrita ao comportamento confirmado pela prova finita. [Contrato, limites e validação](CLAUDE_QUESTIONS.md).
 
-Evidência posterior no mesmo dia: diagnóstico finito implementado, mas o único envio real foi interrompido na renovação OAuth antes de ferramentas. Consulta de assinatura/initialize não confirma renovação do token. Prova conserva estado interrompido e requer novo login por assinatura antes de uma nova tentativa, sem reenvio automático; comportamento real continua pendente.
+Evidência posterior no mesmo dia: diagnóstico finito implementado, mas o único envio real foi interrompido na renovação OAuth antes de ferramentas. Consulta de assinatura/initialize não confirma renovação do token. Prova conserva estado interrompido e requeria novo login por assinatura antes de uma nova tentativa, sem reenvio automático; comportamento real permaneceu pendente naquele incremento.
+
+Evidência de 13/10/2026: após login renovado e autorização do usuário, pasta nova e um envio concluído com Claude Code 2.1.277/claude-opus-5. Uma pergunta exata, resposta Detalhes pelo callback, resultado correlacionado e JSON final conferidos; sem autorizar escrita ou mudar regras permanentes. Escolha múltipla/texto livre e interação WPF com modelo real não foram exercitados.

@@ -1,6 +1,6 @@
 # Perguntas de escolha do Claude
 
-Estado em 10/10/2026: contrato, adaptador stdio e formulário WPF implementados na central e na fila, verificados com processos de teste. O diagnóstico real fez um único envio, interrompido por falha de renovação OAuth antes de executar ferramentas; nenhuma pergunta ou resposta real foi comprovada. A emissão de `AskUserQuestion` pelo CLI/modelo real ainda precisa de uma prova finita após refazer o login por assinatura. M1 conserva essa lacuna.
+Estado em 13/10/2026: contrato, adaptador stdio e formulário WPF implementados na central e na fila, verificados com processos de teste. Após o usuário renovar o login por assinatura, uma prova real finita confirmou emissão de pergunta simples, resposta Detalhes pelo callback e resultado final em leitura. A tentativa OAuth interrompida de 10/10 está preservada. Escolha múltipla/texto livre e interação WPF com modelo real conservam apenas as provas de processo/UI; M1 ainda tem lacunas de outros controles e MCPs.
 
 ## Uso
 
@@ -35,7 +35,7 @@ rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests -c Release --no
 
 Os comandos acima usam simulação/processos de teste e não instanciam modelos. [Provas anteriores](PROVIDER_PROBES.md) e [diferenças de extensões](PROVIDER_EXTENSIONS.md).
 
-## Diagnóstico real finito e falha de login
+## Diagnóstico real finito
 
 `question Claude` prepara uma pasta exclusiva e admite somente um envio, com prazo de 90s e três iterações internas no máximo; o diagnóstico inteiro tem prazo de três minutos. Sem retry/reenvio. Conferência de assinatura e initialize sem prompt precedem a prova. A consulta `question-ready Claude` executa somente essas duas verificações; sucesso de metadados não garante renovação OAuth ou execução do modelo.
 
@@ -54,6 +54,24 @@ rtk proxy dotnet run --project tools/Sintonia.Diagnostics -c Release --no-build 
 
 Tentativa de 10/10/2026 com Claude Code **2.1.277**: um envio, estado **Interrupted**, zero pedidos de pergunta, respostas ou chamadas de ferramentas, sem resultado/tokens informados. Uma leitura restrita à conversa nativa dessa pasta identificou erro de renovação OAuth; só a categoria foi projetada em `failure-diagnosis.json`. Mensagens e valores nativos não foram copiados. A evidência fica em `artifacts/provider-probes/Pergunta Claude 0d5361fa-3393-4fdd-8f35-18c66b036d9b`, ignorada pelo Git. Nenhum prompt foi reenviado. Não atribuir zero consumo, quota esgotada ou modelo indisponível a campos ausentes.
 
-Assinatura e initialize em leitura passaram na consulta posterior sem modelos; a prova continuou interrompida e seu verificador recusou o artefato. O adaptador agora identifica erro explícito OAuth/refresh/failed em `result.errors`, inclusive com exit code diferente de zero, e retorna mensagem em português com `AuthenticationRefreshFailed`, sem expor a mensagem interna. Isso não verifica a validade futura do login nem refaz autenticação. Para retomar, execute `rtk proxy claude auth login --claudeai` e conclua o login por assinatura; depois poderá ser iniciado um novo diagnóstico finito em outra pasta, conservando a tentativa anterior.
+Assinatura e initialize em leitura passaram na consulta posterior sem modelos; a prova continuou interrompida e seu verificador recusou o artefato. O adaptador identifica erro explícito OAuth/refresh/failed em `result.errors`, inclusive com exit code diferente de zero, e retorna mensagem em português com `AuthenticationRefreshFailed`, sem expor a mensagem interna. Isso não verifica a validade futura do login nem refaz autenticação. A retomada exigia `rtk proxy claude auth login --claudeai` concluído pelo usuário e uma nova pasta; essa nova prova foi autorizada e concluída em 13/10/2026, abaixo.
 
-Validação desse incremento: 28 casos novos, aprovados em Debug/Release; seleção Release com 214 casos (84 Core + 130 Infrastructure), sem falhas/ignorados. Cobrem ausência/divergência/duplicação, autorização inesperada, ferramenta/resultado extra, erro/truncamento, resposta final incorreta, cancelamento, arquivo inesperado, pasta já usada, metadados sem prompt e classificação OAuth sem detalhes internos. Builds Debug/Release sem avisos/erros; WPF `--questions` Release e abertura/encerramento do Release local aprovados, zero erros de binding. Não repetidas integralmente suítes de Git ou fluxos não afetados. Sem nova chamada real após a falha.
+Validação do incremento de 10/10/2026: 28 casos novos, aprovados em Debug/Release; seleção Release com 214 casos (84 Core + 130 Infrastructure), sem falhas/ignorados. Cobrem ausência/divergência/duplicação, autorização inesperada, ferramenta/resultado extra, erro/truncamento, resposta final incorreta, cancelamento, arquivo inesperado, pasta já usada, metadados sem prompt e classificação OAuth sem detalhes internos. Builds Debug/Release sem avisos/erros; WPF `--questions` Release e abertura/encerramento do Release local aprovados, zero erros de binding. Não repetidas integralmente suítes de Git ou fluxos não afetados. Nenhuma nova chamada real naquele incremento.
+
+## Prova real concluída em 13/10/2026
+
+Claude Code **2.1.277**, modelo **claude-opus-5**, login por assinatura renovado pelo usuário. `question-ready Claude` passou sem prompt; `question Claude` criou uma pasta exclusiva e concluiu um único envio, sem retry ou novas chamadas após o sucesso. O adaptador/host reais receberam exatamente a pergunta, opções e pasta esperadas, responderam **Detalhes** e conferiram o JSON final com essa escolha.
+
+| Conferência | Evidência |
+| --- | --- |
+| Estado / resultado | Completed / Completed |
+| Envios / chamadas de ferramenta | 1 / 1 |
+| Perguntas exatas / respostas do callback | 1 / 1 |
+| Autorizações de escrita | 0 |
+| Resultado correlacionado | 140 caracteres, hash SHA-256, pergunta/resposta encontradas, sem erro anunciado ou truncamento |
+| Resposta final | JSON com somente formato = Detalhes |
+| Tokens informados do turno principal | 17.617 entrada + 477 saída = 18.094 |
+
+Cache read (8.531) e cache write (9.082) já estão incluídos na entrada; não são somados novamente. A medição não representa saldo da assinatura. Nenhuma entrada inesperada foi criada na pasta da prova. Evidência projetada em `artifacts/provider-probes/Pergunta Claude 94ae0c62-9285-4ef1-b90f-a54a06a1b2d5/question-evidence.json`, ignorada pelo Git; a pasta Interrupted anterior permanece preservada.
+
+`verify-question` passou depois sem rede/modelos. Build Release da solução sem avisos/erros; 208 referências locais válidas em 33 documentos, consistência e diff revisados. Código, schema e UI não foram alterados, e as suítes automatizadas/WPF não foram repetidas neste incremento. Esta prova usa resposta fixa pelo callback; escolha múltipla, texto livre, recusa/cancelamento e interação WPF com modelo real conservam as provas de processo/UI anteriores. `ExitPlanMode`, elicitation, acompanhamento de background e demais MCPs/autenticações continuam parciais/não suportados.
