@@ -13,7 +13,7 @@ try
     if (args is ["models", var modelProvider] && Enum.TryParse<ProviderKind>(modelProvider, true, out var selectedProvider) && Enum.IsDefined(selectedProvider))
     {
         var capabilities = selectedProvider == ProviderKind.Codex
-            ? await new CodexConversationProvider().InspectAsync(Environment.CurrentDirectory, cancellation.Token)
+            ? await new CodexConversationProvider().InspectModelsAsync(Environment.CurrentDirectory, cancellation.Token)
             : await new ClaudeConversationProvider().InspectAsync(Environment.CurrentDirectory, cancellation.Token);
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { Provider = selectedProvider.ToString(), capabilities.Models, capabilities.Defaults, capabilities.Warnings },
             new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));

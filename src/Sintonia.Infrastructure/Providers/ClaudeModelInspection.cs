@@ -45,6 +45,11 @@ public sealed partial class ClaudeConversationProvider
         if (winner == process.Completion && !initialized.Task.IsCompleted)
             throw new ProviderException("Claude encerrou a consulta de modelos antes de responder.");
         var data = await initialized.Task.WaitAsync(token).ConfigureAwait(false);
+        return new(Kind, ReadModels(data), [], ["O CLI não informa nesta consulta o padrão efetivo da instalação nem o reasoning atual. A versão do modelo é confirmada ao conectar a sessão."]);
+    }
+
+    internal static IReadOnlyList<ProviderModel> ReadModels(JsonElement data)
+    {
         var models = new List<ProviderModel>();
         if (data.TryGetProperty("models", out var entries) && entries.ValueKind == JsonValueKind.Array)
             foreach (var entry in entries.EnumerateArray())
@@ -66,6 +71,6 @@ public sealed partial class ClaudeConversationProvider
             }
         if (models.Count == 0)
             models.AddRange([new("opus", "Claude Opus · alias", false), new("sonnet", "Claude Sonnet · alias", false), new("fable", "Claude Fable · alias", false)]);
-        return new(Kind, models, [], ["O CLI não informa nesta consulta o padrão efetivo da instalação nem o reasoning atual. A versão do modelo é confirmada ao conectar a sessão."]);
+        return models;
     }
 }

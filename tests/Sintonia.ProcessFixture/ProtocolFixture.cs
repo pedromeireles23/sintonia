@@ -134,9 +134,12 @@ internal static class ProtocolFixture
         using var initialize = JsonDocument.Parse((await Console.In.ReadLineAsync())!);
         var init = initialize.RootElement;
         if (init.GetProperty("type").GetString() != "control_request" || init.GetProperty("request").GetProperty("subtype").GetString() != "initialize") return 9;
+        object catalog = args[0] == "claude-effort" ? new { models = new[] { new { value = "fixture-model", displayName = "Modelo Claude de teste",
+            description = "Modelo simulado", supportedEffortLevels = new[] { "low", "high" } } } } : new { };
         Emit(new { type = "control_response", response = new { subtype = args[0] == "claude-init-failed" ? "error" : "success",
-            request_id = init.GetProperty("request_id").GetString(), response = new { } } });
+            request_id = init.GetProperty("request_id").GetString(), response = catalog } });
         if (args[0] == "claude-init-failed") return 0;
+        if (args[0] == "claude-effort" && (Array.IndexOf(args, "--effort") is var effort and >= 0 ? args[effort + 1] : null) != "high") return 30;
         using var user = JsonDocument.Parse((await Console.In.ReadLineAsync())!);
         var prompt = user.RootElement.GetProperty("message").GetProperty("content").GetString()!;
         if (user.RootElement.GetProperty("type").GetString() != "user" || user.RootElement.GetProperty("session_id").GetString() != session) return 10;

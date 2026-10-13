@@ -120,7 +120,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             try
             {
                 var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt,
-                    conversation.UsesInstallationDefault == true ? null : conversation.Model,
+                    conversation.UsesInstallationDefault == true ? null : conversation.SelectedModel ?? conversation.Model,
                     conversation.NativeSessionId, instructions, conversation.Access, permissionHandler, questionHandler, conversation.ReasoningEffort), live, deadline.Token).ConfigureAwait(false);
                 lock (dataGate) usage = ValidUsage(result.TokenUsage, conversation.Provider) ?? usage;
                 deadline.Token.ThrowIfCancellationRequested();

@@ -80,7 +80,16 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
                 var response = root.GetProperty("response");
                 if (response.GetProperty("request_id").GetString() == InitializeId)
                 {
-                    if (response.GetProperty("subtype").GetString() == "success") _initialized.TrySetResult(true);
+                    if (response.GetProperty("subtype").GetString() == "success")
+                    {
+                        if (_request.ReasoningEffort is { } effort)
+                        {
+                            var models = ClaudeConversationProvider.ReadModels(response.GetProperty("response"));
+                            if (models.FirstOrDefault(m => m.Id == _request.Model)?.ReasoningEfforts?.Any(e => e.Id == effort) != true)
+                                throw new ProviderException("O modelo Claude não anuncia suporte ao reasoning escolhido. Nenhuma mensagem foi enviada.");
+                        }
+                        _initialized.TrySetResult(true);
+                    }
                     else _initialized.TrySetException(new ProviderException("Claude recusou a inicialização do protocolo de autorização."));
                 }
                 break;

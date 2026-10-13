@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 16) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 17) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -91,8 +91,12 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE TABLE IF NOT EXISTS run_token_reservations(run_id TEXT PRIMARY KEY REFERENCES runs(id), tokens INTEGER NOT NULL CHECK(tokens>=0));
             CREATE TABLE IF NOT EXISTS conversation_model_settings(conversation_id TEXT PRIMARY KEY REFERENCES conversations(id),
                 reasoning_effort TEXT, effective_reasoning_effort TEXT, uses_installation_default INTEGER CHECK(uses_installation_default IN (0,1)));
-            PRAGMA user_version=16;
+            PRAGMA user_version=17;
             """);
+        check.Transaction = transaction;
+        check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('conversation_model_settings') WHERE name='selected_model'";
+        if (Convert.ToInt32(check.ExecuteScalar()) == 0)
+            Execute(connection, transaction, "ALTER TABLE conversation_model_settings ADD COLUMN selected_model TEXT");
         transaction.Commit();
         return true;
     });
@@ -131,13 +135,13 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     public Task<IReadOnlyList<WorkspaceConversation>> GetConversationsAsync(string projectId) => RunAsync<IReadOnlyList<WorkspaceConversation>>(connection =>
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id,project_id,title,provider,model,native_session_id,function_name,instructions,access,EXISTS(SELECT 1 FROM work_tasks t WHERE t.conversation_id=conversations.id),s.reasoning_effort,s.effective_reasoning_effort,s.uses_installation_default FROM conversations LEFT JOIN conversation_model_settings s ON s.conversation_id=conversations.id WHERE project_id=$project ORDER BY conversations.rowid DESC";
+        command.CommandText = "SELECT id,project_id,title,provider,model,native_session_id,function_name,instructions,access,EXISTS(SELECT 1 FROM work_tasks t WHERE t.conversation_id=conversations.id),s.reasoning_effort,s.effective_reasoning_effort,s.uses_installation_default,s.selected_model FROM conversations LEFT JOIN conversation_model_settings s ON s.conversation_id=conversations.id WHERE project_id=$project ORDER BY conversations.rowid DESC";
         command.Parameters.AddWithValue("$project", projectId);
         using var reader = command.ExecuteReader();
         var list = new List<WorkspaceConversation>();
         while (reader.Read()) list.Add(new(reader.GetString(0), reader.GetString(1), reader.GetString(2), (ProviderKind)reader.GetInt32(3),
             Optional(reader, 4), Optional(reader, 5), reader.GetString(6), reader.GetString(7), (ConversationAccess)reader.GetInt32(8), reader.GetBoolean(9),
-            Optional(reader, 10), Optional(reader, 11), reader.IsDBNull(12) ? null : reader.GetBoolean(12)));
+            Optional(reader, 10), Optional(reader, 11), reader.IsDBNull(12) ? null : reader.GetBoolean(12), Optional(reader, 13)));
         return list;
     });
 
@@ -160,10 +164,11 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 SELECT EXISTS(SELECT 1 FROM conversations c LEFT JOIN conversation_model_settings s ON s.conversation_id=c.id
                     WHERE c.id=$id AND (EXISTS(SELECT 1 FROM runs WHERE conversation_id=c.id AND state=0)
                         OR EXISTS(SELECT 1 FROM work_tasks WHERE conversation_id=c.id))
-                    AND (s.reasoning_effort IS NOT $effort OR s.uses_installation_default IS NOT $default));
+                    AND (s.reasoning_effort IS NOT $effort OR s.uses_installation_default IS NOT $default OR s.selected_model IS NOT $selected));
                 """;
             guard.Parameters.AddWithValue("$id", conversation.Id);
             guard.Parameters.AddWithValue("$effort", (object?)conversation.ReasoningEffort ?? DBNull.Value);
+            guard.Parameters.AddWithValue("$selected", (object?)conversation.SelectedModel ?? DBNull.Value);
             guard.Parameters.AddWithValue("$default", conversation.UsesInstallationDefault is { } follows ? follows ? 1 : 0 : DBNull.Value);
             if (Convert.ToBoolean(guard.ExecuteScalar()))
                 throw new ArgumentException("A seleção de modelo/reasoning não pode mudar durante a execução ou pelo chat de uma tarefa.");
@@ -182,16 +187,17 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             ("$instructions", conversation.Instructions), ("$access", (int)conversation.Access)) != 1)
             throw new ArgumentException("A conversa pertence a outro projeto/provedor.");
         if (Execute(connection, transaction, """
-            INSERT INTO conversation_model_settings(conversation_id,reasoning_effort,effective_reasoning_effort,uses_installation_default)
-            VALUES($id,$effort,$effective,$default)
+            INSERT INTO conversation_model_settings(conversation_id,reasoning_effort,effective_reasoning_effort,uses_installation_default,selected_model)
+            VALUES($id,$effort,$effective,$default,$selected)
             ON CONFLICT(conversation_id) DO UPDATE SET reasoning_effort=excluded.reasoning_effort,
-                effective_reasoning_effort=excluded.effective_reasoning_effort,uses_installation_default=excluded.uses_installation_default
+                effective_reasoning_effort=excluded.effective_reasoning_effort,uses_installation_default=excluded.uses_installation_default,selected_model=excluded.selected_model
             WHERE (NOT EXISTS(SELECT 1 FROM runs WHERE conversation_id=$id AND state=0)
                    AND NOT EXISTS(SELECT 1 FROM work_tasks WHERE conversation_id=$id))
                 OR (conversation_model_settings.reasoning_effort IS excluded.reasoning_effort
-                    AND conversation_model_settings.uses_installation_default IS excluded.uses_installation_default);
+                    AND conversation_model_settings.uses_installation_default IS excluded.uses_installation_default
+                    AND conversation_model_settings.selected_model IS excluded.selected_model);
             """, ("$id", conversation.Id), ("$effort", conversation.ReasoningEffort), ("$effective", conversation.EffectiveReasoningEffort),
-            ("$default", conversation.UsesInstallationDefault is { } follow ? (object)(follow ? 1 : 0) : null)) != 1)
+            ("$default", conversation.UsesInstallationDefault is { } follow ? (object)(follow ? 1 : 0) : null), ("$selected", conversation.SelectedModel)) != 1)
             throw new ArgumentException("A seleção de modelo/reasoning não pode mudar durante a execução ou pelo chat de uma tarefa.");
     }
 

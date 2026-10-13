@@ -23,6 +23,8 @@ public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executa
         CancellationToken cancellationToken)
     {
         CodexConversationProvider.ValidateRequest(request);
+        if (request.ReasoningEffort is not null && (string.IsNullOrWhiteSpace(request.Model) || request.Model == "default"))
+            throw new ProviderException("Escolha um modelo Claude explícito para alterar o reasoning.");
         await CheckSubscriptionAsync(request.WorkingDirectory, cancellationToken).ConfigureAwait(false);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromMinutes(5));

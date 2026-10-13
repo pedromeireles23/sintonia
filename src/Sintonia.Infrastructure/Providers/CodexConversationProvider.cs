@@ -36,6 +36,15 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
         return new(Kind, models, extensions, snapshot.Warnings, defaults);
     }
 
+    /// <summary>Catalog and configured defaults only; skips the extension inventory so the central can query it on demand.</summary>
+    public async Task<ProviderCapabilities> InspectModelsAsync(string directory, CancellationToken cancellationToken)
+    {
+        await using var rpc = new JsonRpcClient(Launch, directory);
+        await InitializeAsync(rpc, cancellationToken).ConfigureAwait(false);
+        var models = await ReadModelsAsync(rpc, cancellationToken).ConfigureAwait(false);
+        return new(Kind, models, [], [], await ReadModelDefaultsAsync(rpc, directory, cancellationToken).ConfigureAwait(false));
+    }
+
     public async Task<ConversationResult> SendAsync(ConversationRequest request, IProgress<ConversationEvent> progress,
         CancellationToken cancellationToken)
     {

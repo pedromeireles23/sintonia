@@ -79,7 +79,92 @@ public sealed class ModelSettingsTests
             await Assert.ThrowsAsync<ArgumentException>(() => reopened.SaveConversationAsync(conversation with { ReasoningEffort = "low" }));
             await reopened.CheckpointRunAsync(run, conversation with { EffectiveReasoningEffort = "high" });
             Assert.Equal("high", Assert.Single(await reopened.GetConversationsAsync(project.Id)).EffectiveReasoningEffort);
+            await Assert.ThrowsAsync<ArgumentException>(() => reopened.SaveConversationAsync(conversation with { SelectedModel = "outro-modelo" }));
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task ClaudeEffortRequiresAnnouncedSupportForAnExplicitModel()
+    {
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var provider = new ClaudeConversationProvider(Fixture("claude-effort"));
+        var request = new ConversationRequest(AppContext.BaseDirectory, "Teste simulado", Model: "fixture-model", ReasoningEffort: "high");
+        Assert.Equal("Teste simulado", (await provider.SendAsync(request, new Progress<ConversationEvent>(), stop.Token)).Text);
+        var missing = await Assert.ThrowsAsync<ProviderException>(() => provider.SendAsync(request with { Model = null }, new Progress<ConversationEvent>(), stop.Token));
+        Assert.Contains("explícito", missing.Message);
+        var unsupported = await Assert.ThrowsAsync<ProviderException>(() => provider.SendAsync(request with { ReasoningEffort = "max" }, new Progress<ConversationEvent>(), stop.Token));
+        Assert.Contains("não anuncia suporte", unsupported.Message);
+    }
+
+    [Fact]
+    public async Task ModelChoiceChangesBetweenTurnsWithoutReplacingItByTheConfirmedVersion()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "sintonia-model-choice-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "workspace.db");
+            var store = new SqliteWorkspaceStore(path); await store.InitializeAsync();
+            var project = await store.AddProjectAsync(directory);
+            var provider = new RecordingProvider();
+            var chat = new WorkspaceChatService(store, [provider]);
+            var conversation = new WorkspaceConversation(Guid.NewGuid().ToString(), project.Id, "Teste", ProviderKind.Claude, "opus", null,
+                "Conversa", "", ConversationAccess.ReadOnly, ReasoningEffort: "high", UsesInstallationDefault: false, SelectedModel: "opus");
+            await store.SaveConversationAsync(conversation);
+            await chat.SendAsync(project, conversation, "primeiro", new Progress<ConversationEvent>(), CancellationToken.None);
+            var saved = Assert.Single(await store.GetConversationsAsync(project.Id));
+            Assert.Equal(("opus", "high"), (provider.Requests[0].Model, provider.Requests[0].ReasoningEffort));
+            Assert.Equal(("versao-confirmada", "opus"), (saved.Model, saved.SelectedModel));
+            await chat.SendAsync(project, saved, "segundo", new Progress<ConversationEvent>(), CancellationToken.None);
+            Assert.Equal("opus", provider.Requests[1].Model);
+            var installationDefault = Assert.Single(await store.GetConversationsAsync(project.Id))
+                with { SelectedModel = null, UsesInstallationDefault = true, ReasoningEffort = null };
+            await store.SaveConversationAsync(installationDefault);
+            await chat.SendAsync(project, installationDefault, "terceiro", new Progress<ConversationEvent>(), CancellationToken.None);
+            Assert.Equal((null, null, saved.NativeSessionId), (provider.Requests[2].Model, provider.Requests[2].ReasoningEffort, provider.Requests[2].NativeSessionId));
+            var reopened = new SqliteWorkspaceStore(path); await reopened.InitializeAsync();
+            var final = Assert.Single(await reopened.GetConversationsAsync(project.Id));
+            Assert.Equal((true, null, null, "versao-confirmada"), (final.UsesInstallationDefault, final.SelectedModel, final.ReasoningEffort, final.Model));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task Schema16HistoryGainsSelectedModelWithoutLosingSettings()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "sintonia-model-schema-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "workspace.db");
+            var store = new SqliteWorkspaceStore(path); await store.InitializeAsync();
+            var project = await store.AddProjectAsync(directory);
+            var conversation = new WorkspaceConversation(Guid.NewGuid().ToString(), project.Id, "Teste", ProviderKind.Codex, "fixture-model", null,
+                "Conversa", "", ConversationAccess.ReadOnly, ReasoningEffort: "high", UsesInstallationDefault: false);
+            await store.SaveConversationAsync(conversation);
+            using (var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + path + ";Pooling=False"))
+            {
+                connection.Open(); using var command = connection.CreateCommand();
+                command.CommandText = "ALTER TABLE conversation_model_settings DROP COLUMN selected_model; PRAGMA user_version=16;"; command.ExecuteNonQuery();
+            }
+            var migrated = new SqliteWorkspaceStore(path); await migrated.InitializeAsync();
+            Assert.Equal(conversation, Assert.Single(await migrated.GetConversationsAsync(project.Id)));
+            await migrated.SaveConversationAsync(conversation with { SelectedModel = "fixture-model" });
+            Assert.Equal("fixture-model", Assert.Single(await migrated.GetConversationsAsync(project.Id)).SelectedModel);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    private sealed class RecordingProvider : IConversationProvider
+    {
+        public ProviderKind Kind => ProviderKind.Claude;
+        public List<ConversationRequest> Requests { get; } = [];
+        public Task<ConversationResult> SendAsync(ConversationRequest request, IProgress<ConversationEvent> progress, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new ConversationResult(request.NativeSessionId ?? Guid.NewGuid().ToString(), "versao-confirmada", "SIMULAÇÃO",
+                ConversationOutcome.Completed, []));
+        }
     }
 }
