@@ -12,7 +12,7 @@
             </MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Collapsed" /></MultiDataTrigger></Style.Triggers>
         </Style>
     </Window.Resources>
-    <Border Background="#F4F7F4" Padding="22">
+    <Border Background="{StaticResource Canvas}" Padding="22">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel>
@@ -35,7 +35,7 @@
                         <TextBlock Text="Plano encaminhado" FontWeight="SemiBold" />
                         <ComboBox Grid.Row="1" ItemsSource="{Binding Batches}" SelectedItem="{Binding SelectedBatch}" DisplayMemberPath="Definition.Title" IsEnabled="{Binding CanChoose}" Padding="7" Margin="0,8,0,12" />
                         <ListBox Grid.Row="2" ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask}" IsEnabled="{Binding CanChoose}" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.AutomationId="QueueTasks">
-                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="7,12" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
+                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Padding" Value="7,12" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,5,0,0" /></StackPanel></DataTemplate></ListBox.ItemTemplate>
                         </ListBox>
                     </Grid>
@@ -91,7 +91,7 @@
                             <Button Content="Conferir e atualizar este plano" Command="{Binding ApplyRevisionCommand}" HorizontalAlignment="Left" AutomationProperties.AutomationId="ApplyPlanRevision"/>
                         </StackPanel></ScrollViewer></TabItem>
                     </TabControl>
-                    <Border Grid.Row="1" Style="{StaticResource Card}" Background="#FFF4DA" Padding="10" Margin="0,10,0,0" Visibility="{Binding Workspace.HasPermission, Converter={StaticResource BoolVisibility}}">
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Background="{StaticResource WarningSurface}" Padding="10" Margin="0,10,0,0" Visibility="{Binding Workspace.HasPermission, Converter={StaticResource BoolVisibility}}">
                         <StackPanel>
                             <TextBlock Text="Ação aguardando autorização" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding Workspace.Permission.Provider}" Foreground="{StaticResource Accent}" Margin="0,3,0,0" />
@@ -119,7 +119,7 @@
                         <Button Content="Iniciar tentativa" Command="{Binding StartCommand}" AutomationProperties.AutomationId="StartQueueTask" />
                         <Button Content="Cancelar" Command="{Binding CancelCommand}" Margin="8,0,0,0" />
                         <Button Content="Solicitar ajustes" Command="{Binding RequestChangesCommand}" Margin="8,0,0,0" />
-                        <Button Content="Aprovar entrega" Command="{Binding ApproveCommand}" Background="{StaticResource Accent}" Foreground="White" Margin="8,0,0,0" AutomationProperties.AutomationId="ApproveDelivery" />
+                        <Button Content="Aprovar entrega" Command="{Binding ApproveCommand}" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" AutomationProperties.AutomationId="ApproveDelivery" />
                     </StackPanel>
                 </DockPanel>
                 <Button Content="Cancelar execução" Command="{Binding CancelCommand}" Margin="0,10,0,0" HorizontalAlignment="Right">

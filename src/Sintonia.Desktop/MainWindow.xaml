@@ -3,51 +3,52 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:core="clr-namespace:Sintonia.Core;assembly=Sintonia.Core"
         Title="Sintonia · Demonstração simulada" Width="1440" Height="920" MinWidth="1120" MinHeight="760"
-        FontFamily="Segoe UI" FontSize="13" Background="#F3F6F4" Foreground="{StaticResource Ink}"
+        FontFamily="Segoe UI" FontSize="13" Background="{StaticResource Canvas}" Foreground="{StaticResource Ink}"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <Style x:Key="StateBadge" TargetType="Border">
             <Setter Property="CornerRadius" Value="5" />
             <Setter Property="Padding" Value="8,4" />
-            <Setter Property="Background" Value="#EFF2F0" />
+            <Setter Property="Background" Value="{StaticResource SurfaceRaised}" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource Muted}" />
             <Style.Triggers>
-                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Running}"><Setter Property="Background" Value="#DBE9FA" /></DataTrigger>
-                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.InReview}"><Setter Property="Background" Value="#FFF0C8" /></DataTrigger>
-                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Completed}"><Setter Property="Background" Value="#DDF0E3" /></DataTrigger>
-                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Failed}"><Setter Property="Background" Value="#FADDD8" /></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Running}"><Setter Property="Background" Value="{StaticResource InfoSurface}" /><Setter Property="TextElement.Foreground" Value="{StaticResource Accent}" /></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.InReview}"><Setter Property="Background" Value="{StaticResource WarningSurface}" /><Setter Property="TextElement.Foreground" Value="{StaticResource WarningInk}" /></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Completed}"><Setter Property="Background" Value="{StaticResource Selected}" /><Setter Property="TextElement.Foreground" Value="{StaticResource Accent}" /></DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static core:WorkTaskState.Failed}"><Setter Property="Background" Value="{StaticResource DangerSurface}" /><Setter Property="TextElement.Foreground" Value="{StaticResource DangerInk}" /></DataTrigger>
             </Style.Triggers>
         </Style>
     </Window.Resources>
-    <Grid Background="#F3F6F4">
+    <Grid Background="{StaticResource Canvas}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="236" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-        <Border Background="#18392D">
+        <Border Background="{StaticResource Sidebar}">
             <Grid Margin="22,28,22,22">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <StackPanel>
-                    <TextBlock Text="◈  sintonia" Foreground="#F4FFF8" FontSize="28" FontWeight="SemiBold" />
-                    <TextBlock Text="COORDENE. REVISE. CONSTRUA." Foreground="#A9C8B7" FontSize="9" Margin="2,8,0,32" />
-                    <Border Background="#28533F" CornerRadius="8" Padding="12,10">
-                        <TextBlock Text="▦   Espaço de trabalho" Foreground="White" FontWeight="SemiBold" />
+                    <TextBlock Text="◈  sintonia" Foreground="{StaticResource Ink}" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="COORDENE. REVISE. CONSTRUA." Foreground="{StaticResource Muted}" FontSize="9" Margin="2,8,0,32" />
+                    <Border Background="{StaticResource Selected}" CornerRadius="8" Padding="12,10">
+                        <TextBlock Text="▦   Espaço de trabalho" Foreground="{StaticResource Ink}" FontWeight="SemiBold" />
                     </Border>
-                    <TextBlock Text="FUNÇÕES" Foreground="#A9C8B7" FontSize="11" FontWeight="SemiBold" Margin="2,28,0,14" />
+                    <TextBlock Text="FUNÇÕES" Foreground="{StaticResource Muted}" FontSize="11" FontWeight="SemiBold" Margin="2,28,0,14" />
                     <ItemsControl ItemsSource="{Binding Functions}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Margin="2,0,2,18">
-                                    <TextBlock Text="{Binding Name}" Foreground="#E9F5ED" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource Ink}" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,6" />
                                     <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider, Mode=TwoWay}" IsEnabled="{Binding CanAssign}"
                                               Padding="8,5" FontSize="12" ToolTip="Altera o provedor das próximas tentativas desta função." AutomationProperties.Name="{Binding Name}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <TextBlock Text="As funções acrescentam instruções à tarefa de cada provedor." Foreground="#A9C8B7" FontSize="11" Margin="2,8,0,0" />
+                    <TextBlock Text="As funções acrescentam instruções à tarefa de cada provedor." Foreground="{StaticResource Muted}" FontSize="11" Margin="2,8,0,0" />
                 </StackPanel>
-                <Border Grid.Row="2" BorderBrush="#355745" BorderThickness="0,1,0,0" Padding="2,18,2,0">
+                <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="2,18,2,0">
                     <StackPanel>
-                        <TextBlock Text="Codex + Claude" Foreground="#E9F5ED" FontWeight="SemiBold" />
-                        <TextBlock Text="Sessões simuladas neste marco" Foreground="#A9C8B7" FontSize="11" Margin="0,5,0,8" />
-                        <TextBlock Text="M0 · Base do aplicativo" Foreground="#A9C8B7" FontSize="11" />
+                        <TextBlock Text="Codex + Claude" Foreground="{StaticResource Ink}" FontWeight="SemiBold" />
+                        <TextBlock Text="Sessões simuladas neste marco" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,5,0,8" />
+                        <TextBlock Text="M0 · Base do aplicativo" Foreground="{StaticResource Muted}" FontSize="11" />
                     </StackPanel>
                 </Border>
             </Grid>
@@ -64,11 +65,11 @@
                     <TextBlock Text="Uma equipe, em sintonia." FontSize="28" FontWeight="SemiBold" Margin="0,7,0,7" />
                     <TextBlock Text="Distribua o trabalho entre funções e acompanhe cada entrega." Foreground="{StaticResource Muted}" />
                 </StackPanel>
-                <Button Grid.Column="1" Content="▶  Distribuir fila" Command="{Binding DispatchCommand}" Background="{StaticResource Accent}" Foreground="White"
+                <Button Grid.Column="1" Content="▶  Distribuir fila" Command="{Binding DispatchCommand}" Style="{StaticResource PrimaryButton}"
                         VerticalAlignment="Center" Margin="16,0,0,0" AutomationProperties.AutomationId="DispatchQueue" />
             </Grid>
-            <Border Grid.Row="1" Background="#FFF4D8" BorderBrush="#EADBAE" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18">
-                <TextBlock Foreground="#72571B"><Bold>DEMONSTRAÇÃO SIMULADA</Bold><Run Text="  ·  Nenhum modelo é chamado e nenhum arquivo de jogo é alterado." /></TextBlock>
+            <Border Grid.Row="1" Background="{StaticResource WarningSurface}" BorderBrush="{StaticResource WarningLine}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,18">
+                <TextBlock Foreground="{StaticResource WarningInk}"><Bold>DEMONSTRAÇÃO SIMULADA</Bold><Run Text="  ·  Nenhum modelo é chamado e nenhum arquivo de jogo é alterado." /></TextBlock>
             </Border>
             <UniformGrid Grid.Row="2" Columns="3" Margin="0,0,0,18">
                 <Border Style="{StaticResource Card}" Margin="0,0,12,0" Padding="16,12">
@@ -92,17 +93,17 @@
                     <ListBox Grid.Row="1" ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask}" Background="Transparent" BorderThickness="0" Foreground="{StaticResource Ink}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" AutomationProperties.AutomationId="TaskQueue">
                         <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                 <Setter Property="Padding" Value="0" />
                                 <Setter Property="Template"><Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="TaskCard" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,9">
+                                        <Border x:Name="TaskCard" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,9">
                                             <ContentPresenter />
                                         </Border>
                                         <ControlTemplate.Triggers>
-                                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="TaskCard" Property="BorderBrush" Value="{StaticResource Accent}" /><Setter TargetName="TaskCard" Property="Background" Value="#F3FAF5" /></Trigger>
-                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TaskCard" Property="Background" Value="#F3FAF5" /></Trigger>
+                                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="TaskCard" Property="BorderBrush" Value="{StaticResource Accent}" /><Setter TargetName="TaskCard" Property="Background" Value="{StaticResource Selected}" /></Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TaskCard" Property="Background" Value="{StaticResource Selected}" /></Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value></Setter>
@@ -130,14 +131,14 @@
                             <TextBlock Text="{Binding Description}" Foreground="{StaticResource Muted}" FontSize="12" />
                             <TextBlock Text="{Binding DependencyText}" Foreground="{StaticResource Accent}" FontSize="11" Margin="0,10,0,5" />
                             <TextBlock Text="{Binding AttemptText}" Style="{StaticResource Caption}" Margin="0,0,0,12" />
-                        <TabControl BorderBrush="{StaticResource Line}" Background="White" Foreground="{StaticResource Ink}" Height="180" Margin="0,0,0,4">
+                        <TabControl BorderBrush="{StaticResource Line}" Background="{StaticResource Surface}" Foreground="{StaticResource Ink}" Height="180" Margin="0,0,0,4">
                             <TabItem Header="Entrega" Padding="10,5"><ScrollViewer VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding Result}" FontSize="12" Margin="10" /></ScrollViewer></TabItem>
                             <TabItem Header="Eventos simulados" Padding="10,5"><ScrollViewer VerticalScrollBarVisibility="Auto"><TextBlock Text="{Binding Events}" FontFamily="Consolas" FontSize="12" Margin="10" /></ScrollViewer></TabItem>
                         </TabControl>
                           </StackPanel>
                         </ScrollViewer>
                         <WrapPanel Grid.Row="1" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
-                            <Button Content="Aprovar entrega" Command="{Binding ApproveCommand}" Background="{StaticResource Accent}" Foreground="White" Margin="0,0,8,4" Padding="12,9" AutomationProperties.AutomationId="ApproveDelivery" />
+                            <Button Content="Aprovar entrega" Command="{Binding ApproveCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,4" Padding="12,9" AutomationProperties.AutomationId="ApproveDelivery" />
                             <Button Content="Voltar à fila" Command="{Binding RetryCommand}" Margin="0,0,8,4" Padding="12,9" />
                             <Button Content="Cancelar" Command="{Binding CancelCommand}" Background="Transparent" Padding="8,9" />
                         </WrapPanel>

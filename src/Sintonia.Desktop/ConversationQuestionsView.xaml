@@ -21,7 +21,7 @@
                       Content="{Binding}" ContentTemplate="{StaticResource ChoiceContent}" HorizontalContentAlignment="Stretch" />
         </DataTemplate>
     </UserControl.Resources>
-    <Border Style="{StaticResource Card}" Background="#EDF5FF" Padding="12">
+    <Border Style="{StaticResource Card}" Background="{StaticResource InfoSurface}" BorderBrush="{StaticResource InfoLine}" Padding="12">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel>
@@ -55,7 +55,7 @@
                 </ItemsControl>
             </ScrollViewer>
             <StackPanel Grid.Row="2" Margin="0,8,0,0">
-                <Button Content="Enviar respostas" Command="{Binding SubmitCommand}" AutomationProperties.AutomationId="SubmitClaudeQuestions" />
+                <Button Content="Enviar respostas" Style="{StaticResource PrimaryButton}" Command="{Binding SubmitCommand}" AutomationProperties.AutomationId="SubmitClaudeQuestions" />
                 <Button Content="Recusar perguntas" Command="{Binding DeclineCommand}" Margin="0,6,0,0" AutomationProperties.AutomationId="DeclineClaudeQuestions" />
             </StackPanel>
         </Grid>

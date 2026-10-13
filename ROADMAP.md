@@ -38,6 +38,8 @@ Aceite: Codex e Claude realizam uma tarefa pequena cada numa pasta de teste, sem
 
 Estado: concluído. Central real utilizável, com autorizações, chefia editável, fila persistente com início explícito/revisão/ajustes e biblioteca de perfis reutilizáveis. Validação: 141 testes xUnit e fluxos WPF de central, planos, fila e perfis; integração nativa tem as provas finitas documentadas. Escrita direta exclusiva no mesmo projeto; limites de M1/M3/M4 permanecem explícitos.
 
+Visual atualizado em 13/10/2026: tema escuro em grafite e verde aplicado à central e às janelas auxiliares, com dez fluxos WPF aprovados e capturas normal/mínima revisadas. [Paleta e validação](docs/DARK_THEME.md); estados funcionais dos marcos preservados.
+
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
 - [x] Atribuir funções com provedor/modelo padrão e instruções adicionais.

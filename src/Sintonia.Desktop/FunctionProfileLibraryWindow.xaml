@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sintonia — Perfis de função" Width="1100" Height="820" MinWidth="900" MinHeight="680"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterOwner">
-    <Border Background="#F4F7F4" Padding="22">
+    <Border Background="{StaticResource Canvas}" Padding="22">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel Margin="0,0,0,18">
@@ -16,7 +16,7 @@
                     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <TextBlock Text="Biblioteca local" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,10" />
                         <ListBox Grid.Row="1" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" IsEnabled="{Binding CanChoose}" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.AutomationId="FunctionProfiles">
-                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="7,12" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
+                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Padding" Value="7,12" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding FunctionName}" Style="{StaticResource Caption}" Margin="0,5,0,0" /><TextBlock Text="{Binding Provider}" Foreground="{StaticResource Accent}" Margin="0,4,0,0" /></StackPanel></DataTemplate></ListBox.ItemTemplate>
                         </ListBox>
                         <StackPanel Grid.Row="2" Margin="0,12,0,0">
@@ -51,7 +51,7 @@
                 <ScrollViewer MaxHeight="48" VerticalScrollBarVisibility="Auto" Margin="0,5,0,10"><TextBlock Text="{Binding Notice}" Style="{StaticResource Caption}" /></ScrollViewer>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Reverter alterações" Command="{Binding RevertCommand}" Margin="0,0,8,0" />
-                    <Button Content="Salvar perfil" Command="{Binding SaveCommand}" Background="{StaticResource Accent}" Foreground="White" AutomationProperties.AutomationId="SaveFunctionProfile" />
+                    <Button Content="Salvar perfil" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}" AutomationProperties.AutomationId="SaveFunctionProfile" />
                 </StackPanel>
             </StackPanel>
         </Grid>

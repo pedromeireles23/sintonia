@@ -4,7 +4,7 @@
         Title="Sintonia — Diagnóstico Git" Width="1100" Height="820" MinWidth="900" MinHeight="760"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterOwner">
     <Window.Resources><BooleanToVisibilityConverter x:Key="BoolVisibility" /></Window.Resources>
-    <Border Background="#F4F7F4" Padding="22">
+    <Border Background="{StaticResource Canvas}" Padding="22">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel Margin="0,0,0,16">
@@ -32,7 +32,7 @@
                     <TextBlock Text="Alterações locais" FontSize="16" FontWeight="SemiBold" />
                     <TextBlock Grid.Row="1" Text="{Binding ChangeSummary}" Style="{StaticResource Caption}" Margin="0,5,0,10" />
                     <DataGrid x:Name="ChangedFiles" Grid.Row="2" ItemsSource="{Binding Changes}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
-                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0" Background="White" RowHeaderWidth="0" AutomationProperties.AutomationId="GitChanges">
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0" Background="{StaticResource Surface}" RowHeaderWidth="0" AutomationProperties.AutomationId="GitChanges">
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="Caminho relativo à raiz" Width="*" MinWidth="210">
                                 <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Margin="6,8">
@@ -52,7 +52,7 @@
                 <ScrollViewer MaxHeight="48" VerticalScrollBarVisibility="Auto" Margin="0,8,0,10"><TextBlock Text="{Binding Notice}" Style="{StaticResource Caption}" /></ScrollViewer>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Cancelar consulta" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
-                    <Button Content="Atualizar diagnóstico" Command="{Binding RefreshCommand}" Background="{StaticResource Accent}" Foreground="White" AutomationProperties.AutomationId="RefreshGitDiagnostics" />
+                    <Button Content="Atualizar diagnóstico" Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" AutomationProperties.AutomationId="RefreshGitDiagnostics" />
                 </StackPanel>
             </StackPanel>
         </Grid>

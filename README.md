@@ -6,7 +6,9 @@ Cada projeto mantém seu contexto e histórico. Os agentes executam o trabalho c
 
 **Estado: MVP funcional para uso local.** Chat, sessões persistentes, fila, chefia e integração Git assistida estão implementados. A distribuição para outras máquinas e parte das validações de compatibilidade permanecem no [roadmap](ROADMAP.md).
 
-![Central do Sintonia com respostas reais do Codex e do Claude em uma pasta de teste](docs/images/sintonia-central.png)
+![Tema escuro do Sintonia com verde suave — dados e provedores de teste, sem chamadas de modelos](docs/images/sintonia-tema-escuro.png)
+
+A interface usa grafite, painéis discretos e verde suave para ações e seleções. A captura acima usa provedores simulados; as execuções reais têm [evidências próprias](docs/REAL_COLLABORATION.md). Consulte a [paleta e a validação do tema](docs/DARK_THEME.md).
 
 ## Funcionalidades
 
@@ -42,7 +44,7 @@ As capturas abaixo usam dados e provedores de teste; as operações Git usam rep
 
 ![Sete sessões no mesmo projeto com provedores simulados e worktrees Git reais](docs/images/sintonia-sessoes.png)
 
-![Combinação com conflito em repositório Git de teste, sem chamadas de modelos](docs/images/sintonia-combinacao.png)
+![Fila e revisão no tema escuro — dados e provedores de teste, sem chamadas de modelos](docs/images/sintonia-fila.png)
 
 </details>
 
@@ -114,7 +116,7 @@ O teste WPF é um executável separado de `dotnet test`. Outros fluxos e instru�
 | Tema | Documentação |
 | --- | --- |
 | Estado e planejamento | [Contexto](CONTEXT.md), [roadmap](ROADMAP.md) e [registro de desenvolvimento](docs/DEVELOPMENT_LOG.md). |
-| Arquitetura e decisões | [Arquitetura](ARCHITECTURE.md), [escopo](docs/PRODUCT_SCOPE.md) e [decisões técnicas](docs/DECISIONS.md). |
+| Arquitetura e decisões | [Arquitetura](ARCHITECTURE.md), [tema escuro](docs/DARK_THEME.md), [escopo](docs/PRODUCT_SCOPE.md) e [decisões técnicas](docs/DECISIONS.md). |
 | Funções, planos e tarefas | [Perfis](docs/FUNCTION_PROFILES.md), [propostas](docs/PLAN_PROPOSALS.md), [chefia](docs/PLAN_UPDATES.md), [fila](docs/TASK_QUEUE.md) e [concorrência](docs/SESSION_CONCURRENCY.md). |
 | Fluxo Git | [Diagnóstico](docs/GIT_DIAGNOSTICS.md), [worktrees](docs/TASK_WORKTREES.md), [diffs](docs/TASK_DIFFS.md), [entregas](docs/TASK_DELIVERIES.md), [combinação](docs/TASK_INTEGRATION_PREPARATION.md), [validação](docs/PROJECT_VALIDATION.md), [publicação](docs/TASK_PUBLICATION.md) e [arquivamento](docs/TASK_WORKTREE_CLEANUP.md). |
 | Provedores e consumo | [Provas](docs/PROVIDER_PROBES.md), [extensões](docs/PROVIDER_EXTENSIONS.md), [perguntas Claude](docs/CLAUDE_QUESTIONS.md), [controles Claude](docs/CLAUDE_CONTROLS.md), [quota](docs/PROVIDER_USAGE.md), [tokens](docs/RUN_TOKEN_USAGE.md) e [limite agregado](docs/TOKEN_BUDGET.md). |

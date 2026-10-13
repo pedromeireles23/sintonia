@@ -138,6 +138,8 @@ Autenticação permanece nos mecanismos suportados dos provedores e de suas ferr
 
 ## Interface
 
+O tema escuro é compartilhado por todas as janelas: `App.xaml` carrega o dicionário Fluent Dark fornecido pelo WPF e a paleta/estilos em `Themes/Dark.xaml`. Cores de superfícies, texto, foco, seleção e estados têm recursos nomeados; estilos locais herdam os controles temáticos. Botões principais usam verde suave com texto escuro. Controles de edição, listas, abas, tabelas, perguntas e menus mantêm os templates e a interação do framework; o template de botão próprio conserva comandos, foco e estados de interação. [Paleta e validação](docs/DARK_THEME.md).
+
 `TaskIntegrationPreparationService` adquire a trava nativa antes da reserva, persiste intenção e chama `GitTaskIntegrationPreparer` para combinar numa nova worktree bloqueada/destacada. Merge ort sem commit/fast-forward preserva HEAD de referência; resultado guarda árvore ou caminhos conflitantes. Término e liberação são atômicos; cancelamento/interrupção conservam pastas parciais. Não publica, executa testes do projeto ou libera dependentes. Detalhes em [docs/TASK_INTEGRATION_PREPARATION.md](docs/TASK_INTEGRATION_PREPARATION.md).
 
 Na conferência da combinação, `GitDirectoryIdentity` reconhece caminhos Windows distintos somente quando handles das pastas existentes têm o mesmo volume/identificador de arquivo de 128 bits. Isso suporta LocalAppData redirecionado por aplicativos empacotados sem reescrever intenções ou relaxar vínculos Git/recusas de links/junções. Falha de consulta não comprova equivalência; estados antigos em atenção não são repetidos. Schema permanece 15.

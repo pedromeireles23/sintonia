@@ -4,7 +4,7 @@
         Title="Sintonia — Uso dos provedores" Width="820" Height="780" MinWidth="680" MinHeight="660"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterOwner">
     <Window.Resources><BooleanToVisibilityConverter x:Key="BoolVisibility" /></Window.Resources>
-    <Border Background="#F4F7F4" Padding="22">
+    <Border Background="{StaticResource Canvas}" Padding="22">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <StackPanel Margin="0,0,0,16">
@@ -47,7 +47,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="76" Margin="0,8,0,12"><TextBlock Text="{Binding Notice}" Style="{StaticResource Caption}" AutomationProperties.AutomationId="UsageNotice"/></ScrollViewer>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Cancelar consulta" Command="{Binding CancelCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="CancelProviderUsage"/>
-                    <Button Content="Atualizar uso" Command="{Binding RefreshCommand}" Background="{StaticResource Accent}" Foreground="White" AutomationProperties.AutomationId="RefreshProviderUsage"/>
+                    <Button Content="Atualizar uso" Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" AutomationProperties.AutomationId="RefreshProviderUsage"/>
                 </StackPanel>
             </StackPanel>
         </Grid>

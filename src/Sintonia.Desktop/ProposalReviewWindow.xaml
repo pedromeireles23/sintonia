@@ -4,10 +4,10 @@
         Title="Sintonia — Revisão de planos" Width="1100" Height="900" MinWidth="900" MinHeight="700"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterOwner">
     <Window.Resources>
-        <Style TargetType="TextBox"><Setter Property="Padding" Value="8" /><Setter Property="Margin" Value="0,5,0,12" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
-        <Style TargetType="ComboBox"><Setter Property="Padding" Value="7" /><Setter Property="Margin" Value="0,5,0,12" /></Style>
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Padding" Value="8" /><Setter Property="Margin" Value="0,5,0,12" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"><Setter Property="Padding" Value="7" /><Setter Property="Margin" Value="0,5,0,12" /></Style>
     </Window.Resources>
-    <Border Background="#F4F7F4" Padding="22">
+    <Border Background="{StaticResource Canvas}" Padding="22">
     <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <StackPanel>
@@ -26,7 +26,7 @@
                 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                     <TextBlock Text="Tarefas propostas" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
                     <ListBox Grid.Row="1" ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask}" IsEnabled="{Binding CanSelectTask}" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.AutomationId="ProposedTasks">
-                        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="6,10" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
+                        <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Padding" Value="6,10" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate><DataTemplate><StackPanel>
                             <TextBlock Text="{Binding Id}" Style="{StaticResource Caption}" />
                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Margin="0,3,0,0" />
@@ -77,7 +77,7 @@
                 <Button Content="Validar plano" Command="{Binding ValidateCommand}" Margin="0,0,8,0" />
                 <Button Content="Reverter alterações" Command="{Binding RevertCommand}" Margin="0,0,8,0" />
                 <Button Content="Salvar rascunho" Command="{Binding SaveDraftCommand}" Margin="0,0,8,0" />
-                <Button Content="Confirmar plano" Command="{Binding ApproveCommand}" Background="{StaticResource Accent}" Foreground="White" AutomationProperties.AutomationId="ApprovePlan" />
+                <Button Content="Confirmar plano" Command="{Binding ApproveCommand}" Style="{StaticResource PrimaryButton}" AutomationProperties.AutomationId="ApprovePlan" />
             </StackPanel>
         </StackPanel>
     </Grid>

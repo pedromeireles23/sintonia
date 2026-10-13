@@ -18,6 +18,7 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 
 - Aplicativo visual para Windows.
 - C# e .NET 10, com WPF e MVVM.
+- Tema escuro em grafite, com verde suave nas ações, foco e seleções, solicitado pelo usuário em 13/10/2026.
 - SQLite para persistência quando entrar o histórico real.
 - Sessões dos provedores abertas ou retomadas pelo aplicativo; não depender de várias janelas abertas manualmente.
 - Usar os logins por assinatura das instalações locais como padrão; não configurar chaves de API nem mudar automaticamente para cobrança de API.
@@ -36,6 +37,7 @@ Repositório: https://github.com/pedromeireles23/sintonia. Nome adotado: **Sinto
 
 ## Situação atual
 
+- Tema escuro aplicado globalmente em 13/10/2026, incluindo central, planos, fila, perfis, perguntas, diagnósticos, validação e demonstração. Paleta compartilhada em `src/Sintonia.Desktop/Themes/Dark.xaml`, com os controles Fluent do WPF já fornecidos pelo .NET 10. Builds Debug/Release sem avisos/erros, dez fluxos WPF aprovados e capturas normal/mínima revisadas; nenhum modelo chamado. Release local em `artifacts/app` atualizado e abertura/encerramento normal conferidos. [Paleta, cobertura e limites](docs/DARK_THEME.md). Próximo incremento de desenvolvimento continua sendo a prova local de recusa URL mode; os marcos funcionais permanecem no mesmo estado.
 - Apresentação pública atualizada em 13/10/2026: [README](README.md) descreve o MVP funcional local, recursos implementados, uso inicial, requisitos, evidências e limites, com links para os guias. A descrição curta do GitHub apresenta a central Windows em C#/.NET 10 e WPF para coordenar Codex/Claude em múltiplos projetos. Esta revisão não fecha lacunas de integração nem os marcos de distribuição.
 - Repositório criado pelo usuário, inicialmente vazio, clonado na pasta de trabalho da Área de Trabalho.
 - Documentação inicial preparada: README, contexto, instruções para Codex e Claude, arquitetura, roadmap, contribuição e pesquisa.

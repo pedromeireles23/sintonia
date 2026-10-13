@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sintonia — Diffs da tarefa" Width="1280" Height="880" MinWidth="1050" MinHeight="760"
         FontFamily="Segoe UI" FontSize="14" Foreground="{StaticResource Ink}" WindowStartupLocation="CenterOwner">
-    <Border Background="#F4F7F4" Padding="22">
+    <Border Background="{StaticResource Canvas}" Padding="22">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel Margin="0,0,0,12">
@@ -25,7 +25,7 @@
                         <TextBlock Text="Arquivos da worktree" FontWeight="SemiBold" Margin="0,0,0,10" />
                         <ListBox x:Name="DiffFiles" Grid.Row="1" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" IsEnabled="{Binding CanChoose}"
                                  BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.AutomationId="TaskDiffFiles">
-                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="6,10" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
+                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Padding" Value="6,10" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate><DataTemplate><StackPanel>
                                 <TextBlock Text="{Binding Path}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                 <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,5,0,0" />
@@ -43,7 +43,7 @@
                         </DockPanel>
                         <TextBlock Grid.Row="2" Text="{Binding ContentStatus}" Style="{StaticResource Caption}" Margin="0,0,0,10" />
                         <TextBox x:Name="DiffContent" Grid.Row="3" Text="{Binding ContentText, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="13" TextWrapping="NoWrap"
-                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="#FAFCFA" BorderThickness="0" Padding="8" AutomationProperties.AutomationId="TaskDiffContent" />
+                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="{StaticResource Input}" BorderThickness="0" Padding="8" AutomationProperties.AutomationId="TaskDiffContent" />
                     </Grid>
                 </Border>
             </Grid>
@@ -55,7 +55,7 @@
                     <Button Content="Preparar combinação" Command="{Binding PrepareCombinationCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="PrepareTaskCombination" />
                     <Button Content="Validar combinação" Click="OpenValidation" IsEnabled="{Binding CanValidateCombination}" Margin="0,0,8,0" AutomationProperties.AutomationId="OpenTaskValidation" />
                     <Button Content="Cancelar operação" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
-                    <Button Content="Atualizar diffs" Command="{Binding RefreshCommand}" Background="{StaticResource Accent}" Foreground="White" AutomationProperties.AutomationId="RefreshTaskDiffs" />
+                    <Button Content="Atualizar diffs" Command="{Binding RefreshCommand}" Style="{StaticResource PrimaryButton}" AutomationProperties.AutomationId="RefreshTaskDiffs" />
                 </StackPanel>
             </StackPanel>
         </Grid>
