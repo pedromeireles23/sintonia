@@ -7,7 +7,7 @@ using Sintonia.Infrastructure.Diagnostics;
 namespace Sintonia.Infrastructure.Providers;
 
 public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executable = null,
-    Action<ClaudeToolResult>? toolResultObserver = null) : IConversationProvider, IProviderUsageReader
+    Action<ClaudeToolResult>? toolResultObserver = null, string? configDirectory = null) : IConversationProvider, IProviderUsageReader
 {
     public ProviderKind Kind => ProviderKind.Claude;
     public Task<ProviderUsageSnapshot> ReadUsageAsync(string directory, CancellationToken token)
@@ -23,9 +23,10 @@ public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executa
         CancellationToken cancellationToken)
     {
         CodexConversationProvider.ValidateRequest(request);
-        if (request.ReasoningEffort is not null && (string.IsNullOrWhiteSpace(request.Model) || request.Model == "default"))
-            throw new ProviderException("Escolha um modelo Claude explícito para alterar o reasoning.");
         await CheckSubscriptionAsync(request.WorkingDirectory, cancellationToken).ConfigureAwait(false);
+        // The level is checked against the model the CLI will use: explicit, configured in settings or its own default.
+        var effortModel = request.ReasoningEffort is null ? null
+            : string.IsNullOrWhiteSpace(request.Model) ? ReadConfiguredDefaults(request.WorkingDirectory)?.Model ?? "default" : request.Model;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromMinutes(5));
         var token = deadline.Token;
@@ -37,7 +38,7 @@ public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executa
         if (!string.IsNullOrWhiteSpace(request.Instructions)) arguments.AddRange(["--append-system-prompt", request.Instructions]);
         if (!string.IsNullOrWhiteSpace(request.Model)) arguments.AddRange(["--model", request.Model]);
         if (request.ReasoningEffort is { } effort) arguments.AddRange(["--effort", effort]);
-        await using var session = new ClaudeStdioSession(Launch, arguments, request, id, progress, token, toolResultObserver);
+        await using var session = new ClaudeStdioSession(Launch, arguments, request, id, progress, token, toolResultObserver, effortModel);
         try
         {
             return await session.SendAsync(token).ConfigureAwait(false);

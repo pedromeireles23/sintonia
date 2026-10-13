@@ -85,16 +85,57 @@ public sealed class ModelSettingsTests
     }
 
     [Fact]
-    public async Task ClaudeEffortRequiresAnnouncedSupportForAnExplicitModel()
+    public async Task ClaudeEffortIsCheckedAgainstTheModelTheCliWillUse()
     {
-        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        var provider = new ClaudeConversationProvider(Fixture("claude-effort"));
-        var request = new ConversationRequest(AppContext.BaseDirectory, "Teste simulado", Model: "fixture-model", ReasoningEffort: "high");
-        Assert.Equal("Teste simulado", (await provider.SendAsync(request, new Progress<ConversationEvent>(), stop.Token)).Text);
-        var missing = await Assert.ThrowsAsync<ProviderException>(() => provider.SendAsync(request with { Model = null }, new Progress<ConversationEvent>(), stop.Token));
-        Assert.Contains("explícito", missing.Message);
-        var unsupported = await Assert.ThrowsAsync<ProviderException>(() => provider.SendAsync(request with { ReasoningEffort = "max" }, new Progress<ConversationEvent>(), stop.Token));
-        Assert.Contains("não anuncia suporte", unsupported.Message);
+        var root = Path.Combine(Path.GetTempPath(), "sintonia-claude-effort-" + Guid.NewGuid());
+        var configured = Path.Combine(root, "configurado"); var empty = Path.Combine(root, "vazio");
+        Directory.CreateDirectory(configured); Directory.CreateDirectory(empty);
+        try
+        {
+            File.WriteAllText(Path.Combine(configured, "settings.json"), """{ "model": "fixture-model", "effortLevel": "low" }""");
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var provider = new ClaudeConversationProvider(Fixture("claude-effort"), configDirectory: configured);
+            var request = new ConversationRequest(AppContext.BaseDirectory, "Teste simulado", Model: "fixture-model", ReasoningEffort: "high");
+            Assert.Equal("Teste simulado", (await provider.SendAsync(request, new Progress<ConversationEvent>(), stop.Token)).Text);
+            // Installation default: the level is checked against the model configured in settings, without --model.
+            Assert.Equal("Teste simulado", (await provider.SendAsync(request with { Model = null }, new Progress<ConversationEvent>(), stop.Token)).Text);
+            var unsupported = await Assert.ThrowsAsync<ProviderException>(() => provider.SendAsync(request with { ReasoningEffort = "max" }, new Progress<ConversationEvent>(), stop.Token));
+            Assert.Contains("não anuncia suporte", unsupported.Message);
+            var unconfigured = await Assert.ThrowsAsync<ProviderException>(() => new ClaudeConversationProvider(Fixture("claude-effort"), configDirectory: empty)
+                .SendAsync(request with { Model = null }, new Progress<ConversationEvent>(), stop.Token));
+            Assert.Contains("default", unconfigured.Message);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void ClaudeConfiguredDefaultsFollowPrecedenceAndProjectOnlyModelAndEffort()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sintonia-claude-settings-" + Guid.NewGuid());
+        var project = Path.Combine(root, "projeto"); var user = Path.Combine(root, "usuario"); var managed = Path.Combine(root, "managed-settings.json");
+        Directory.CreateDirectory(Path.Combine(project, ".claude")); Directory.CreateDirectory(user);
+        try
+        {
+            File.WriteAllText(Path.Combine(user, "settings.json"), """{ "model": "opus", "effortLevel": "high", "env": { "ANTHROPIC_API_KEY": "SEGREDO" } }""");
+            var defaults = ClaudeConversationProvider.ReadConfiguredDefaults(project, user, [managed], _ => null)!;
+            Assert.Equal(new ProviderModelDefaults("opus", "high", "Configuração do usuário", "Configuração do usuário"), defaults);
+            Assert.DoesNotContain("SEGREDO", JsonSerializer.Serialize(defaults));
+            File.WriteAllText(Path.Combine(project, ".claude", "settings.json"), """
+                { "model": "sonnet", // comentário aceito pelo CLI
+                  "effortLevel": "low", }
+                """);
+            File.WriteAllText(Path.Combine(project, ".claude", "settings.local.json"), """{ "effortLevel": "max" }""");
+            Assert.Equal(new ProviderModelDefaults("sonnet", "max", "Configuração do projeto", "Configuração local do projeto"),
+                ClaudeConversationProvider.ReadConfiguredDefaults(project, user, [managed], _ => null));
+            File.WriteAllText(managed, """{ "effortLevel": "medium" }""");
+            File.WriteAllText(Path.Combine(project, ".claude", "settings.local.json"), "{ inválido");
+            Assert.Equal(new ProviderModelDefaults("fable", "medium", "Variável de ambiente ANTHROPIC_MODEL", "Configuração administrada"),
+                ClaudeConversationProvider.ReadConfiguredDefaults(project, user, [managed], name => name == "ANTHROPIC_MODEL" ? "fable" : null));
+            File.WriteAllText(managed, """{ "effortLevel": "High --flag" }""");
+            Assert.Equal("low", ClaudeConversationProvider.ReadConfiguredDefaults(project, user, [managed], _ => null)!.ReasoningEffort);
+            Assert.Null(ClaudeConversationProvider.ReadConfiguredDefaults(Path.Combine(root, "sem-config"), Path.Combine(root, "sem-usuario"), [], _ => null));
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     [Fact]

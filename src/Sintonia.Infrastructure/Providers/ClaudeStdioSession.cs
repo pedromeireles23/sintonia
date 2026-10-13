@@ -18,6 +18,7 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
     private readonly ConversationRequest _request;
     private readonly string _sessionId;
     private readonly IProgress<ConversationEvent> _progress;
+    private readonly string? _effortModel;
     private readonly ClaudeStreamParser _parser;
     private readonly CancellationTokenSource _lifetime;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _permissions = new();
@@ -30,9 +31,9 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
 
     public ClaudeStdioSession(ExecutableLaunch launch, IEnumerable<string> arguments, ConversationRequest request,
         string sessionId, IProgress<ConversationEvent> progress, CancellationToken token,
-        Action<ClaudeToolResult>? toolResultObserver = null)
+        Action<ClaudeToolResult>? toolResultObserver = null, string? effortModel = null)
     {
-        _request = request; _sessionId = sessionId; _progress = progress;
+        _request = request; _sessionId = sessionId; _progress = progress; _effortModel = effortModel ?? request.Model;
         _parser = new(sessionId, progress, toolResultObserver);
         _lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
         _process = new(launch, arguments, request.WorkingDirectory, ReceiveAsync);
@@ -85,8 +86,8 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
                         if (_request.ReasoningEffort is { } effort)
                         {
                             var models = ClaudeConversationProvider.ReadModels(response.GetProperty("response"));
-                            if (models.FirstOrDefault(m => m.Id == _request.Model)?.ReasoningEfforts?.Any(e => e.Id == effort) != true)
-                                throw new ProviderException("O modelo Claude não anuncia suporte ao reasoning escolhido. Nenhuma mensagem foi enviada.");
+                            if (models.FirstOrDefault(m => m.Id == _effortModel)?.ReasoningEfforts?.Any(e => e.Id == effort) != true)
+                                throw new ProviderException($"O modelo Claude {_effortModel} não anuncia suporte ao reasoning escolhido no catálogo desta instalação. Nenhuma mensagem foi enviada.");
                         }
                         _initialized.TrySetResult(true);
                     }

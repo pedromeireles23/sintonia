@@ -211,15 +211,12 @@ public sealed class WorkspaceViewModel : ObservableObject
     }
     public bool CanChooseModel => CanEditFunction;
     public bool CanChooseReasoning => CanChooseModel && ReasoningOptions.Count > 1;
-    public string ReasoningHint => !ReasoningAllowed
-        ? "Escolha um modelo Claude explícito para alterar o reasoning. O CLI só aceita o nível junto com o modelo."
-        : ReasoningOptions.Count > 1 ? "Níveis anunciados pelo catálogo da instalação para este modelo. O provedor confere o suporte antes do turno."
+    public string ReasoningHint => ReasoningOptions.Count > 1 ? "Níveis anunciados pelo catálogo da instalação para este modelo. O provedor confere o suporte antes do turno."
         : ReasoningModel() is not null ? "Este modelo não anuncia níveis de reasoning no catálogo da instalação."
         : "O catálogo ainda não informou níveis para este modelo. Use Atualizar para consultar a instalação.";
     private (ProviderKind Provider, string Directory)? CatalogKey => Project is { } project ? (Provider, project.Directory) : null;
     private ProviderCapabilities? Catalog => CatalogKey is { } key && _catalogs.TryGetValue(key, out var catalog) ? catalog : null;
     private string? ExplicitModel => string.IsNullOrWhiteSpace(Model) || Model == DefaultModel ? null : Model.Trim();
-    private bool ReasoningAllowed => Provider != ProviderKind.Claude || ExplicitModel is { } model && model != "default";
     private static string? SavedModelChoice(WorkspaceConversation record) =>
         record.UsesInstallationDefault == true ? null : record.SelectedModel ?? record.Model;
 
@@ -231,8 +228,6 @@ public sealed class WorkspaceViewModel : ObservableObject
             if (_catalogQueries.ContainsKey(key)) return "Consultando a instalação…";
             if (_catalogErrors.ContainsKey(key)) return "Consulta indisponível";
             if (Catalog is not { } catalog) return "Ainda não consultado";
-            if (Provider == ProviderKind.Claude)
-                return catalog.Models.FirstOrDefault(m => m.Id == "default")?.Name ?? "Definido pelo Claude Code";
             var id = InstallationDefaultModelId(catalog);
             var entry = catalog.Models.FirstOrDefault(m => m.Id == id);
             return id is null ? "Não informado pela instalação" : entry is null || entry.Name == id ? id : $"{entry.Name} · {id}";
@@ -246,15 +241,14 @@ public sealed class WorkspaceViewModel : ObservableObject
             if (_catalogQueries.ContainsKey(key)) return "Lendo catálogo e configuração. Nenhuma mensagem é enviada ao modelo.";
             if (_catalogErrors.TryGetValue(key, out var error)) return error;
             if (Catalog is not { } catalog) return "Use Atualizar para consultar o catálogo.";
-            if (Provider == ProviderKind.Claude)
-                return catalog.Models.FirstOrDefault(m => m.Id == "default")?.Description is { Length: > 0 } description
-                    ? description + " · versão exata confirmada ao conectar a sessão."
-                    : "O CLI não informa a versão padrão nesta consulta; ela aparece ao conectar a sessão.";
-            var effort = catalog.Defaults?.ReasoningEffort ?? catalog.Models.FirstOrDefault(m => m.Id == InstallationDefaultModelId(catalog))?.DefaultReasoningEffort;
+            var entry = catalog.Models.FirstOrDefault(m => m.Id == InstallationDefaultModelId(catalog));
+            var effort = catalog.Defaults?.ReasoningEffort ?? entry?.DefaultReasoningEffort;
             var source = catalog.Defaults is not { } defaults ? "padrão do catálogo; configuração não informada"
                 : defaults.ModelSource == defaults.ReasoningSource ? defaults.ModelSource
                 : $"modelo: {defaults.ModelSource}; reasoning: {defaults.ReasoningSource}";
-            return $"Reasoning {(effort is null ? "não informado" : ModelSettings.EffortLabel(effort))} · {source}";
+            // Claude aliases resolve per CLI version; the first segment of the catalog description names it (e.g. "Opus 5.5").
+            var version = Provider == ProviderKind.Claude && entry?.Description is { Length: > 0 } description ? description.Split(" · ")[0] + " · " : "";
+            return $"{version}Reasoning {(effort is null ? "padrão do CLI" : ModelSettings.EffortLabel(effort))} · {source}";
         }
     }
     public string ConversationModelText => SelectedConversation?.Record is not { } record ? "Nova conversa"
@@ -268,6 +262,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             var reasoning = record.Model is null ? session.Running ? "Aguardando o provedor confirmar a sessão." : "Confirmação no próximo envio."
                 : record.EffectiveReasoningEffort is { } confirmed ? $"Reasoning {ModelSettings.EffortLabel(confirmed)}, confirmado na última sessão."
                 : record.ReasoningEffort is { } requested ? $"Reasoning {ModelSettings.EffortLabel(requested)} solicitado; o CLI não confirma o nível."
+                : Catalog?.Defaults?.ReasoningEffort is { } configured ? $"Reasoning padrão da instalação ({ModelSettings.EffortLabel(configured)}); o {record.Provider} não confirmou o nível."
                 : $"Reasoning padrão; o {record.Provider} não informou o nível.";
             if (record.IsTask) return reasoning + " Tarefa da fila: definido pelo plano aprovado.";
             if (session.Running) return reasoning + " Executando com esta configuração.";
@@ -503,7 +498,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         foreach (var entry in entries)
         {
             var efforts = entry.ReasoningEfforts is { Count: > 0 } list ? " · reasoning " + string.Join(", ", list.Select(e => e.Id)) : "";
-            var marker = Provider == ProviderKind.Codex && entry.Id == installationDefault ? " · padrão da instalação" : entry.IsDefault ? " · padrão do catálogo" : "";
+            var marker = entry.Id == installationDefault ? " · padrão da instalação" : entry.IsDefault ? " · padrão do catálogo" : "";
             Models.Add(new(entry.Id, entry.Name, entry.Id + marker + efforts, entry.Description));
         }
         if (!string.IsNullOrWhiteSpace(model) && Models.All(m => m.Key != model))
@@ -517,16 +512,13 @@ public sealed class WorkspaceViewModel : ObservableObject
     {
         var model = ReasoningModel();
         ReasoningOptions.Clear();
-        var installation = Provider == ProviderKind.Codex ? Catalog?.Defaults?.ReasoningEffort ?? model?.DefaultReasoningEffort : null;
+        var installation = Catalog?.Defaults?.ReasoningEffort ?? model?.DefaultReasoningEffort;
         ReasoningOptions.Add(new(null, installation is null ? DefaultModel : $"Padrão · {installation}",
             "Não envia um nível; o provedor usa a configuração da instalação."));
-        if (ReasoningAllowed)
-        {
-            foreach (var effort in model?.ReasoningEfforts ?? []) ReasoningOptions.Add(new(effort.Id, ModelSettings.EffortLabel(effort.Id), effort.Description));
-            // Without catalog data, keep a saved choice visible instead of silently dropping it.
-            if (keep is not null && model is null && ReasoningOptions.All(o => o.Id != keep))
-                ReasoningOptions.Add(new(keep, ModelSettings.EffortLabel(keep), "Escolha salva; o provedor confere o suporte antes do turno."));
-        }
+        foreach (var effort in model?.ReasoningEfforts ?? []) ReasoningOptions.Add(new(effort.Id, ModelSettings.EffortLabel(effort.Id), effort.Description));
+        // Without catalog data, keep a saved choice visible instead of silently dropping it.
+        if (keep is not null && model is null && ReasoningOptions.All(o => o.Id != keep))
+            ReasoningOptions.Add(new(keep, ModelSettings.EffortLabel(keep), "Escolha salva; o provedor confere o suporte antes do turno."));
         _reasoning = ReasoningOptions.FirstOrDefault(o => o.Id == keep) ?? ReasoningOptions[0];
         Notify(nameof(Reasoning)); Notify(nameof(CanChooseReasoning)); Notify(nameof(ReasoningHint));
     }
@@ -534,17 +526,17 @@ public sealed class WorkspaceViewModel : ObservableObject
     {
         if (Catalog is not { } catalog) return null;
         if (ExplicitModel is { } id) return catalog.Models.FirstOrDefault(m => m.Id == id);
-        return Provider == ProviderKind.Claude ? null : catalog.Models.FirstOrDefault(m => m.Id == InstallationDefaultModelId(catalog));
+        return catalog.Models.FirstOrDefault(m => m.Id == InstallationDefaultModelId(catalog));
     }
     private static string? InstallationDefaultModelId(ProviderCapabilities catalog) =>
         catalog.Defaults?.Model ?? catalog.Models.FirstOrDefault(m => m.IsDefault)?.Id;
     private string DefaultModelDetail(ProviderCapabilities? catalog)
     {
         if (catalog is null) return "Segue a configuração do provedor.";
-        if (Provider == ProviderKind.Claude) return "Usa o modelo configurado no Claude Code.";
         var id = InstallationDefaultModelId(catalog);
         var effort = catalog.Defaults?.ReasoningEffort;
-        return id is null ? "Segue a configuração do Codex." : "Usa " + id + (effort is null ? "" : " · " + effort) + " da configuração do Codex.";
+        var tool = Provider == ProviderKind.Codex ? "do Codex" : "do Claude Code";
+        return id is null ? $"Segue a configuração {tool}." : $"Usa {id}{(effort is null ? "" : " · " + effort)} da configuração {tool}.";
     }
     private void SelectedConversationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -638,7 +630,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         var project = Project!;
         var session = SelectedConversation;
         var model = ExplicitModel;
-        var reasoning = ReasoningAllowed ? Reasoning.Id : null;
+        var reasoning = Reasoning.Id;
         if (session is null)
         {
             var title = prompt.Split('\n')[0].Trim();

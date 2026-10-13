@@ -45,7 +45,59 @@ public sealed partial class ClaudeConversationProvider
         if (winner == process.Completion && !initialized.Task.IsCompleted)
             throw new ProviderException("Claude encerrou a consulta de modelos antes de responder.");
         var data = await initialized.Task.WaitAsync(token).ConfigureAwait(false);
-        return new(Kind, ReadModels(data), [], ["O CLI não informa nesta consulta o padrão efetivo da instalação nem o reasoning atual. A versão do modelo é confirmada ao conectar a sessão."]);
+        return new(Kind, ReadModels(data), [], ["Padrão lido das settings do Claude Code (somente model e effortLevel). A versão exata é confirmada ao conectar a sessão."],
+            ReadConfiguredDefaults(directory));
+    }
+
+    private string ConfigDirectory => configDirectory
+        ?? (Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") is { Length: > 0 } custom ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude"));
+    private static readonly string[] ManagedSettingsFiles =
+    [
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "ClaudeCode", "managed-settings.json"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ClaudeCode", "managed-settings.json")
+    ];
+
+    public ProviderModelDefaults? ReadConfiguredDefaults(string directory) =>
+        ReadConfiguredDefaults(directory, ConfigDirectory, ManagedSettingsFiles, Environment.GetEnvironmentVariable);
+
+    /// <summary>Follows Claude Code precedence: ANTHROPIC_MODEL, managed, local project, project and user settings.
+    /// Only "model" and "effortLevel" are projected; env, hooks, permissions and other keys are never returned.</summary>
+    internal static ProviderModelDefaults? ReadConfiguredDefaults(string directory, string configDirectory,
+        IEnumerable<string> managedFiles, Func<string, string?> environment)
+    {
+        var layers = managedFiles.Select(file => (File: file, Source: "Configuração administrada"))
+            .Append((Path.Combine(directory, ".claude", "settings.local.json"), "Configuração local do projeto"))
+            .Append((Path.Combine(directory, ".claude", "settings.json"), "Configuração do projeto"))
+            .Append((Path.Combine(configDirectory, "settings.json"), "Configuração do usuário"));
+        var fromEnvironment = environment("ANTHROPIC_MODEL");
+        string? model = string.IsNullOrWhiteSpace(fromEnvironment) || fromEnvironment.Length > 120 || fromEnvironment.Any(char.IsControl) ? null : fromEnvironment;
+        string? modelSource = model is null ? null : "Variável de ambiente ANTHROPIC_MODEL", effort = null, effortSource = null;
+        foreach (var (file, source) in layers)
+        {
+            if (model is not null && effort is not null) break;
+            var (configuredModel, configuredEffort) = ReadSettingsValues(file);
+            if (model is null && configuredModel is not null) (model, modelSource) = (configuredModel, source);
+            if (effort is null && configuredEffort is not null) (effort, effortSource) = (configuredEffort, source);
+        }
+        return model is null && effort is null ? null
+            : new(model, effort, modelSource ?? "Padrão do Claude Code", effortSource ?? "Padrão do Claude Code");
+    }
+
+    private static (string? Model, string? Effort) ReadSettingsValues(string path)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            if (!file.Exists || file.Length > 1_000_000) return default;
+            using var document = JsonDocument.Parse(File.ReadAllBytes(path),
+                new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+            var effort = CodexConversationProvider.MetadataText(document.RootElement, "effortLevel", 32);
+            try { ModelSettings.ValidateEffort(effort); }
+            catch (ArgumentException) { effort = null; }
+            return (CodexConversationProvider.MetadataText(document.RootElement, "model", 120), effort);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { return default; }
     }
 
     internal static IReadOnlyList<ProviderModel> ReadModels(JsonElement data)
@@ -65,7 +117,7 @@ public sealed partial class ClaudeConversationProvider
                         if (effort is not null && !efforts.Any(e => e.Id == effort)) efforts.Add(new(effort, ""));
                         if (efforts.Count > 32) throw new ProviderException("Catálogo Claude acima do limite de reasoning.");
                     }
-                models.Add(new(model, CodexConversationProvider.MetadataText(entry, "displayName", 120) ?? model, false,
+                models.Add(new(model, CodexConversationProvider.MetadataText(entry, "displayName", 120) ?? model, model == "default",
                     CodexConversationProvider.MetadataText(entry, "description", 400) ?? "", null, efforts));
                 if (models.Count > 500) throw new ProviderException("Catálogo Claude acima do limite local.");
             }

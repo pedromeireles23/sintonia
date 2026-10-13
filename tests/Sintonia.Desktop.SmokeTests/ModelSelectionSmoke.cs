@@ -86,18 +86,23 @@ internal static class ModelSelectionSmoke
                 vm.NewConversationCommand.Execute(null); vm.Provider = ProviderKind.Claude;
                 await Until(() => vm.InstallationModelText == "Consultando a instalação…" && !vm.RefreshModelsCommand.CanExecute(null));
                 claudeGate.SetResult();
-                await Until(() => vm.InstallationModelText == "Padrão (recomendado) · SIMULAÇÃO");
-                Require(!vm.CanChooseReasoning && vm.ReasoningHint.Contains("explícito"), "Claude permitiu reasoning sem modelo explícito.");
-                vm.Model = "opus";
-                Require(vm.CanChooseReasoning && vm.ReasoningOptions.Any(r => r.Id == "max"), "Níveis Claude do modelo não foram oferecidos.");
-                vm.Reasoning = vm.ReasoningOptions.Single(r => r.Id == "high");
+                await Until(() => vm.InstallationModelText == "Opus · SIMULAÇÃO · opus");
+                Require(vm.InstallationModelDetail == "Opus 5.5 (SIMULAÇÃO) · Reasoning Alto · high · Configuração do usuário", "Padrão Claude das settings não exibido: " + vm.InstallationModelDetail);
+                Require(vm.CanChooseReasoning && vm.ReasoningOptions.Select(r => r.Id).SequenceEqual([null, "low", "medium", "high", "max"])
+                    && vm.ReasoningOptions[0].Name == "Padrão · high", "Claude não ofereceu reasoning do modelo configurado com o padrão da instalação.");
+                vm.Reasoning = vm.ReasoningOptions.Single(r => r.Id == "max");
                 vm.Prompt = "segurar"; vm.SendCommand.Execute(null);
                 await Until(() => vm.SelectedConversation?.Running == true && claude.Holding);
                 Require(!vm.CanChooseModel && !vm.CanChooseReasoning && vm.ConversationModelDetail.EndsWith("Executando com esta configuração.", StringComparison.Ordinal), "Seleção editável durante a execução.");
                 claude.Release();
                 await Until(() => vm.ActiveCount == 0);
                 var second = vm.SelectedConversation!;
-                Require(claude.Requests[0] is { Model: "opus", ReasoningEffort: "high" } && vm.Model == "opus", "Escolha Claude não chegou ao provedor.");
+                Require(claude.Requests[0] is { Model: null, ReasoningEffort: "max" }, "Reasoning com o padrão Claude não chegou ao provedor.");
+                vm.Model = "opus"; vm.Reasoning = vm.ReasoningOptions.Single(r => r.Id == "high");
+                vm.Prompt = "Trocar modelo e nível (SIMULAÇÃO)."; vm.SendCommand.Execute(null);
+                await Until(() => vm.ActiveCount == 0);
+                Require(claude.Requests[1] is { Model: "opus", ReasoningEffort: "high" } && claude.Requests[1].NativeSessionId == second.Record.NativeSessionId && vm.Model == "opus",
+                    "Troca Claude entre turnos não chegou ao provedor.");
                 Require(vm.ConversationModelText == "claude-versao-simulada" && vm.ConversationModelDetail == "Reasoning Alto · high solicitado; o CLI não confirma o nível.",
                     "Reasoning Claude apresentado como confirmado: " + vm.ConversationModelDetail);
                 Capture(window, Path.Combine(output, "03-claude-conversation.png"));
@@ -111,14 +116,14 @@ internal static class ModelSelectionSmoke
                 await Until(() => vm.InstallationModelText == "GPT-6.1 Sol · gpt-6.1-sol" && inspections[ProviderKind.Codex] == 3);
                 window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
                 Capture(window, Path.Combine(output, "04-minimum.png"));
-                Require(codex.Requests.Count == 2 && claude.Requests.Count == 1, "Consulta de catálogo enviou mensagem ao provedor.");
+                Require(codex.Requests.Count == 2 && claude.Requests.Count == 2, "Consulta de catálogo enviou mensagem ao provedor.");
 
                 await vm.StopAsync(); window.Close();
                 await Until(() => !window.IsVisible);
                 var restored = MakeViewModel(); reopened = new WorkspaceWindow(restored); reopened.Show();
                 await Until(() => restored.Ready && restored.Conversations.Count == 2 && restored.SelectedConversation is not null);
                 restored.SelectedConversation = restored.Conversations.Single(c => c.Record.Id == second.Record.Id);
-                await Until(() => restored.InstallationModelText.StartsWith("Padrão (recomendado)", StringComparison.Ordinal));
+                await Until(() => restored.InstallationModelText == "Opus · SIMULAÇÃO · opus");
                 Require(restored.Model == "opus" && restored.Reasoning.Id == "high", "Reabertura perdeu a escolha Claude.");
                 restored.SelectedConversation = restored.Conversations.Single(c => c.Record.Id == first.Record.Id);
                 await Until(() => restored.InstallationModelText.Contains("gpt-6.1-sol"));
@@ -129,7 +134,7 @@ internal static class ModelSelectionSmoke
                 Require(listener.Errors.Count == 0, "Erros de binding: " + string.Join("\n", listener.Errors));
                 await restored.StopAsync(); reopened.Close();
                 await Until(() => !reopened.IsVisible);
-                Console.WriteLine("PASS: catálogo e padrão da instalação, escolha de modelo/reasoning, troca entre turnos, Claude sem reasoning implícito, bloqueio durante execução, falha de consulta e reabertura; zero erros de binding. Catálogos e provedores simulados; nenhuma chamada real.");
+                Console.WriteLine("PASS: catálogo e padrão da instalação, escolha de modelo/reasoning, troca entre turnos, padrão/reasoning Claude das settings e troca de nível, bloqueio durante execução, falha de consulta e reabertura; zero erros de binding. Catálogos e provedores simulados; nenhuma chamada real.");
                 exitCode = 0;
             }
             catch (Exception exception) { Console.Error.WriteLine(exception); }
@@ -153,10 +158,10 @@ internal static class ModelSelectionSmoke
 
     private static readonly ProviderCapabilities ClaudeCatalog = new(ProviderKind.Claude,
     [
-        new("default", "Padrão (recomendado) · SIMULAÇÃO", false, "SIMULAÇÃO: modelo escolhido pelo Claude Code.", null, []),
-        new("opus", "Opus · SIMULAÇÃO", false, "SIMULAÇÃO: tarefas complexas.", null, [new("low", ""), new("medium", ""), new("high", ""), new("max", "")]),
+        new("default", "Padrão (recomendado) · SIMULAÇÃO", true, "Sonnet (SIMULAÇÃO) · rotina", null, [new("low", ""), new("high", "")]),
+        new("opus", "Opus · SIMULAÇÃO", false, "Opus 5.5 (SIMULAÇÃO) · tarefas complexas", null, [new("low", ""), new("medium", ""), new("high", ""), new("max", "")]),
         new("sonnet", "Sonnet · SIMULAÇÃO", false, "", null, [new("low", ""), new("high", "")])
-    ], [], ["SIMULAÇÃO: o CLI não informa o padrão nesta consulta."]);
+    ], [], ["SIMULAÇÃO: padrão lido das settings."], new("opus", "high", "Configuração do usuário", "Configuração do usuário"));
 
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static async Task Until(Func<bool> condition)
