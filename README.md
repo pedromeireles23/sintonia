@@ -6,14 +6,14 @@ Cada projeto mantém seu contexto e histórico. Os agentes executam o trabalho c
 
 **Estado: MVP funcional para uso local.** Chat, sessões persistentes, fila, chefia e integração Git assistida estão implementados. A distribuição para outras máquinas e parte das validações de compatibilidade permanecem no [roadmap](ROADMAP.md).
 
-![Tema escuro do Sintonia com verde suave — dados e provedores de teste, sem chamadas de modelos](docs/images/sintonia-tema-escuro.png)
+![Central do Sintonia com padrão da instalação, versão em uso e reasoning — dados e provedores de teste, sem chamadas de modelos](docs/images/sintonia-modelos.png)
 
 A interface usa grafite, painéis discretos e verde suave para ações e seleções. A captura acima usa provedores simulados; as execuções reais têm [evidências próprias](docs/REAL_COLLABORATION.md). Consulte a [paleta e a validação do tema](docs/DARK_THEME.md).
 
 ## Funcionalidades
 
 - **Múltiplos projetos:** cadastre pastas e alterne entre conversas, tarefas e sessões com contexto separado.
-- **Chat com Codex e Claude:** escolha provedor e modelo, acompanhe respostas e eventos, cancele execuções e retome conversas.
+- **Chat com Codex e Claude:** escolha provedor, modelo e reasoning, veja o padrão da instalação e a versão em uso, acompanhe respostas e eventos, cancele execuções e retome conversas. [Modelos e reasoning](docs/MODEL_SETTINGS.md).
 - **Perfis de função:** reutilize instruções e padrões de provedor/modelo para desenvolvimento, revisão, documentação, análise e outras tarefas.
 - **Chefia e planos revisáveis:** transforme um objetivo em uma proposta de tarefas, edite responsáveis, escopos, dependências e critérios e confirme o plano antes de encaminhá-lo à fila.
 - **Fila persistente:** inicie tarefas, revise resultados, solicite ajustes na mesma sessão e aprove entregas para liberar dependências.
@@ -27,7 +27,7 @@ Código, documentos, análises e outros arquivos seguem o fluxo geral de tarefas
 ## Como funciona
 
 1. **Cadastre um projeto** em **Adicionar projeto** e escolha a pasta de trabalho.
-2. **Converse ou planeje:** selecione Codex/Claude e um modelo. Para distribuir trabalho, use a função **Chefe do projeto** e descreva o objetivo.
+2. **Converse ou planeje:** selecione Codex/Claude, o modelo e o reasoning. Para distribuir trabalho, use a função **Chefe do projeto** e descreva o objetivo.
 3. **Revise o plano** em **Revisar planos**, ajuste as tarefas e confirme. Em **Fila de tarefas**, use **Encaminhar à fila**. Essas confirmações não iniciam modelos.
 4. **Prepare e execute:** para escrita paralela, prepare uma worktree por tarefa em **Pasta de trabalho**. Use **Iniciar tentativa** ou **Iniciar tarefas disponíveis** e responda às solicitações de permissão.
 5. **Revise as entregas:** confira respostas, arquivos e critérios; aprove ou solicite ajustes. Para entregas em worktree, salve as mudanças em um commit e use **Registrar commit revisado** após conferir os diffs.

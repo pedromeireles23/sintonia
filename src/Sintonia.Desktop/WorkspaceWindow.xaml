@@ -37,17 +37,69 @@
         </Border>
         <Grid Grid.Column="1" Margin="24,22,18,18">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-            <StackPanel>
-                <TextBlock Text="{Binding ProjectName}" FontSize="27" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding ProjectPath}" Style="{StaticResource Caption}" Margin="0,5,0,18" MaxHeight="38" />
-            </StackPanel>
-            <Grid Grid.Row="1" Margin="0,0,0,12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider}" IsEnabled="{Binding CanConfigure}" Padding="8" Margin="0,0,10,0" AutomationProperties.AutomationId="Provider" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding Models}" Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" IsEnabled="{Binding CanConfigure}" Padding="8" AutomationProperties.AutomationId="Model" />
-                <Button Grid.Column="2" Content="Modelos" Command="{Binding RefreshModelsCommand}" Margin="10,0,0,0" ToolTip="Consultar opções da instalação. O provedor confirma o acesso ao enviar." />
-                <Button Grid.Column="3" Content="Nova conversa" Command="{Binding NewConversationCommand}" Margin="10,0,0,0" AutomationProperties.AutomationId="NewConversation" />
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="{Binding ProjectName}" FontSize="27" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ProjectPath}" Style="{StaticResource Caption}" Margin="0,5,0,0" MaxHeight="38" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="+ Nova conversa" Command="{Binding NewConversationCommand}" VerticalAlignment="Top" Margin="12,4,0,0" AutomationProperties.AutomationId="NewConversation" />
             </Grid>
+            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="14,12" Margin="0,0,0,12" AutomationProperties.AutomationId="ModelPanel">
+                <Grid>
+                    <Grid.Resources>
+                        <local:ComboBoxTemplateSelector x:Key="ReasoningTemplates">
+                            <local:ComboBoxTemplateSelector.Selected><DataTemplate><TextBlock Text="{Binding Name}" Style="{StaticResource SingleLine}" /></DataTemplate></local:ComboBoxTemplateSelector.Selected>
+                            <local:ComboBoxTemplateSelector.Dropdown><DataTemplate>
+                                <StackPanel Margin="0,2" MaxWidth="320">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,2,0,0" Visibility="{Binding HasDescription, Converter={StaticResource BoolVisibility}}" />
+                                </StackPanel>
+                            </DataTemplate></local:ComboBoxTemplateSelector.Dropdown>
+                        </local:ComboBoxTemplateSelector>
+                    </Grid.Resources>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="108" /><ColumnDefinition Width="1.15*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="IA" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Grid.Column="1" Text="Modelo" Style="{StaticResource FieldLabel}" Margin="10,0,0,4" />
+                    <TextBlock Grid.Column="2" Text="Reasoning" Style="{StaticResource FieldLabel}" Margin="10,0,0,4" />
+                    <ComboBox Grid.Row="1" ItemsSource="{Binding Providers}" SelectedItem="{Binding Provider}" IsEnabled="{Binding CanConfigure}" Padding="8"
+                              ToolTip="A IA fica fixa depois do primeiro envio da conversa." AutomationProperties.AutomationId="Provider">
+                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource SingleLine}" /></DataTemplate></ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Models}" Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" TextSearch.TextPath="Key"
+                              IsEditable="True" IsEnabled="{Binding CanChooseModel}" Padding="8" Margin="10,0,0,0" ToolTip="{Binding SelectedModelDescription}" AutomationProperties.AutomationId="Model">
+                        <ComboBox.ItemTemplate><DataTemplate>
+                            <StackPanel Margin="0,2" MaxWidth="440">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" Margin="0,2,0,0" />
+                                <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,2,0,0" Visibility="{Binding HasDescription, Converter={StaticResource BoolVisibility}}" />
+                            </StackPanel>
+                        </DataTemplate></ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <ComboBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding ReasoningOptions}" SelectedItem="{Binding Reasoning}" ItemTemplateSelector="{StaticResource ReasoningTemplates}"
+                              IsEnabled="{Binding CanChooseReasoning}" Padding="8" Margin="10,0,0,0" ToolTip="{Binding ReasoningHint}" AutomationProperties.AutomationId="Reasoning" />
+                    <Grid Grid.Row="2" Grid.ColumnSpan="3" Margin="0,12,0,0">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="25" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <DockPanel Margin="0,0,0,4">
+                            <Button DockPanel.Dock="Right" Content="Atualizar" Command="{Binding RefreshModelsCommand}" Padding="10,2" FontSize="12" Margin="8,0,0,0"
+                                    ToolTip="Consultar de novo o catálogo e o padrão da instalação. Nenhuma mensagem é enviada ao modelo." AutomationProperties.AutomationId="RefreshModels" />
+                            <TextBlock Text="PADRÃO DA INSTALAÇÃO" Style="{StaticResource FieldLabel}" Margin="0" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock Grid.Column="2" Text="EM USO NESTA CONVERSA" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
+                        <Border Grid.Column="1" Grid.RowSpan="2" Width="1" Background="{StaticResource Line}" HorizontalAlignment="Center" />
+                        <StackPanel Grid.Row="1">
+                            <TextBlock Text="{Binding InstallationModelText}" FontWeight="SemiBold" Style="{StaticResource SingleLine}" ToolTip="{Binding InstallationModelText}" AutomationProperties.AutomationId="InstallationModel" />
+                            <TextBlock Text="{Binding InstallationModelDetail}" Style="{StaticResource Caption}" Margin="0,3,0,0" MaxHeight="50" TextTrimming="CharacterEllipsis" ToolTip="{Binding InstallationModelDetail}" AutomationProperties.AutomationId="InstallationModelDetail" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="2">
+                            <TextBlock Text="{Binding ConversationModelText}" FontWeight="SemiBold" Foreground="{StaticResource Accent}" Style="{StaticResource SingleLine}" ToolTip="{Binding ConversationModelText}" AutomationProperties.AutomationId="ConversationModel" />
+                            <TextBlock Text="{Binding ConversationModelDetail}" Style="{StaticResource Caption}" Margin="0,3,0,0" MaxHeight="50" TextTrimming="CharacterEllipsis" ToolTip="{Binding ConversationModelDetail}" AutomationProperties.AutomationId="ConversationModelDetail" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
             <Expander Grid.Row="2" Header="Função, permissões e limites" Margin="0,0,0,12">
                 <Border Style="{StaticResource Card}" Margin="0,8,0,0" Padding="12">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240"><StackPanel>

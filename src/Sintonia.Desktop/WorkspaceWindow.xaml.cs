@@ -41,7 +41,7 @@ public partial class WorkspaceWindow : Window
     }
     private static async Task<ProviderCapabilities> InspectAsync(ProviderKind provider, string directory, CancellationToken token)
     {
-        if (provider == ProviderKind.Codex) return await new CodexConversationProvider().InspectAsync(directory, token);
+        if (provider == ProviderKind.Codex) return await new CodexConversationProvider().InspectModelsAsync(directory, token);
         return await new ClaudeConversationProvider().InspectAsync(directory, token);
     }
     private void OpenDemo(object sender, RoutedEventArgs e) => new MainWindow().Show();

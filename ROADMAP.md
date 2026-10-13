@@ -40,8 +40,11 @@ Estado: concluído. Central real utilizável, com autorizações, chefia editáv
 
 Visual atualizado em 13/10/2026: tema escuro em grafite e verde aplicado à central e às janelas auxiliares, com dez fluxos WPF aprovados e capturas normal/mínima revisadas. [Paleta e validação](docs/DARK_THEME.md); estados funcionais dos marcos preservados.
 
+Modelos e reasoning em 13/10/2026: a central mostra o padrão da instalação, a versão em uso e o nível de reasoning e permite trocar modelo/reasoning entre turnos. A validação usou provedores de teste e uma consulta real de metadados Claude. [Guia e limites](docs/MODEL_SETTINGS.md).
+
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
+- [x] Mostrar padrão da instalação, versão em uso e reasoning; permitir trocar modelo/reasoning entre turnos.
 - [x] Atribuir funções com provedor/modelo padrão e instruções adicionais.
 - [x] Enviar tarefas para sessões novas ou retomadas.
 - [x] Listar sessões por projeto/estado e abrir suas conversas dentro do Sintonia.

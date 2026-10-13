@@ -6,6 +6,15 @@ namespace Sintonia.Desktop.ViewModels;
 
 public sealed record FunctionOption(string Name, string Instructions);
 public sealed record AccessOption(string Name, ConversationAccess Value);
+/// <summary>Key is the text the editable picker shows and the identifier sent to the provider.</summary>
+public sealed record ModelOption(string Key, string Name, string Detail, string Description = "")
+{
+    public bool HasDescription => Description.Length > 0;
+}
+public sealed record ReasoningOption(string? Id, string Name, string Description = "")
+{
+    public bool HasDescription => Description.Length > 0;
+}
 
 public sealed class ChatMessageViewModel(string author, string text, string state = "", bool showUsage = false) : ObservableObject
 {
@@ -27,7 +36,9 @@ public sealed class ConversationViewModel(WorkspaceConversation record) : Observ
     private bool _running;
     public WorkspaceConversation Record { get => _record; set { _record = value; Notify(); Notify(nameof(Title)); Notify(nameof(Description)); } }
     public string Title => Record.Title;
-    public string Description => $"{Record.Provider} · {Record.Model ?? "Padrão"} · {Record.FunctionName}" + (Record.IsTask ? " · Tarefa da fila" : "");
+    public string Description => $"{Record.Provider} · {ModelSummary} · {Record.FunctionName}" + (Record.IsTask ? " · Tarefa da fila" : "");
+    private string ModelSummary => (Record.Model ?? Record.SelectedModel ?? "padrão da instalação")
+        + ((Record.EffectiveReasoningEffort ?? Record.ReasoningEffort) is { } effort ? " · " + effort : "");
     public string State { get => _state; set => Set(ref _state, value); }
     public bool Running { get => _running; set => Set(ref _running, value); }
     public bool Loaded { get; set; }
@@ -83,7 +94,11 @@ public sealed class WorkspaceViewModel : ObservableObject
     private bool _stopping;
     private bool _loadingProject;
     private long _projectRevision;
-    private long _catalogRevision;
+    private ReasoningOption _reasoning = new(null, DefaultModel);
+    // Metadata-only catalogs, cached per provider and folder because Codex can read project configuration.
+    private readonly Dictionary<(ProviderKind Provider, string Directory), ProviderCapabilities> _catalogs = [];
+    private readonly Dictionary<(ProviderKind Provider, string Directory), string> _catalogErrors = [];
+    private readonly Dictionary<(ProviderKind Provider, string Directory), Task> _catalogQueries = [];
 
     public WorkspaceViewModel(IWorkspaceStore store, WorkspaceChatService chat, Dispatcher dispatcher,
         Func<string?> pickDirectory, Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> inspect,
@@ -101,7 +116,8 @@ public sealed class WorkspaceViewModel : ObservableObject
         _cleanups = cleanups;
         _function = Functions[0]; _access = AccessOptions[0];
         AddProjectCommand = new(AddPickedProjectAsync, ShowError, () => Ready && !_stopping);
-        RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && Project is not null && CanConfigure);
+        RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && !_stopping && !_loadingProject
+            && CatalogKey is { } key && !_catalogQueries.ContainsKey(key));
         NewConversationCommand = new(NewConversation, () => Ready && Project is not null && !_stopping);
         SendCommand = new(() => StartSend(), () => CanSend);
         CancelCommand = new(() => { if (SelectedConversation is { } current && _jobs.TryGetValue(current.Record.Id, out var job)) job.Stop.Cancel(); }, () => SelectedConversation?.Running == true);
@@ -115,7 +131,8 @@ public sealed class WorkspaceViewModel : ObservableObject
 
     public ObservableCollection<WorkspaceProject> Projects { get; } = [];
     public ObservableCollection<ConversationViewModel> Conversations { get; } = [];
-    public ObservableCollection<string> Models { get; } = [DefaultModel];
+    public ObservableCollection<ModelOption> Models { get; } = [new(DefaultModel, DefaultModel, "Segue a configuração do provedor.")];
+    public ObservableCollection<ReasoningOption> ReasoningOptions { get; } = [new(null, DefaultModel)];
     public ObservableCollection<WorkspaceFunctionProfile> FunctionProfiles { get; } = [];
     public WorkspaceFunctionProfile? SelectedFunctionProfile { get => _profile; set { Set(ref _profile, value); RefreshCommands(); } }
     public IReadOnlyList<ProviderKind> Providers { get; } = Enum.GetValues<ProviderKind>();
@@ -146,17 +163,23 @@ public sealed class WorkspaceViewModel : ObservableObject
         get => _selected;
         set
         {
+            var previous = _selected;
             if (!Set(ref _selected, value)) return;
+            if (previous is not null) previous.PropertyChanged -= SelectedConversationChanged;
+            if (value is not null) value.PropertyChanged += SelectedConversationChanged;
             Prompt = "";
             if (value is not null)
             {
-                _provider = value.Record.Provider; _model = value.Record.Model ?? DefaultModel;
+                // The picker shows the user's choice; the confirmed version stays in Record.Model.
+                _provider = value.Record.Provider; _model = SavedModelChoice(value.Record) ?? DefaultModel;
                 _instructions = value.Record.Instructions;
                 _function = FindFunction(value.Record.FunctionName);
                 _access = AccessOptions.Single(a => a.Value == value.Record.Access);
                 Notify(nameof(Provider)); Notify(nameof(Model)); Notify(nameof(Instructions)); Notify(nameof(Function)); Notify(nameof(Access));
+                ResetModels(value.Record.ReasoningEffort);
                 _ = LoadConversationAsync(value);
             }
+            NotifyModelInfo();
             Notify(nameof(Messages)); Notify(nameof(Events)); Notify(nameof(ConversationTitle)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction));
             if (value is not null) Notice = value.Record.IsTask ? "Conversa de tarefa. Inicie novas tentativas e revise a entrega pela Fila de tarefas." : $"{value.State} · {value.Record.Provider}. Continue pelo campo de mensagem ou abra outra conversa.";
             RefreshCommands();
@@ -172,10 +195,89 @@ public sealed class WorkspaceViewModel : ObservableObject
         {
             if (!Set(ref _provider, value)) return;
             Model = DefaultModel;
-            ResetModels();
+            ResetModels(null);
         }
     }
-    public string Model { get => _model; set => Set(ref _model, value); }
+    public string Model
+    {
+        get => _model;
+        set { if (Set(ref _model, value)) { ResetReasoningOptions(_reasoning.Id); NotifyModelInfo(); } }
+    }
+    public ReasoningOption Reasoning
+    {
+        get => _reasoning;
+        // A list refresh briefly pushes null from the picker; the rebuilt list restores the choice.
+        set { if (value is not null && Set(ref _reasoning, value)) NotifyModelInfo(); }
+    }
+    public bool CanChooseModel => CanEditFunction;
+    public bool CanChooseReasoning => CanChooseModel && ReasoningOptions.Count > 1;
+    public string ReasoningHint => !ReasoningAllowed
+        ? "Escolha um modelo Claude explícito para alterar o reasoning. O CLI só aceita o nível junto com o modelo."
+        : ReasoningOptions.Count > 1 ? "Níveis anunciados pelo catálogo da instalação para este modelo. O provedor confere o suporte antes do turno."
+        : ReasoningModel() is not null ? "Este modelo não anuncia níveis de reasoning no catálogo da instalação."
+        : "O catálogo ainda não informou níveis para este modelo. Use Atualizar para consultar a instalação.";
+    private (ProviderKind Provider, string Directory)? CatalogKey => Project is { } project ? (Provider, project.Directory) : null;
+    private ProviderCapabilities? Catalog => CatalogKey is { } key && _catalogs.TryGetValue(key, out var catalog) ? catalog : null;
+    private string? ExplicitModel => string.IsNullOrWhiteSpace(Model) || Model == DefaultModel ? null : Model.Trim();
+    private bool ReasoningAllowed => Provider != ProviderKind.Claude || ExplicitModel is { } model && model != "default";
+    private static string? SavedModelChoice(WorkspaceConversation record) =>
+        record.UsesInstallationDefault == true ? null : record.SelectedModel ?? record.Model;
+
+    public string InstallationModelText
+    {
+        get
+        {
+            if (CatalogKey is not { } key) return "Selecione um projeto";
+            if (_catalogQueries.ContainsKey(key)) return "Consultando a instalação…";
+            if (_catalogErrors.ContainsKey(key)) return "Consulta indisponível";
+            if (Catalog is not { } catalog) return "Ainda não consultado";
+            if (Provider == ProviderKind.Claude)
+                return catalog.Models.FirstOrDefault(m => m.Id == "default")?.Name ?? "Definido pelo Claude Code";
+            var id = InstallationDefaultModelId(catalog);
+            var entry = catalog.Models.FirstOrDefault(m => m.Id == id);
+            return id is null ? "Não informado pela instalação" : entry is null || entry.Name == id ? id : $"{entry.Name} · {id}";
+        }
+    }
+    public string InstallationModelDetail
+    {
+        get
+        {
+            if (CatalogKey is not { } key) return "";
+            if (_catalogQueries.ContainsKey(key)) return "Lendo catálogo e configuração. Nenhuma mensagem é enviada ao modelo.";
+            if (_catalogErrors.TryGetValue(key, out var error)) return error;
+            if (Catalog is not { } catalog) return "Use Atualizar para consultar o catálogo.";
+            if (Provider == ProviderKind.Claude)
+                return catalog.Models.FirstOrDefault(m => m.Id == "default")?.Description is { Length: > 0 } description
+                    ? description + " · versão exata confirmada ao conectar a sessão."
+                    : "O CLI não informa a versão padrão nesta consulta; ela aparece ao conectar a sessão.";
+            var effort = catalog.Defaults?.ReasoningEffort ?? catalog.Models.FirstOrDefault(m => m.Id == InstallationDefaultModelId(catalog))?.DefaultReasoningEffort;
+            var source = catalog.Defaults is not { } defaults ? "padrão do catálogo; configuração não informada"
+                : defaults.ModelSource == defaults.ReasoningSource ? defaults.ModelSource
+                : $"modelo: {defaults.ModelSource}; reasoning: {defaults.ReasoningSource}";
+            return $"Reasoning {(effort is null ? "não informado" : ModelSettings.EffortLabel(effort))} · {source}";
+        }
+    }
+    public string ConversationModelText => SelectedConversation?.Record is not { } record ? "Nova conversa"
+        : record.Model ?? "Sessão ainda não confirmada";
+    public string ConversationModelDetail
+    {
+        get
+        {
+            if (SelectedConversation is not { } session) return "A versão e o reasoning efetivos aparecem quando o provedor conectar a sessão.";
+            var record = session.Record;
+            var reasoning = record.Model is null ? session.Running ? "Aguardando o provedor confirmar a sessão." : "Confirmação no próximo envio."
+                : record.EffectiveReasoningEffort is { } confirmed ? $"Reasoning {ModelSettings.EffortLabel(confirmed)}, confirmado na última sessão."
+                : record.ReasoningEffort is { } requested ? $"Reasoning {ModelSettings.EffortLabel(requested)} solicitado; o CLI não confirma o nível."
+                : $"Reasoning padrão; o {record.Provider} não informou o nível.";
+            if (record.IsTask) return reasoning + " Tarefa da fila: definido pelo plano aprovado.";
+            if (session.Running) return reasoning + " Executando com esta configuração.";
+            var changed = ExplicitModel != SavedModelChoice(record) || Reasoning.Id != record.ReasoningEffort;
+            return changed ? reasoning + " Nova escolha vale no próximo envio." : reasoning;
+        }
+    }
+    public string SelectedModelDescription => Models.FirstOrDefault(m => m.Key == Model) is { } option
+        ? option.Description.Length > 0 ? $"{option.Name} — {option.Description}" : option.Detail
+        : "Identificador informado manualmente. O provedor confere o acesso ao enviar.";
     public string Prompt { get => _prompt; set { if (Set(ref _prompt, value)) RefreshCommands(); } }
     public string Instructions { get => _instructions; set => Set(ref _instructions, value); }
     public FunctionOption Function { get => _function; set { if (Set(ref _function, value)) { Instructions = value.Instructions; if (IsChief) Access = AccessOptions[0]; Notify(nameof(CanEditAccess)); } } }
@@ -290,7 +392,7 @@ public sealed class WorkspaceViewModel : ObservableObject
                 }
             }
             SelectedConversation ??= Conversations.FirstOrDefault();
-            ResetModels();
+            ResetModels(_reasoning.Id);
         }
         catch (Exception exception) { ShowError(exception); }
         finally { if (revision == _projectRevision) { _loadingProject = false; RefreshCommands(); } }
@@ -385,14 +487,104 @@ public sealed class WorkspaceViewModel : ObservableObject
 
     private void NewConversation()
     {
-        SelectedConversation = null; Prompt = ""; Model = DefaultModel; ResetModels();
-        Notice = "Escolha a IA e o modelo. Uma sessão nova será criada ao enviar.";
+        SelectedConversation = null; Prompt = ""; Model = DefaultModel; ResetModels(null);
+        Notice = "Escolha a IA, o modelo e o reasoning. Uma sessão nova será criada ao enviar.";
     }
-    private void ResetModels()
+    private void ResetModels(string? reasoning)
     {
-        Models.Clear(); Models.Add(DefaultModel);
-        if (Provider == ProviderKind.Claude) { Models.Add("opus"); Models.Add("sonnet"); Models.Add("fable"); }
-        if (Model != DefaultModel && !Models.Contains(Model)) Models.Add(Model);
+        // Clearing an editable picker can push empty text back; keep the user's choice across the rebuild.
+        var model = _model;
+        var catalog = Catalog;
+        Models.Clear();
+        Models.Add(new(DefaultModel, DefaultModel, DefaultModelDetail(catalog)));
+        IEnumerable<ProviderModel> entries = catalog?.Models ?? (Provider == ProviderKind.Claude
+            ? [new("opus", "Claude Opus · alias", false), new("sonnet", "Claude Sonnet · alias", false), new("fable", "Claude Fable · alias", false)] : []);
+        var installationDefault = catalog is null ? null : InstallationDefaultModelId(catalog);
+        foreach (var entry in entries)
+        {
+            var efforts = entry.ReasoningEfforts is { Count: > 0 } list ? " · reasoning " + string.Join(", ", list.Select(e => e.Id)) : "";
+            var marker = Provider == ProviderKind.Codex && entry.Id == installationDefault ? " · padrão da instalação" : entry.IsDefault ? " · padrão do catálogo" : "";
+            Models.Add(new(entry.Id, entry.Name, entry.Id + marker + efforts, entry.Description));
+        }
+        if (!string.IsNullOrWhiteSpace(model) && Models.All(m => m.Key != model))
+            Models.Add(new(model, model, "Identificador informado; o provedor confere o acesso ao enviar."));
+        if (_model != model) { _model = model; Notify(nameof(Model)); }
+        ResetReasoningOptions(reasoning);
+        NotifyModelInfo();
+        EnsureCatalog();
+    }
+    private void ResetReasoningOptions(string? keep)
+    {
+        var model = ReasoningModel();
+        ReasoningOptions.Clear();
+        var installation = Provider == ProviderKind.Codex ? Catalog?.Defaults?.ReasoningEffort ?? model?.DefaultReasoningEffort : null;
+        ReasoningOptions.Add(new(null, installation is null ? DefaultModel : $"Padrão · {installation}",
+            "Não envia um nível; o provedor usa a configuração da instalação."));
+        if (ReasoningAllowed)
+        {
+            foreach (var effort in model?.ReasoningEfforts ?? []) ReasoningOptions.Add(new(effort.Id, ModelSettings.EffortLabel(effort.Id), effort.Description));
+            // Without catalog data, keep a saved choice visible instead of silently dropping it.
+            if (keep is not null && model is null && ReasoningOptions.All(o => o.Id != keep))
+                ReasoningOptions.Add(new(keep, ModelSettings.EffortLabel(keep), "Escolha salva; o provedor confere o suporte antes do turno."));
+        }
+        _reasoning = ReasoningOptions.FirstOrDefault(o => o.Id == keep) ?? ReasoningOptions[0];
+        Notify(nameof(Reasoning)); Notify(nameof(CanChooseReasoning)); Notify(nameof(ReasoningHint));
+    }
+    private ProviderModel? ReasoningModel()
+    {
+        if (Catalog is not { } catalog) return null;
+        if (ExplicitModel is { } id) return catalog.Models.FirstOrDefault(m => m.Id == id);
+        return Provider == ProviderKind.Claude ? null : catalog.Models.FirstOrDefault(m => m.Id == InstallationDefaultModelId(catalog));
+    }
+    private static string? InstallationDefaultModelId(ProviderCapabilities catalog) =>
+        catalog.Defaults?.Model ?? catalog.Models.FirstOrDefault(m => m.IsDefault)?.Id;
+    private string DefaultModelDetail(ProviderCapabilities? catalog)
+    {
+        if (catalog is null) return "Segue a configuração do provedor.";
+        if (Provider == ProviderKind.Claude) return "Usa o modelo configurado no Claude Code.";
+        var id = InstallationDefaultModelId(catalog);
+        var effort = catalog.Defaults?.ReasoningEffort;
+        return id is null ? "Segue a configuração do Codex." : "Usa " + id + (effort is null ? "" : " · " + effort) + " da configuração do Codex.";
+    }
+    private void SelectedConversationChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        NotifyModelInfo(); Notify(nameof(CanChooseModel)); Notify(nameof(CanChooseReasoning));
+    }
+    private void NotifyModelInfo()
+    {
+        Notify(nameof(InstallationModelText)); Notify(nameof(InstallationModelDetail));
+        Notify(nameof(ConversationModelText)); Notify(nameof(ConversationModelDetail)); Notify(nameof(SelectedModelDescription));
+    }
+    private void EnsureCatalog()
+    {
+        if (CatalogKey is { } key && !_stopping && !_catalogs.ContainsKey(key) && !_catalogErrors.ContainsKey(key)) _ = QueryCatalogAsync(key);
+    }
+    private Task QueryCatalogAsync((ProviderKind Provider, string Directory) key)
+    {
+        if (_catalogQueries.TryGetValue(key, out var running)) return running;
+        var query = QueryCatalogCoreAsync(key);
+        if (!query.IsCompleted) { _catalogQueries[key] = query; NotifyModelInfo(); RefreshModelsCommand.Refresh(); }
+        return query;
+    }
+    private async Task QueryCatalogCoreAsync((ProviderKind Provider, string Directory) key)
+    {
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            _catalogs[key] = await _inspect(key.Provider, key.Directory, timeout.Token);
+            _catalogErrors.Remove(key);
+        }
+        catch (Exception exception)
+        {
+            _catalogErrors[key] = exception is OperationCanceledException ? "A consulta foi cancelada ou excedeu 60 segundos. Use Atualizar para tentar novamente." : exception.Message;
+        }
+        finally
+        {
+            _catalogQueries.Remove(key);
+            if (!_stopping && CatalogKey == key) ResetModels(_reasoning.Id);
+            RefreshModelsCommand.Refresh();
+        }
     }
     private FunctionOption FindFunction(string name)
     {
@@ -420,7 +612,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         }
         var prompt = Prompt; NewConversation(); Provider = current.Provider; Model = current.Model ?? DefaultModel;
         Function = FindFunction(current.FunctionName); Instructions = current.Instructions; Access = AccessOptions[0];
-        Prompt = prompt; ResetModels();
+        Prompt = prompt; ResetModels(null);
         Notice = $"Perfil {current.Name} aplicado à nova conversa em leitura. Confira o modelo e as instruções antes de enviar.";
     }
     public async Task<FunctionProfileLibraryViewModel> LoadFunctionProfileLibraryAsync(Func<WorkspaceFunctionProfile, bool> confirmDelete)
@@ -430,17 +622,13 @@ public sealed class WorkspaceViewModel : ObservableObject
     }
     private async Task RefreshModelsAsync()
     {
-        var revision = ++_catalogRevision;
-        var provider = Provider;
-        var project = Project!;
-        Notice = "Consultando modelos e extensões da instalação; nenhuma mensagem será enviada ao modelo.";
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(60));
-        var capabilities = await _inspect(provider, project.Directory, timeout.Token);
-        if (revision != _catalogRevision || Provider != provider || Project?.Id != project.Id || !CanConfigure) return;
-        ResetModels();
-        foreach (var model in capabilities.Models) if (!Models.Contains(model.Id)) Models.Add(model.Id);
-        Notice = capabilities.Warnings.Count > 0 ? string.Join(" ", capabilities.Warnings) : $"{capabilities.Models.Count} opções de modelo. O provedor confirma o acesso da assinatura ao enviar.";
+        if (CatalogKey is not { } key) return;
+        // Keep the previous catalog usable until the new answer arrives.
+        _catalogErrors.Remove(key);
+        await QueryCatalogAsync(key);
+        if (CatalogKey != key || _stopping) return;
+        Notice = _catalogErrors.TryGetValue(key, out var error) ? error
+            : $"Catálogo {key.Provider} atualizado: {_catalogs[key].Models.Count} modelos. Nenhuma mensagem foi enviada ao modelo; o acesso da assinatura é conferido ao enviar.";
     }
 
     private void StartSend()
@@ -449,15 +637,18 @@ public sealed class WorkspaceViewModel : ObservableObject
         var prompt = Prompt; Prompt = "";
         var project = Project!;
         var session = SelectedConversation;
+        var model = ExplicitModel;
+        var reasoning = ReasoningAllowed ? Reasoning.Id : null;
         if (session is null)
         {
             var title = prompt.Split('\n')[0].Trim();
             if (title.Length > 52) title = title[..52] + "…";
-            session = new(new(Guid.NewGuid().ToString(), project.Id, title, Provider, Model == DefaultModel || string.IsNullOrWhiteSpace(Model) ? null : Model,
-                null, Function.Name, Instructions, Access.Value)) { Loaded = true };
+            session = new(new(Guid.NewGuid().ToString(), project.Id, title, Provider, model,
+                null, Function.Name, Instructions, Access.Value, ReasoningEffort: reasoning, UsesInstallationDefault: model is null, SelectedModel: model)) { Loaded = true };
             _sessions.Add(session.Record.Id, session); Conversations.Insert(0, session); SelectedConversation = session;
         }
-        else session.Record = session.Record with { FunctionName = Function.Name, Instructions = Instructions, Access = Access.Value };
+        else session.Record = session.Record with { FunctionName = Function.Name, Instructions = Instructions, Access = Access.Value,
+            SelectedModel = model, UsesInstallationDefault = model is null, ReasoningEffort = reasoning };
         session.Running = true; session.State = "Executando";
         var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         // Reserve the view immediately so rapid clicks cannot launch the same conversation twice.
@@ -480,8 +671,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             if (ev.Kind == ConversationEventKind.TokenUsage && !finished) answer.TokenUsage = ev.TokenUsage;
             if (ev.Kind == ConversationEventKind.Session)
             {
-                session.Record = session.Record with { NativeSessionId = ev.NativeSessionId, Model = ev.Model };
-                if (SelectedConversation == session) { _model = ev.Model ?? DefaultModel; Notify(nameof(Model)); }
+                session.Record = session.Record with { NativeSessionId = ev.NativeSessionId, Model = ev.Model, EffectiveReasoningEffort = ev.ReasoningEffort };
                 if (!finished && !_stopping) _ = QueueTokenBudgetRefreshAsync(project);
             }
             if (ev.Kind == ConversationEventKind.TextDelta && answer.Text.Length < 256_000) answer.Text += ev.Text;
@@ -715,7 +905,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public async Task StopAsync()
     {
         _stopping = true; _lifetime.Cancel(); RefreshCommands();
-        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Append(_settingsSave).ToArray();
+        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Concat(_catalogQueries.Values).Append(_settingsSave).ToArray();
         try { await Task.WhenAll(jobs); }
         catch (Exception exception) { ShowError(exception); }
         await _tokenRefresh;
@@ -724,6 +914,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private void RefreshCommands()
     {
         Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanEditAccess)); Notify(nameof(CanSend)); Notify(nameof(CanReviewProposals));
+        Notify(nameof(CanChooseModel)); Notify(nameof(CanChooseReasoning));
         Notify(nameof(CanManageFunctionProfiles)); Notify(nameof(CanApplyFunctionProfile));
         Notify(nameof(CanEditSessionLimit)); Notify(nameof(SavedSessionLimit)); Notify(nameof(SessionUsage));
         Notify(nameof(TokenBudgetDescription));
