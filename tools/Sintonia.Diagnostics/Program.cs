@@ -10,6 +10,16 @@ using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["models", var modelProvider] && Enum.TryParse<ProviderKind>(modelProvider, true, out var selectedProvider) && Enum.IsDefined(selectedProvider))
+    {
+        var capabilities = selectedProvider == ProviderKind.Codex
+            ? await new CodexConversationProvider().InspectAsync(Environment.CurrentDirectory, cancellation.Token)
+            : await new ClaudeConversationProvider().InspectAsync(Environment.CurrentDirectory, cancellation.Token);
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { Provider = selectedProvider.ToString(), capabilities.Models, capabilities.Defaults, capabilities.Warnings },
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        Console.WriteLine("Consulta de metadados encerrada; nenhum prompt ou turno enviado. Configuração bruta e credenciais não são exibidas.");
+        return 0;
+    }
     if (args is ["plan-exit", "Claude"])
     {
         await ClaudePlanExitProbe.RunAsync(cancellation.Token); return 0;

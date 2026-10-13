@@ -42,9 +42,7 @@ public partial class WorkspaceWindow : Window
     private static async Task<ProviderCapabilities> InspectAsync(ProviderKind provider, string directory, CancellationToken token)
     {
         if (provider == ProviderKind.Codex) return await new CodexConversationProvider().InspectAsync(directory, token);
-        await new ClaudeConversationProvider().CheckSubscriptionAsync(directory, token);
-        return new(provider, [new("opus", "Opus (alias do CLI)", false), new("sonnet", "Sonnet (alias do CLI)", false), new("fable", "Fable (alias do CLI)", false)], [],
-            ["Aliases anunciados pelo Claude instalado. Você também pode informar um identificador de modelo; o acesso é conferido ao enviar."]);
+        return await new ClaudeConversationProvider().InspectAsync(directory, token);
     }
     private void OpenDemo(object sender, RoutedEventArgs e) => new MainWindow().Show();
     private void OpenGitDiagnostics(object sender, RoutedEventArgs e)

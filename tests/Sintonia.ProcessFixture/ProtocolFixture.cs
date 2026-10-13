@@ -24,7 +24,12 @@ internal static class ProtocolFixture
             switch (method.GetString())
             {
                 case "initialize": Reply(id, new { userAgent = "fixture" }); break;
-                case "model/list": Reply(id, new { data = new[] { new { model = "fixture-model", displayName = "Teste", isDefault = true, hidden = false } } }); break;
+                case "model/list": Reply(id, new { data = new[] { new { model = "fixture-model", displayName = "Modelo de teste", isDefault = true, hidden = false,
+                    description = "Modelo simulado", defaultReasoningEffort = "low", supportedReasoningEfforts = new[] {
+                        new { reasoningEffort = "low", description = "Rápido" }, new { reasoningEffort = "high", description = "Detalhado" } } } } }); break;
+                case "config/read": Reply(id, new { config = new { model = "fixture-model", model_reasoning_effort = "high", privateValue = "SEGREDO" },
+                    origins = new Dictionary<string, object> { ["model"] = new { name = new { type = "user", file = "SEGREDO" }, version = "SEGREDO" },
+                        ["model_reasoning_effort"] = new { name = new { type = "project", dotCodexFolder = "SEGREDO" }, version = "SEGREDO" } } }); break;
                 case "skills/list":
                     if (!parameters.GetProperty("forceReload").GetBoolean()) return 20;
                     Reply(id, new { data = new[] { new { skills = new[]
@@ -65,8 +70,11 @@ internal static class ProtocolFixture
                         Tokens("previous-turn", Breakdown(1000, 200, 100, 20, 50));
                     if (scenario.StartsWith("rpc-usage-", StringComparison.Ordinal)) File.WriteAllText(Path.Combine(Environment.CurrentDirectory, "thread-started.txt"), "SIMULAÇÃO");
                     Reply(id, new { thread = new { id = ThreadId }, model = "fixture-model", modelProvider = "openai", approvalPolicy = parameters.GetProperty("approvalPolicy").GetString(),
+                        reasoningEffort = scenario == "rpc-effort-mismatch" ? "low" : parameters.TryGetProperty("config", out var config) && config.TryGetProperty("model_reasoning_effort", out var effort) ? effort.GetString() : "low",
                         sandbox = new { type = scenario == "rpc-unsafe" ? "dangerFullAccess" : parameters.GetProperty("sandbox").GetString() == "read-only" ? "readOnly" : "workspaceWrite" } }); break;
                 case "turn/start":
+                    if (scenario == "rpc-effort" && (!parameters.TryGetProperty("effort", out var selectedEffort) || selectedEffort.GetString() != "high"))
+                        return 23;
                     var turn = Guid.NewGuid().ToString();
                     Reply(id, new { turn = new { id = turn } });
                     if (scenario.StartsWith("rpc-tokens-", StringComparison.Ordinal))

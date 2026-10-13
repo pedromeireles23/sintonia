@@ -27,21 +27,13 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
     {
         await using var rpc = new JsonRpcClient(Launch, directory);
         await InitializeAsync(rpc, cancellationToken).ConfigureAwait(false);
-        var models = new List<ProviderModel>();
-        string? cursor = null;
-        do
-        {
-            var page = await rpc.RequestAsync("model/list", new { cursor, limit = 100 }, cancellationToken).ConfigureAwait(false);
-            foreach (var model in page.GetProperty("data").EnumerateArray())
-                if (!model.GetProperty("hidden").GetBoolean()) models.Add(new(model.GetProperty("model").GetString()!,
-                    model.GetProperty("displayName").GetString()!, model.GetProperty("isDefault").GetBoolean()));
-            cursor = page.TryGetProperty("nextCursor", out var next) ? next.GetString() : null;
-        } while (cursor is not null && models.Count < 500);
+        var models = await ReadModelsAsync(rpc, cancellationToken).ConfigureAwait(false);
+        var defaults = await ReadModelDefaultsAsync(rpc, directory, cancellationToken).ConfigureAwait(false);
         var snapshot = await ReadExtensionsAsync(rpc, directory, cancellationToken).ConfigureAwait(false);
         var extensions = snapshot.Extensions.Where(e => e.Kind != ProviderExtensionKind.Skill || e.Enabled == true)
             .Select(e => e.Kind == ProviderExtensionKind.Skill ? "Skill: " + e.Name
                 : $"MCP: {e.Name} — {ConnectionDescription(e.Status)}; autenticação {AuthenticationDescription(e.AuthStatus)}; ferramentas {e.ToolCount?.ToString() ?? "indisponível"}").ToArray();
-        return new(Kind, models, extensions, snapshot.Warnings);
+        return new(Kind, models, extensions, snapshot.Warnings, defaults);
     }
 
     public async Task<ConversationResult> SendAsync(ConversationRequest request, IProgress<ConversationEvent> progress,
@@ -117,6 +109,8 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
                 ["sandbox"] = request.Access == ConversationAccess.ReadOnly ? "read-only" : "workspace-write"
             };
             if (request.NativeSessionId is not null) parameters["threadId"] = request.NativeSessionId;
+            if (request.ReasoningEffort is not null)
+                parameters["config"] = new Dictionary<string, object?> { ["model_reasoning_effort"] = request.ReasoningEffort };
             var session = await rpc.RequestAsync(request.NativeSessionId is null ? "thread/start" : "thread/resume", parameters, token).ConfigureAwait(false);
             var expected = request.Access == ConversationAccess.ReadOnly ? "readOnly" : "workspaceWrite";
             if (session.GetProperty("sandbox").GetProperty("type").GetString() != expected
@@ -125,12 +119,24 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
                 throw new ProviderException("Codex não aplicou as permissões solicitadas; nenhum turno foi iniciado.");
             threadId = session.GetProperty("thread").GetProperty("id").GetString()!;
             var model = session.GetProperty("model").GetString()!;
-            progress.Report(new(ConversationEventKind.Session, "Sessão Codex conectada por assinatura.", threadId, model));
+            var effectiveEffort = MetadataText(session, "reasoningEffort", 32);
+            ModelSettings.ValidateEffort(effectiveEffort);
+            if (request.ReasoningEffort is { } selectedEffort)
+            {
+                var catalog = await ReadModelsAsync(rpc, token).ConfigureAwait(false);
+                if (catalog.SingleOrDefault(m => m.Id == model)?.ReasoningEfforts?.Any(e => e.Id == selectedEffort) != true)
+                    throw new ProviderException("O modelo Codex não anunciou suporte ao nível de reasoning escolhido; nenhum turno foi iniciado.");
+                if (effectiveEffort != selectedEffort)
+                    throw new ProviderException("Codex não confirmou o nível de reasoning solicitado; nenhum turno foi iniciado.");
+            }
+            progress.Report(new(ConversationEventKind.Session, "Sessão Codex conectada por assinatura.", threadId, model, ReasoningEffort: effectiveEffort));
             // Function instructions are turn input; native global/project instructions remain intact.
             var prompt = string.IsNullOrWhiteSpace(request.Instructions) ? request.Prompt
                 : $"Função nesta tarefa:\n{request.Instructions}\n\nPedido do usuário:\n{request.Prompt}";
             usage.Arm();
-            var start = await rpc.RequestAsync("turn/start", new { threadId, input = new[] { new { type = "text", text = prompt } } }, token).ConfigureAwait(false);
+            var turnParameters = new Dictionary<string, object?> { ["threadId"] = threadId, ["input"] = new[] { new { type = "text", text = prompt } } };
+            if (request.ReasoningEffort is not null) turnParameters["effort"] = request.ReasoningEffort;
+            var start = await rpc.RequestAsync("turn/start", turnParameters, token).ConfigureAwait(false);
             turnId = start.GetProperty("turn").GetProperty("id").GetString();
             usage.SetTurn(turnId!);
             var winner = await Task.WhenAny(completed.Task, rpc.Completion).WaitAsync(token).ConfigureAwait(false);
@@ -154,7 +160,7 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
                 : messages.LastOrDefault(m => m.Final).Text ?? messages.LastOrDefault().Text;
             if (string.IsNullOrWhiteSpace(result)) throw new ProviderException("Codex concluiu sem uma resposta textual.");
             return new(threadId, model, result, denials.IsEmpty ? ConversationOutcome.Completed : ConversationOutcome.Blocked,
-                denials.Distinct().ToArray(), usage.Snapshot);
+                denials.Distinct().ToArray(), usage.Snapshot, effectiveEffort);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -227,6 +233,7 @@ public sealed partial class CodexConversationProvider(ExecutableLaunch? executab
 
     internal static void ValidateRequest(ConversationRequest request)
     {
+        ModelSettings.ValidateEffort(request.ReasoningEffort);
         if (!Path.IsPathFullyQualified(request.WorkingDirectory) || !Directory.Exists(request.WorkingDirectory))
             throw new ProviderException("Selecione uma pasta de projeto existente com caminho absoluto.");
         if (string.IsNullOrWhiteSpace(request.Prompt) || request.Prompt.Length > 200_000 || request.Instructions.Length > 8000)

@@ -34,6 +34,7 @@ public sealed partial class ClaudeConversationProvider(ExecutableLaunch? executa
             request.NativeSessionId is null ? "--session-id" : "--resume", id };
         if (!string.IsNullOrWhiteSpace(request.Instructions)) arguments.AddRange(["--append-system-prompt", request.Instructions]);
         if (!string.IsNullOrWhiteSpace(request.Model)) arguments.AddRange(["--model", request.Model]);
+        if (request.ReasoningEffort is { } effort) arguments.AddRange(["--effort", effort]);
         await using var session = new ClaudeStdioSession(Launch, arguments, request, id, progress, token, toolResultObserver);
         try
         {

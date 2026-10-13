@@ -99,7 +99,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
                         else { firstUsage = usage is null; usage = valid; ev = ev with { Text = valid.Describe() }; }
                     }
                     if (ev.Kind == ConversationEventKind.Session)
-                        conversation = conversation with { NativeSessionId = ev.NativeSessionId, Model = ev.Model };
+                        conversation = conversation with { NativeSessionId = ev.NativeSessionId, Model = ev.Model, EffectiveReasoningEffort = ev.ReasoningEffort };
                     if (ev.Kind == ConversationEventKind.TextDelta)
                         text.Append(ev.Text.AsSpan(0, Math.Min(ev.Text.Length, 256_000 - text.Length)));
                     else
@@ -119,11 +119,12 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             });
             try
             {
-                var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt, conversation.Model,
-                    conversation.NativeSessionId, instructions, conversation.Access, permissionHandler, questionHandler), live, deadline.Token).ConfigureAwait(false);
+                var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt,
+                    conversation.UsesInstallationDefault == true ? null : conversation.Model,
+                    conversation.NativeSessionId, instructions, conversation.Access, permissionHandler, questionHandler, conversation.ReasoningEffort), live, deadline.Token).ConfigureAwait(false);
                 lock (dataGate) usage = ValidUsage(result.TokenUsage, conversation.Provider) ?? usage;
                 deadline.Token.ThrowIfCancellationRequested();
-                conversation = conversation with { NativeSessionId = result.NativeSessionId, Model = result.Model };
+                conversation = conversation with { NativeSessionId = result.NativeSessionId, Model = result.Model, EffectiveReasoningEffort = result.ReasoningEffort };
                 run = run with { Response = result.Text, State = result.Outcome == ConversationOutcome.Completed ? ChatRunState.Completed : ChatRunState.Blocked,
                     Error = result.PermissionDenials.Count > 0 ? "Permissões recusadas: " + string.Join(", ", result.PermissionDenials) : null };
             }

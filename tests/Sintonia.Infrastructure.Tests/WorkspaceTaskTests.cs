@@ -6,6 +6,17 @@ namespace Sintonia.Infrastructure.Tests;
 
 public sealed class WorkspaceTaskTests : IDisposable
 {
+    [Fact]
+    public async Task TaskConversationCannotChangeReasoningWithoutASettingsRow()
+    {
+        var (store, project, proposal) = await SetupAsync();
+        var batch = await EnqueueAsync(store, project, proposal);
+        var task = batch.Tasks[0];
+        var conversation = (await store.GetConversationsAsync(project.Id)).Single(c => c.Id == task.ConversationId);
+        await Assert.ThrowsAsync<ArgumentException>(() => store.SaveConversationAsync(conversation with { ReasoningEffort = "high" }));
+        await store.SaveConversationAsync(conversation with { EffectiveReasoningEffort = "high" });
+        Assert.Equal("high", (await store.GetConversationsAsync(project.Id)).Single(c => c.Id == task.ConversationId).EffectiveReasoningEffort);
+    }
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "Sintonia-queue-tests-" + Guid.NewGuid());
     private string Database => Path.Combine(_directory, "queue.db");
     private async Task<(SqliteWorkspaceStore Store, WorkspaceProject Project, WorkspaceProposal Proposal)> SetupAsync(bool independent = false)
