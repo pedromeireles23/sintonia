@@ -1,6 +1,6 @@
 # Controles especiais do Claude
 
-Estado em 13/10/2026: o host recusa explicitamente elicitation MCP e ExitPlanMode. Contratos publicados conferidos; comportamento de recusa, streaming e ciclo de vida verificado com processos de teste. Não houve nova chamada de modelo ou prova de emissão real desses controles pelo CLI neste incremento. [Perguntas AskUserQuestion](CLAUDE_QUESTIONS.md) conservam seu fluxo e sua prova real anteriores.
+Estado em 13/10/2026: o host recusa explicitamente elicitation MCP e ExitPlanMode. Contratos publicados conferidos; comportamento de recusa, streaming e ciclo de vida verificado com processos de teste. Uma [prova local posterior](CLAUDE_ELICITATION.md) confirmou emissão real de elicitation form e decline sem modelo, pelo canal direto MCP e com a mesma resposta do host. ExitPlanMode e URL mode conservam as provas de processos de teste. [Perguntas AskUserQuestion](CLAUDE_QUESTIONS.md) conservam seu fluxo e sua prova real anteriores.
 
 ## Contratos e comportamento
 
@@ -32,4 +32,4 @@ rtk proxy dotnet test tests/Sintonia.Infrastructure.Tests -c Release --no-build 
 rtk proxy dotnet run --project tests/Sintonia.Desktop.SmokeTests -c Release --no-build -- --questions artifacts/control-question-smoke-release
 ```
 
-Nenhum SDK/runtime novo, schema, formulário de elicitation ou configuração global foi acrescentado. M1 conserva as lacunas de emissão real das recusas, outros MCPs/autenticações e acompanhamento de background. Próximo incremento: definir uma prova local de elicitation com servidor MCP de teste, investigando primeiro um caminho sem inferência antes de qualquer turno real.
+Nenhum SDK/runtime novo, schema, formulário de elicitation ou configuração global foi acrescentado. O [diagnóstico posterior de elicitation](CLAUDE_ELICITATION.md) acrescenta servidor local de teste e um mcp_call sem inferência, restrito à prova. M1 conserva as lacunas de URL mode/ExitPlanMode reais, outros MCPs/autenticações e acompanhamento de background. Próximo incremento: preparar prova real finita de recusa ExitPlanMode em leitura, até um turno e sem retry.

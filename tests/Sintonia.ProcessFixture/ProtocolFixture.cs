@@ -118,6 +118,7 @@ internal static class ProtocolFixture
             return 0;
         }
         if (args[0].StartsWith("claude-extensions", StringComparison.Ordinal)) return await RunClaudeExtensionsAsync(args);
+        if (args[0].StartsWith("claude-no-turn", StringComparison.Ordinal)) return await RunClaudeNoTurnAsync(args);
         var index = Array.FindIndex(args, a => a is "--session-id" or "--resume");
         var session = args[index + 1];
         if (!args.Contains("--input-format") || !args.Contains("--permission-prompt-tool") || !args.Contains("stdio")
@@ -212,6 +213,60 @@ internal static class ProtocolFixture
             modelUsage = new { restored_history_and_subagents = new { inputTokens = 999999, outputTokens = 999999 } }, total_cost_usd = 99999,
             permission_denials = args[0] == "claude-denied" ? new[] { new { tool_name = "Write" } } : [] });
         if ((await Console.In.ReadToEndAsync()).Length != 0) return 16; // No late answer after withdrawal/terminal result.
+        return 0;
+    }
+
+    private static async Task<int> RunClaudeNoTurnAsync(string[] args)
+    {
+        var mode = args[0]; var calls = 0;
+        while (await Console.In.ReadLineAsync() is { } line)
+        {
+            using var doc = JsonDocument.Parse(line); var frame = doc.RootElement;
+            if (frame.GetProperty("type").GetString() != "control_request") return 60; // Never accept a model prompt.
+            var id = frame.GetProperty("request_id").GetString(); var request = frame.GetProperty("request");
+            switch (request.GetProperty("subtype").GetString())
+            {
+                case "initialize":
+                    if (mode == "claude-no-turn-exit") return 7;
+                    Emit(new { type = "control_response", response = new { subtype = "success", request_id = id, response = new { } } }); break;
+                case "mcp_status":
+                    Emit(new { type = "control_response", response = new { subtype = "success", request_id = id, response = new
+                    { mcpServers = new[] { new { name = mode == "claude-no-turn-server" ? "other" : LocalElicitationServer.Name, status = "connected" } } } } }); break;
+                case "mcp_call":
+                    if (++calls != 1 || request.GetProperty("tool").GetString() != "mcp__" + LocalElicitationServer.Name + "__" + LocalElicitationServer.Tool
+                        || request.GetProperty("arguments").EnumerateObject().Count() != 1) return 61;
+                    if (mode == "claude-no-turn-timeout") { await Task.Delay(TimeSpan.FromMinutes(5)); return 62; }
+                    if (mode == "claude-no-turn-rejected")
+                    { Emit(new { type = "control_response", response = new { subtype = "error", request_id = id, error = "NATIVE_PRIVATE control unsupported" } }); break; }
+                    if (mode == "claude-no-turn-model")
+                    { Emit(new { type = "assistant", message = "NATIVE_PRIVATE" }); await Console.In.ReadToEndAsync(); return 0; }
+                    var control = new { type = "control_request", request_id = "local-elicitation", request = new
+                    {
+                        subtype = mode == "claude-no-turn-permission" ? "can_use_tool" : "elicitation",
+                        mcp_server_name = LocalElicitationServer.Name, message = LocalElicitationServer.Message, mode = "form",
+                        requested_schema = mode == "claude-no-turn-schema" ? JsonSerializer.SerializeToElement(new { wrong = true }) : LocalElicitationServer.Schema
+                    } };
+                    Emit(control);
+                    if (mode == "claude-no-turn-duplicate") Emit(control);
+                    using (var answer = JsonDocument.Parse((await Console.In.ReadLineAsync())!))
+                    {
+                        var response = answer.RootElement.GetProperty("response");
+                        if (response.GetProperty("request_id").GetString() != "local-elicitation") return 63;
+                        if (mode is "claude-no-turn-permission" or "claude-no-turn-schema")
+                        { if (response.GetProperty("subtype").GetString() != "error") return 64; }
+                        else if (response.GetProperty("response").EnumerateObject().Count() != 1
+                            || response.GetProperty("response").GetProperty("action").GetString() != "decline") return 65;
+                    }
+                    await File.WriteAllTextAsync(Path.Combine(args[1], LocalElicitationServer.AuditFile), JsonSerializer.Serialize(new LocalElicitationServer.Audit(
+                        "Completed", true, "2025-11-25", true, 1, 1, "decline", mode == "claude-no-turn-content", 0)));
+                    if (mode == "claude-no-turn-file") await File.WriteAllTextAsync(Path.Combine(args[1], "UNEXPECTED.txt"), "SIMULAÇÃO");
+                    Emit(new { type = "control_response", response = new { subtype = "success", request_id = mode == "claude-no-turn-id" ? "other" : id,
+                        response = new { content = new[] { new { type = "text", text = mode == "claude-no-turn-result" ? "WRONG" : LocalElicitationServer.Marker } },
+                            isError = mode == "claude-no-turn-error" } } });
+                    break;
+                default: return 66;
+            }
+        }
         return 0;
     }
 

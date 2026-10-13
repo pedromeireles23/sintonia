@@ -10,6 +10,17 @@ using var cancellation = new CancellationTokenSource(args.Length == 0 ? TimeSpan
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 try
 {
+    if (args is ["mcp-elicitation-server", var localRoot, var localNonce])
+        return await LocalElicitationServer.RunAsync(localRoot, localNonce, cancellation.Token);
+    if (args is ["elicitation", "Claude"])
+    {
+        await ClaudeElicitationProbe.RunAsync(cancellation.Token); return 0;
+    }
+    if (args is ["verify-elicitation", var elicitationDirectory])
+    {
+        ClaudeElicitationProbe.Verify(Path.GetFullPath(elicitationDirectory));
+        Console.WriteLine("PASS: evidência de elicitation local conferida sem CLI, rede ou modelos."); return 0;
+    }
     if (args is ["question-ready", "Claude"])
     {
         await ClaudeQuestionProbe.CheckReadyAsync(cancellation.Token); return 0;
@@ -189,7 +200,7 @@ try
         Console.WriteLine("Leitura real e retomada verificadas. Evidência local em artifacts/provider-probes.");
         return 0;
     }
-    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude [BashEdit/Mcp] | verify-permissions pasta | verify-mcp pasta | question Claude | question-ready Claude | verify-question pasta | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
+    if (args.Length != 0) { Console.Error.WriteLine("Uso: sem argumentos | extensions Codex/Claude | usage Codex/Claude | handshake | sandbox readOnly | real Codex/Claude | interrupt Codex/Claude | permissions Claude [BashEdit/Mcp] | verify-permissions pasta | verify-mcp pasta | question Claude | question-ready Claude | verify-question pasta | elicitation Claude | verify-elicitation pasta | plan Codex/Claude | queue | collaboration | collaboration-resume pasta | verify-collaboration data/complete marcador"); return 1; }
     Console.WriteLine("Sintonia · diagnóstico limitado de instalações\nNenhuma inferência será iniciada. Não confirma login, quota ou integração real.\n");
     var probe = new ProviderInstallationProbe();
     var reports = await Task.WhenAll(Enum.GetValues<ProviderKind>().Select(provider =>

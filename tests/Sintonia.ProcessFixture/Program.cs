@@ -4,6 +4,8 @@ using System.Text.Json;
 
 Console.OutputEncoding = new UTF8Encoding(false);
 Console.InputEncoding = new UTF8Encoding(false);
+if (args is ["mcp-elicitation-server", var localRoot, var localNonce])
+    return await LocalElicitationServer.RunAsync(localRoot, localNonce, CancellationToken.None);
 if (args.FirstOrDefault()?.StartsWith("rpc-", StringComparison.Ordinal) == true)
     return await ProtocolFixture.RunCodexAsync(args[0]);
 if (args.FirstOrDefault()?.StartsWith("claude-", StringComparison.Ordinal) == true)

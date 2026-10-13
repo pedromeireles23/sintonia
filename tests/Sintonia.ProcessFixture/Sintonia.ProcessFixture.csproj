@@ -3,4 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../tools/Sintonia.Diagnostics/LocalElicitationServer.cs" Link="LocalElicitationServer.cs" />
+  </ItemGroup>
 </Project>

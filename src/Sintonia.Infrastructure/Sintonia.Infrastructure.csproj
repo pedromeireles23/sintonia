@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Sintonia.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="Sintonia.Diagnostics" />
     <ProjectReference Include="../Sintonia.Core/Sintonia.Core.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>

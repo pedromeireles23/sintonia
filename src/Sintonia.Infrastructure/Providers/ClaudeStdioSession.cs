@@ -131,16 +131,9 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
                 _parser.RecordDenial(elicitation ? "elicitation MCP" : "controle não suportado");
                 if (elicitation) _progress.Report(new(ConversationEventKind.Diagnostic,
                     "Solicitação de dados MCP recusada: elicitation ainda não tem formulário no Sintonia."));
-                // Match the native default for an unhandled elicitation; never return user data or open its URL.
-                object response = elicitation
-                    ? new { subtype = "success", request_id = id, response = new { action = "decline" } }
-                    : new { subtype = "error", request_id = id, error = "Solicitação não suportada pelo Sintonia." };
                 stop.Token.ThrowIfCancellationRequested();
                 _permissions.TryRemove(id, out _);
-                await _process.WriteLineAsync(JsonSerializer.Serialize(new
-                {
-                    type = "control_response", response
-                }), stop.Token).ConfigureAwait(false);
+                await _process.WriteLineAsync(CreateUnsupportedControlResponse(id, subtype), stop.Token).ConfigureAwait(false);
                 return;
             }
             var tool = request.TryGetProperty("tool_name", out var name) && name.ValueKind == JsonValueKind.String
@@ -208,6 +201,16 @@ internal sealed class ClaudeStdioSession : IAsyncDisposable
             _permissions.TryRemove(id, out _);
             stop.Dispose();
         }
+    }
+
+    // Shared with the opt-in, model-free local MCP probe; no arbitrary tool dispatch is exposed by the adapter.
+    internal static string CreateUnsupportedControlResponse(string id, string? subtype)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id.Length > 256) throw new ProviderException("Identificador de controle Claude inválido.");
+        object response = subtype == "elicitation"
+            ? new { subtype = "success", request_id = id, response = new { action = "decline" } }
+            : new { subtype = "error", request_id = id, error = "Solicitação não suportada pelo Sintonia." };
+        return JsonSerializer.Serialize(new { type = "control_response", response });
     }
 
     public async ValueTask DisposeAsync()
