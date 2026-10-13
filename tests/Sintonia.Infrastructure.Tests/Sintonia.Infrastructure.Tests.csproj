@@ -20,6 +20,7 @@
     <Compile Include="../../tools/Sintonia.Diagnostics/ClaudeMcpPermissionProbe.cs" Link="Diagnostics/ClaudeMcpPermissionProbe.cs" />
     <Compile Include="../../tools/Sintonia.Diagnostics/ClaudeQuestionProbe.cs" Link="Diagnostics/ClaudeQuestionProbe.cs" />
     <Compile Include="../../tools/Sintonia.Diagnostics/ClaudeElicitationProbe.cs" Link="Diagnostics/ClaudeElicitationProbe.cs" />
+    <Compile Include="../../tools/Sintonia.Diagnostics/ClaudePlanExitProbe.cs" Link="Diagnostics/ClaudePlanExitProbe.cs" />
     <Compile Include="../../tools/Sintonia.Diagnostics/LocalElicitationServer.cs" Link="Diagnostics/LocalElicitationServer.cs" />
   </ItemGroup>
 

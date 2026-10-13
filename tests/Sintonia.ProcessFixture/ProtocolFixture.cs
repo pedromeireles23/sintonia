@@ -141,19 +141,21 @@ internal static class ProtocolFixture
         if (args[0].StartsWith("claude-host", StringComparison.Ordinal))
         {
             var tool = args[0] switch { "claude-host-edit" => "Edit", "claude-host-command" => "Bash",
-                "claude-host-mcp" or "claude-host-mcp-result" => "mcp__example__action", "claude-host-question" => "AskUserQuestion", _ => "Write" };
+                "claude-host-mcp" or "claude-host-mcp-result" => "mcp__example__action", "claude-host-question" => "AskUserQuestion",
+                "claude-host-plan-exit" => "ExitPlanMode", _ => "Write" };
             object input = args[0] switch
             {
                 "claude-host-edit" => new { file_path = "ação.txt", old_string = "antes", new_string = "depois", replace_all = false },
                 "claude-host-command" => new { command = "echo literal $(não executar)", description = "comando de teste" },
                 "claude-host-mcp" or "claude-host-mcp-result" => new { project = "projeto de teste", action = "ação externa de teste" },
                 "claude-host-no-preview" => new { },
+                "claude-host-plan-exit" => new { },
                 "claude-host-large" => new { file_path = "ação.txt", content = new string('á', 65_000) },
                 _ => new { file_path = "ação.txt", content = "ação\n$(literal) &|" }
             };
             var request = new { type = "control_request", request_id = "permission-1",
                 request = new { subtype = args[0] == "claude-host-unknown" ? "future_control" : "can_use_tool", tool_name = tool, input } };
-            if (args[0] == "claude-host-mcp-result")
+            if (args[0] is "claude-host-mcp-result" or "claude-host-plan-exit")
                 Emit(new { type = "assistant", session_id = session, message = new { content = new[] { new { type = "tool_use", id = "fixture-call", name = tool, input } } } });
             Emit(request);
             Emit(new { type = "stream_event", session_id = session, @event = new { delta = new { type = "text_delta", text = "Evento durante autorização" } } });
@@ -186,12 +188,13 @@ internal static class ProtocolFixture
                     if (decision.TryGetProperty("updatedPermissions", out _)) return 14;
                     if (decision.GetProperty("behavior").GetString() == "allow"
                         && !JsonElement.DeepEquals(JsonSerializer.SerializeToElement(input), decision.GetProperty("updatedInput"))) return 15;
-                    if (args[0] == "claude-host-mcp-result")
+                    if (args[0] is "claude-host-mcp-result" or "claude-host-plan-exit")
                     {
                         var approved = decision.GetProperty("behavior").GetString() == "allow";
                         Emit(new { type = "user", session_id = session, message = new { content = new[] { new
                         { type = "tool_result", tool_use_id = "fixture-call", is_error = !approved,
-                            content = new[] { new { type = "text", text = approved ? "SIMULAÇÃO: resultado público" : "SIMULAÇÃO: acesso recusado" } } } } } });
+                            content = new[] { new { type = "text", text = args[0] == "claude-host-plan-exit"
+                                ? decision.GetProperty("message").GetString()! : approved ? "SIMULAÇÃO: resultado público" : "SIMULAÇÃO: acesso recusado" } } } } } });
                     }
                     if (args[0] == "claude-host-two")
                     {
