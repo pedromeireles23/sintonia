@@ -24,7 +24,7 @@ internal static class ChiefPlanSmoke
         {
             try
             {
-                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await Until(() => vm.CanConfigure); var project = vm.Project!;
+                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm); var project = vm.Project!;
                 vm.TaskAttemptLimit = 2; vm.ExecutionTimeout = "90"; await vm.SaveSessionLimitAsync();
                 Require((await store.GetProjectExecutionSettingsAsync(project.Id)).MaxAttempts == 2 && (await store.GetProjectExecutionSettingsAsync(project.Id)).MaxExecutionSeconds == 90, "Limites adicionais não salvos.");
                 vm.ExecutionTimeout = "prazo inválido";

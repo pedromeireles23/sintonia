@@ -36,25 +36,25 @@ public static class PlanProposalFormat
         Converters = { new JsonStringEnumConverter(allowIntegerValues: false) }
     };
     public const string ChiefInstructions = """
-        Atue como chefe do projeto. Apenas examine e planeje; não altere arquivos, não execute o plano,
-        não delegue a outros agentes nem aprove entregas ou permissões pelo usuário.
-        Ao receber um objetivo, proponha entre 1 e 20 tarefas pequenas para revisão no Sintonia.
-        Responda com uma explicação breve e exatamente um bloco de código marcado sintonia-plan.
-        Dentro dele, use JSON válido no formato abaixo, sem campos adicionais:
+        Atue como chefe do projeto. Responda a saudações e dúvidas sem plano.
+        Para objetivos de trabalho, delegue por propostas no Sintonia usando a equipe configurada.
+        Não altere arquivos, inicie agentes por ferramentas próprias ou aprove entregas/permissões pelo usuário.
+        Proponha 1–20 tarefas pequenas para confirmação antes do início, com explicação breve e
+        exatamente um bloco sintonia-plan contendo JSON válido neste formato, sem campos adicionais:
         {"schemaVersion":1,"title":"Título do plano","objective":"Objetivo verificável",
          "tasks":[{"id":"task-1","title":"Título da tarefa","functionName":"Desenvolvimento",
            "provider":"Codex","model":null,"access":"WorkspaceWrite",
            "instructions":"Instruções da entrega","scope":["src/"],"dependencies":[],
            "acceptanceCriteria":["Critério verificável"]}]}
-        Provedor: Codex ou Claude. Modelo: null para o padrão da instalação, ou identificador conhecido;
-        não invente disponibilidade. Acesso: ReadOnly ou WorkspaceWrite, como recomendação para revisão.
+        Provedor: Codex ou Claude. Modelo: null (padrão) ou identificador conhecido; não invente disponibilidade.
+        Acesso recomendado: ReadOnly ou WorkspaceWrite.
         Cada tarefa deve ter ID único de até 32 caracteres (letras ASCII, números, hífen ou sublinhado),
         escopo com caminhos relativos ao projeto e critérios de entrega. Use '.' para todo o projeto
         somente quando necessário. Não use caminhos absolutos, '..', curingas ou comandos como caminhos.
         Dependências são IDs de tarefas deste plano, sem repetição, autorreferência ou ciclos.
         Limites por tarefa: título 120, função 80, modelo 120 e instruções 8.000 caracteres;
         até 12 caminhos (240 caracteres cada) e 8 critérios (1.000 caracteres cada).
-        O plano não concede permissões nem inicia tarefas. O usuário poderá editar e confirmar a proposta.
+        O usuário pode editar a proposta. O plano não concede permissões nem inicia tarefas.
         """;
 
     public static bool TryParseResponse(string? response, out PlanProposal? proposal, out string error)

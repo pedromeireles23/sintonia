@@ -30,7 +30,7 @@ internal static class TaskQueueSmoke
         {
             try
             {
-                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await Until(() => vm.CanConfigure);
+                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm);
                 var project = vm.Project!; var proposal = await SeedAsync(store, project);
                 var queue = await vm.LoadTaskQueueAsync(); window = new(queue) { Owner = main }; window.Show();
                 Require(queue.ApprovedProposals.Count == 1 && queue.Tasks.Count == 0, "Proposta aprovada não apareceu.");

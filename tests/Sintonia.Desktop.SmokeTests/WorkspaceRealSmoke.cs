@@ -30,7 +30,7 @@ internal static class WorkspaceRealSmoke
             {
                 await Until(() => vm.Ready, 10);
                 await vm.AddProjectAsync(folder);
-                await Until(() => vm.CanConfigure, 10);
+                await WorkspaceSmoke.NewChatAsync(vm);
                 foreach (var provider in Enum.GetValues<ProviderKind>())
                 {
                     vm.NewConversationCommand.Execute(null); vm.Provider = provider;

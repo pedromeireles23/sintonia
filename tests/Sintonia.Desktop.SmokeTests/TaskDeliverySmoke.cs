@@ -34,7 +34,7 @@ internal static class TaskDeliverySmoke
                 await Until(() => vm.Ready); await GitAsync(source, 0, "init", "--template=", "--initial-branch=main");
                 await File.WriteAllTextAsync(Path.Combine(directory, "portal.txt"), "Nome do solicitante\n");
                 await GitAsync(source, 0, "add", "."); await GitAsync(source, 0, "commit", "-m", "base");
-                await vm.AddProjectAsync(directory); await Until(() => vm.CanConfigure); var project = vm.Project!;
+                await vm.AddProjectAsync(directory); await WorkspaceSmoke.NewChatAsync(vm); var project = vm.Project!;
                 await SeedAsync(store, project, independentWrites: true); queue = await vm.LoadTaskQueueAsync(); queue.ConfirmWorktree = _ => true;
                 queueWindow = new(queue) { Owner = main }; queueWindow.Show(); await queue.EnqueueAsync(); await Until(() => queue.CanPrepareWorktree);
                 await queue.PrepareWorktreeAsync(); await Until(() => queue.CanReviewDiffs);
@@ -78,7 +78,7 @@ internal static class TaskDeliverySmoke
                 Button(queueWindow, "OpenTaskDiffs").RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 window = app.Windows.OfType<TaskDiffWindow>().Single(); diff = window.ViewModel; await Until(() => !diff.Busy && diff.Review is not null);
                 Require(diff.Delivery == delivery && !diff.CanRegister, "Reabertura perdeu o registro.");
-                var other = Path.Combine(root, "Outro projeto"); Directory.CreateDirectory(other); await vm.AddProjectAsync(other); await Until(() => vm.CanConfigure);
+                var other = Path.Combine(root, "Outro projeto"); Directory.CreateDirectory(other); await vm.AddProjectAsync(other); await WorkspaceSmoke.NewChatAsync(vm);
                 await diff.RefreshAsync(); Require(diff.Project.Id == project.Id && diff.Delivery == delivery, "Navegação trocou a entrega registrada.");
 
                 // A second independent fixture task tests central shutdown during registration.

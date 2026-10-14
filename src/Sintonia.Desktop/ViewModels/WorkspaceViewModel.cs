@@ -62,10 +62,12 @@ public sealed class WorkspaceViewModel : ObservableObject
     private readonly TaskPublicationService? _publications;
     private readonly TaskWorktreeCleanupService? _cleanups;
     private readonly HashSet<Task> _gitJobs = [];
+    private readonly HashSet<Task> _delegationJobs = [];
     private readonly Dispatcher _dispatcher;
     private readonly Func<string?> _pickDirectory;
     private readonly Func<ProviderKind, string, CancellationToken, Task<ProviderCapabilities>> _inspect;
     private readonly Dictionary<string, ConversationViewModel> _sessions = [];
+    private readonly Dictionary<string, string> _chiefIds = [];
     private readonly Dictionary<string, (CancellationTokenSource Stop, Task Task, WorkspaceExecutionSlot Slot)> _jobs = [];
     private readonly Dictionary<string, ProjectExecutionSettings> _executionSettings = [];
     private int _sessionLimit = ProjectExecutionSettings.Minimum;
@@ -125,6 +127,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         RefreshModelsCommand = new(RefreshModelsAsync, ShowError, () => Ready && !_stopping && !_loadingProject
             && CatalogKey is { } key && !_catalogQueries.ContainsKey(key));
         NewConversationCommand = new(NewConversation, () => Ready && Project is not null && !_stopping);
+        OpenChiefCommand = new(OpenChiefAsync, ShowError, () => Ready && Project is not null && !_loadingProject && !_stopping);
         SendCommand = new(() => StartSend(), () => CanSend);
         CancelCommand = new(() => { if (SelectedConversation is { } current && _jobs.TryGetValue(current.Record.Id, out var job)) job.Stop.Cancel(); }, () => SelectedConversation?.Running == true);
         AllowPermissionCommand = new(() => _permissionAnswer?.TrySetResult(true), () => Permission is not null);
@@ -188,7 +191,10 @@ public sealed class WorkspaceViewModel : ObservableObject
     }
     public ObservableCollection<ChatMessageViewModel>? Messages => SelectedConversation?.Messages;
     public ObservableCollection<string>? Events => SelectedConversation?.Events;
-    public string ConversationTitle => SelectedConversation?.Title ?? "Nova conversa";
+    public string ConversationTitle => IsProjectChief ? $"Chefe do projeto · {Provider} · chat principal" : SelectedConversation?.Title ?? "Nova conversa";
+    public bool IsProjectChief => Project is { } project && SelectedConversation is { } session
+        && _chiefIds.TryGetValue(project.Id, out var id) && id == session.Record.Id;
+    public bool CanEditConversationRole => CanEditFunction && !IsProjectChief;
     public ProviderKind Provider
     {
         get => _provider;
@@ -310,7 +316,7 @@ public sealed class WorkspaceViewModel : ObservableObject
         ? settings.MaxConcurrentSessions : ProjectExecutionSettings.Minimum;
     public bool CanConfigure => SelectedConversation is null && !_stopping && !_loadingProject && !_removingProject;
     public bool CanReviewProposals => Ready && Project is not null && !_stopping;
-    public bool CanManageFunctionProfiles => Ready && !_stopping;
+    public bool CanManageFunctionProfiles => Ready && Project is not null && !_loadingProject && !_stopping;
     public bool CanApplyFunctionProfile => CanManageFunctionProfiles && Project is not null && !_loadingProject && SelectedFunctionProfile is not null;
     public bool CanEditFunction => SelectedConversation?.Running != true && SelectedConversation?.Record.IsTask != true && !_stopping && !_loadingProject;
     public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && !_removingProject && SelectedConversation?.Running != true
@@ -328,6 +334,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public AsyncCommand AddProjectCommand { get; }
     public AsyncCommand RefreshModelsCommand { get; }
     public DelegateCommand NewConversationCommand { get; }
+    public AsyncCommand OpenChiefCommand { get; }
     public DelegateCommand SendCommand { get; }
     public DelegateCommand CancelCommand { get; }
     public DelegateCommand AllowPermissionCommand { get; }
@@ -344,12 +351,11 @@ public sealed class WorkspaceViewModel : ObservableObject
             await _store.InitializeAsync();
             await _store.RecoverInterruptedRunsAsync();
             await _store.EnsureStarterFunctionProfilesAsync(WorkspaceFunctionCatalog.StarterProfiles());
-            await RefreshFunctionProfilesAsync();
             foreach (var project in await _store.GetProjectsAsync()) Projects.Add(project);
             Ready = true;
             Limits.Start();
             Project = Projects.FirstOrDefault();
-            if (Project is not null) Notice = "Escolha uma conversa ou inicie outra. O envio usa a assinatura conectada ao CLI.";
+            if (Project is not null) Notice = "Converse com o chefe do projeto. Ele prepara o plano para sua confirmação antes de delegar.";
         }
         catch (Exception exception) { ShowError(exception); }
     }
@@ -359,12 +365,12 @@ public sealed class WorkspaceViewModel : ObservableObject
         var project = await _store.AddProjectAsync(directory);
         if (Projects.All(p => p.Id != project.Id)) Projects.Add(project);
         Project = Projects.Single(p => p.Id == project.Id);
-        Notice = "Projeto adicionado. Escolha a IA, o modelo e envie seu primeiro pedido.";
+        Notice = "Projeto adicionado. O chat principal é o chefe; configure sua equipe em Equipe e funções.";
     }
     private async Task AddPickedProjectAsync() { if (_pickDirectory() is { } directory) await AddProjectAsync(directory); }
 
     public bool CanRemoveProject => Ready && Project is not null && !_loadingProject && !_removingProject && !_stopping
-        && !_jobs.Values.Any(j => j.Slot.ProjectId == Project.Id) && _gitJobs.Count == 0;
+        && !_jobs.Values.Any(j => j.Slot.ProjectId == Project.Id) && _gitJobs.Count == 0 && _delegationJobs.Count == 0;
     public async Task RemoveProjectAsync(WorkspaceProject project)
     {
         if (!CanRemoveProject || Project?.Id != project.Id)
@@ -375,6 +381,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             await _store.RemoveProjectAsync(project.Id);
             foreach (var id in _sessions.Where(s => s.Value.Record.ProjectId == project.Id).Select(s => s.Key).ToArray()) _sessions.Remove(id);
             _executionSettings.Remove(project.Id); _tokenBudgets.Remove(project.Id);
+            _chiefIds.Remove(project.Id);
             Projects.Remove(project);
             if (Project?.Id == project.Id || Project is null) Project = Projects.FirstOrDefault();
             Notice = "Projeto removido do Sintonia. Os arquivos foram preservados; adicionar a mesma pasta recupera seu histórico.";
@@ -388,9 +395,15 @@ public sealed class WorkspaceViewModel : ObservableObject
         _loadingProject = true;
         SelectedConversation = null;
         Conversations.Clear();
-        if (project is null) { _loadingProject = false; RefreshCommands(); return; }
+        FunctionProfiles.Clear(); SelectedFunctionProfile = null;
+        if (project is null) { _loadingProject = false; ResetNewConversationRole(); RefreshCommands(); return; }
         try
         {
+            var chief = await _store.GetProjectChiefAsync(project.Id);
+            if (revision != _projectRevision || _stopping) return;
+            _chiefIds[project.Id] = chief.Id;
+            await RefreshFunctionProfilesAsync();
+            if (revision != _projectRevision || _stopping) return;
             var settings = await _store.GetProjectExecutionSettingsAsync(project.Id);
             if (revision != _projectRevision || _stopping) return;
             _executionSettings[project.Id] = settings; SessionLimit = settings.MaxConcurrentSessions; TaskAttemptLimit = settings.MaxAttempts; ExecutionTimeout = settings.MaxExecutionSeconds.ToString();
@@ -410,7 +423,7 @@ public sealed class WorkspaceViewModel : ObservableObject
                     session.State = StateText(runs.LastOrDefault()?.State);
                 }
             }
-            SelectedConversation ??= Conversations.FirstOrDefault();
+            SelectedConversation ??= Conversations.FirstOrDefault(c => c.Record.Id == chief.Id);
             ResetModels(_reasoning.Id);
         }
         catch (Exception exception) { ShowError(exception); }
@@ -507,7 +520,38 @@ public sealed class WorkspaceViewModel : ObservableObject
     private void NewConversation()
     {
         SelectedConversation = null; Prompt = ""; Model = DefaultModel; ResetModels(null);
+        ResetNewConversationRole();
         Notice = "Escolha a IA, o modelo e o reasoning. Uma sessão nova será criada ao enviar.";
+    }
+    private void ResetNewConversationRole()
+    {
+        _function = Functions[0]; _instructions = ""; _access = AccessOptions[0];
+        Notify(nameof(Function)); Notify(nameof(Instructions)); Notify(nameof(Access));
+    }
+    public async Task OpenChiefAsync()
+    {
+        var project = Project ?? throw new InvalidOperationException("Selecione um projeto.");
+        var revision = _projectRevision;
+        var chief = await _store.GetProjectChiefAsync(project.Id);
+        if (revision != _projectRevision || _stopping) return;
+        _chiefIds[project.Id] = chief.Id;
+        if (!_sessions.TryGetValue(chief.Id, out var session)) _sessions[chief.Id] = session = new(chief);
+        if (!session.Running) session.Record = chief;
+        if (Conversations.All(c => c.Record.Id != chief.Id)) Conversations.Insert(0, session);
+        var draft = Prompt;
+        SelectedConversation = null; SelectedConversation = session; Prompt = draft;
+        Notice = "Chat principal do chefe. Descreva o objetivo; revise e confirme o plano antes de iniciar o trabalho da equipe.";
+    }
+    public async Task UseProfileAsChiefAsync(WorkspaceFunctionProfile profile)
+    {
+        var project = Project ?? throw new InvalidOperationException("Selecione um projeto.");
+        if (profile.ProjectId != project.Id) throw new InvalidOperationException("O perfil pertence a outro projeto.");
+        if (_chiefIds.TryGetValue(project.Id, out var id) && _sessions.TryGetValue(id, out var chief) && chief.Running)
+            throw new InvalidOperationException("Aguarde a resposta do chefe antes de mudar sua configuração.");
+        var saved = await _store.SetProjectChiefAsync(project.Id, profile.Id, profile.Revision);
+        _chiefIds[project.Id] = saved.Id;
+        if (_stopping || Project?.Id != project.Id) return;
+        await OpenChiefAsync();
     }
     private void ResetModels(string? reasoning)
     {
@@ -610,8 +654,10 @@ public sealed class WorkspaceViewModel : ObservableObject
     }
     public async Task RefreshFunctionProfilesAsync()
     {
-        var revision = ++_profileRevision; var profiles = await _store.GetFunctionProfilesAsync();
-        if (revision != _profileRevision || _stopping) return;
+        var project = Project;
+        var revision = ++_profileRevision;
+        var profiles = project is null ? [] : await _store.GetFunctionProfilesAsync(project.Id);
+        if (revision != _profileRevision || _stopping || Project?.Id != project?.Id) return;
         var id = SelectedFunctionProfile?.Id;
         FunctionProfiles.Clear(); foreach (var profile in profiles) FunctionProfiles.Add(profile);
         SelectedFunctionProfile = profiles.FirstOrDefault(p => p.Id == id) ?? profiles.FirstOrDefault();
@@ -620,7 +666,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     {
         if (!CanApplyFunctionProfile || SelectedFunctionProfile is not { } selected) return;
         var projectId = Project!.Id;
-        var current = (await _store.GetFunctionProfilesAsync()).SingleOrDefault(p => p.Id == selected.Id);
+        var current = (await _store.GetFunctionProfilesAsync(projectId)).SingleOrDefault(p => p.Id == selected.Id);
         if (_stopping || Project?.Id != projectId || SelectedFunctionProfile?.Id != selected.Id) return;
         if (current is null || current.Revision != selected.Revision)
         {
@@ -633,7 +679,10 @@ public sealed class WorkspaceViewModel : ObservableObject
     }
     public async Task<FunctionProfileLibraryViewModel> LoadFunctionProfileLibraryAsync(Func<WorkspaceFunctionProfile, bool> confirmDelete)
     {
-        var library = new FunctionProfileLibraryViewModel(_store, RefreshFunctionProfilesAsync, confirmDelete);
+        var project = Project ?? throw new InvalidOperationException("Selecione um projeto para configurar a equipe.");
+        var library = new FunctionProfileLibraryViewModel(_store, RefreshFunctionProfilesAsync, confirmDelete, project,
+            profile => Project?.Id == project.Id ? UseProfileAsChiefAsync(profile)
+                : Task.FromException(new InvalidOperationException("Selecione o projeto desta equipe na central antes de trocar o chefe.")));
         await library.InitializeAsync(); return library;
     }
     private async Task RefreshModelsAsync()
@@ -710,7 +759,7 @@ public sealed class WorkspaceViewModel : ObservableObject
             var saved = (await _store.GetConversationsAsync(project.Id)).Single(c => c.Id == session.Record.Id);
             session.Record = saved;
             Notice = run.State == ChatRunState.Completed ? "Resposta salva. Você pode continuar esta conversa ou abrir outra." : run.Error ?? StateText(run.State);
-            if (isChief && run.State == ChatRunState.Completed)
+            if (isChief && run.State == ChatRunState.Completed && run.Response?.Contains("```sintonia-plan", StringComparison.Ordinal) == true)
             {
                 try
                 {
@@ -750,15 +799,45 @@ public sealed class WorkspaceViewModel : ObservableObject
             foreach (var run in await _store.GetRunsAsync(conversation.Id))
                 if (run.State == ChatRunState.Completed && PlanProposalFormat.TryParseResponse(run.Response, out _, out _))
                     await _store.CreateProposalAsync(project.Id, run.Id);
-        var review = new ProposalReviewViewModel(_store, project);
+        var review = new ProposalReviewViewModel(_store, project, batch => StartDelegatedBatchAsync(project, batch));
         await review.InitializeAsync();
         return review;
     }
 
-    public async Task<TaskQueueViewModel> LoadTaskQueueAsync()
+    public async Task<TaskQueueViewModel> LoadTaskQueueAsync(WorkspaceProject? project = null)
     {
-        var queue = new TaskQueueViewModel(_store, this, Project ?? throw new InvalidOperationException("Selecione um projeto."));
+        var queue = new TaskQueueViewModel(_store, this, project ?? Project ?? throw new InvalidOperationException("Selecione um projeto."));
         await queue.InitializeAsync(); return queue;
+    }
+
+    private async Task StartDelegatedBatchAsync(WorkspaceProject project, WorkspaceTaskBatch batch)
+    {
+        if (_stopping || batch.ProjectId != project.Id) throw new InvalidOperationException("O projeto mudou ou a central está encerrando.");
+        await RefreshExecutionSettingsAsync(project);
+        await RefreshProjectSessionsAsync(project);
+        batch = (await _store.GetTaskBatchesAsync(project.Id)).Single(b => b.Id == batch.Id);
+        var selected = SelectAvailableTasks(project, batch);
+        // One finite dispatch. No retries or new waves are launched without another user action.
+        var dispatch = DispatchDelegatedTasksAsync(project, selected);
+        _delegationJobs.Add(dispatch);
+        RefreshCommands();
+        _ = ObserveDelegationAsync(dispatch);
+        Notice = selected.Count == 0 ? "Plano delegado. As tarefas aguardam dependências ou vagas; acompanhe a fila."
+            : $"Plano delegado: iniciando {selected.Count} tarefa(s). Acompanhe permissões e entregas na fila.";
+    }
+    private async Task DispatchDelegatedTasksAsync(WorkspaceProject project, IReadOnlyList<WorkspaceTask> tasks)
+    {
+        await Task.Yield();
+        await Task.WhenAll(tasks.Select(async task =>
+        {
+            try { await StartTaskAsync(project, task, _lifetime.Token); }
+            catch (Exception exception) { if (!_stopping) Notice = "Tarefa aguardando na fila: " + exception.Message; }
+        }));
+    }
+    private async Task ObserveDelegationAsync(Task dispatch)
+    {
+        try { await dispatch; }
+        finally { _delegationJobs.Remove(dispatch); RefreshCommands(); }
     }
 
     public async Task<ConversationViewModel> GetTaskConversationAsync(WorkspaceProject project, WorkspaceTask task)
@@ -923,7 +1002,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     public async Task StopAsync()
     {
         _stopping = true; _lifetime.Cancel(); RefreshCommands();
-        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Concat(_catalogQueries.Values).Append(_settingsSave).Append(Limits.StopAsync()).ToArray();
+        var jobs = _jobs.Values.Select(j => j.Task).Concat(_gitJobs).Concat(_delegationJobs).Concat(_catalogQueries.Values).Append(_settingsSave).Append(Limits.StopAsync()).ToArray();
         try { await Task.WhenAll(jobs); }
         catch (Exception exception) { ShowError(exception); }
         await _tokenRefresh;
@@ -932,6 +1011,8 @@ public sealed class WorkspaceViewModel : ObservableObject
     private void RefreshCommands()
     {
         Notify(nameof(CanRemoveProject));
+        Notify(nameof(IsProjectChief)); Notify(nameof(CanEditConversationRole)); Notify(nameof(ConversationTitle));
+        OpenChiefCommand?.Refresh();
         Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanEditAccess)); Notify(nameof(CanSend)); Notify(nameof(CanReviewProposals));
         Notify(nameof(CanChooseModel)); Notify(nameof(CanChooseReasoning));
         Notify(nameof(CanManageFunctionProfiles)); Notify(nameof(CanApplyFunctionProfile));

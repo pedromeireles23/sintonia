@@ -43,14 +43,16 @@ public sealed class ProposedTaskViewModel : ObservableObject
 public sealed class ProposalReviewViewModel : ObservableObject
 {
     private readonly IWorkspaceStore _store;
+    private readonly Func<WorkspaceTaskBatch, Task>? _delegate;
     private WorkspaceProposal? _selected;
     private ProposedTaskViewModel? _task;
     private string _title = "", _objective = "", _notice = "Carregando propostas…";
     private bool _dirty, _busy;
     private HashSet<string> _queued = [];
-    public ProposalReviewViewModel(IWorkspaceStore store, WorkspaceProject project)
+    public ProposalReviewViewModel(IWorkspaceStore store, WorkspaceProject project, Func<WorkspaceTaskBatch, Task>? delegateTasks = null)
     {
         _store = store; Project = project;
+        _delegate = delegateTasks;
         SaveDraftCommand = new(() => SaveAsync(ProposalReviewState.Draft), ShowError, () => CanEdit);
         ApproveCommand = new(() => SaveAsync(ProposalReviewState.Approved), ShowError, () => CanEdit);
         ValidateCommand = new(Validate, () => CanEdit);
@@ -58,7 +60,9 @@ public sealed class ProposalReviewViewModel : ObservableObject
         AddTaskCommand = new(AddTask, () => CanEdit && Tasks.Count < PlanProposalFormat.MaxTasks);
         RemoveTaskCommand = new(RemoveTask, () => CanEdit && SelectedTask is not null && Tasks.Count > 1);
         ReloadCommand = new(InitializeAsync, ShowError, () => !Busy && !IsDirty);
+        ApproveAndDelegateCommand = new(ApproveAndDelegateAsync, ShowError, () => CanEdit && _delegate is not null);
     }
+    public event Action? TasksDelegated;
     public WorkspaceProject Project { get; }
     public ObservableCollection<WorkspaceProposal> Proposals { get; } = [];
     public ObservableCollection<ProposedTaskViewModel> Tasks { get; } = [];
@@ -91,6 +95,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
     public bool CanChooseProposal => !Busy && !IsDirty;
     public AsyncCommand SaveDraftCommand { get; }
     public AsyncCommand ApproveCommand { get; }
+    public AsyncCommand ApproveAndDelegateCommand { get; }
     public AsyncCommand ReloadCommand { get; }
     public DelegateCommand ValidateCommand { get; }
     public DelegateCommand RevertCommand { get; }
@@ -122,7 +127,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
         foreach (var task in proposal.Definition.Tasks) Tasks.Add(new(task, MarkChanged));
         SelectedTask = Tasks.FirstOrDefault(); IsDirty = false;
         Notice = IsQueued ? "Plano encaminhado e preservado. Acompanhe as entregas na Fila de tarefas; mudanças de planejamento exigem outra proposta."
-            : "Revise responsáveis, escopo e critérios. Confirmar registra o plano; encaminhe pela Fila de tarefas quando estiver pronto.";
+            : "Revise responsáveis, escopo e critérios. Confirmar e iniciar equipe delega as tarefas disponíveis; Só confirmar plano salva sem iniciar.";
     }
     private PlanProposal Definition() => new(1, Title.Trim(), Objective.Trim(), Tasks.Select(t => t.ToDefinition()).ToArray());
     private void Validate()
@@ -144,6 +149,22 @@ public sealed class ProposalReviewViewModel : ObservableObject
             _selected = saved; Notify(nameof(SelectedProposal));
             Load(saved);
             Notice = state == ProposalReviewState.Approved ? "Plano confirmado e salvo. Abra a Fila de tarefas para encaminhar e iniciar o trabalho." : "Rascunho salvo. Revise e confirme quando estiver pronto.";
+        }
+        finally { Busy = false; }
+    }
+    public async Task ApproveAndDelegateAsync()
+    {
+        if (!CanEdit || _delegate is null) return;
+        await SaveAsync(ProposalReviewState.Approved);
+        if (_selected is not { State: ProposalReviewState.Approved } approved) return;
+        Busy = true;
+        try
+        {
+            var batch = await _store.EnqueueProposalAsync(Project.Id, approved.Id, approved.Revision);
+            _queued.Add(approved.Id); Refresh();
+            await _delegate(batch);
+            Notice = "Plano confirmado e delegado. A equipe inicia as tarefas disponíveis; dependências, permissões e revisão das entregas continuam na fila.";
+            TasksDelegated?.Invoke();
         }
         finally { Busy = false; }
     }
@@ -170,6 +191,7 @@ public sealed class ProposalReviewViewModel : ObservableObject
         Notify(nameof(CanEdit)); Notify(nameof(CanSelectTask)); Notify(nameof(State));
         Notify(nameof(CanChooseProposal));
         SaveDraftCommand?.Refresh(); ApproveCommand?.Refresh(); ReloadCommand?.Refresh(); ValidateCommand?.Refresh();
+        ApproveAndDelegateCommand?.Refresh();
         RevertCommand?.Refresh(); AddTaskCommand?.Refresh(); RemoveTaskCommand?.Refresh();
     }
 }

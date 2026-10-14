@@ -46,7 +46,7 @@ internal static class GitDiagnosticsSmoke
                 File.Delete(Path.Combine(repo, "antigo.txt")); await File.WriteAllTextAsync(Path.Combine(repo, "rascunho.txt"), "Análise em andamento.\n");
                 var index = Path.Combine(repo, ".git", "index"); var before = SHA256.HashData(await File.ReadAllBytesAsync(index));
                 var modifiedAt = File.GetLastWriteTimeUtc(index);
-                await vm.AddProjectAsync(Path.Combine(repo, "docs")); await Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(Path.Combine(repo, "docs")); await WorkspaceSmoke.NewChatAsync(vm);
                 var selectedProject = vm.Project!;
                 Button(main, "GitDiagnostics").RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 var window = app.Windows.OfType<GitDiagnosticsWindow>().Single();
@@ -65,7 +65,7 @@ internal static class GitDiagnosticsSmoke
                     "Tabela Git ficou sem espaço ou perdeu colunas no tamanho mínimo.");
                 main.Width = main.MinWidth; main.Height = main.MinHeight; Capture(main, Path.Combine(output, "03-central-minimum.png"));
                 Require(worker.Calls == 0, "Diagnóstico chamou um provedor.");
-                await vm.AddProjectAsync(plain); await Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(plain); await WorkspaceSmoke.NewChatAsync(vm);
                 await window.ViewModel.RefreshAsync();
                 Require(window.ViewModel.Project.Id == selectedProject.Id && window.ViewModel.Snapshot!.State == GitDiagnosticState.Available,
                     "Alternar a central redirecionou a janela de outro projeto.");

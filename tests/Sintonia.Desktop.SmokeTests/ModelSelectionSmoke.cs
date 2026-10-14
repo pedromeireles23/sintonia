@@ -50,6 +50,7 @@ internal static class ModelSelectionSmoke
             {
                 await Until(() => vm.Ready);
                 await vm.AddProjectAsync(projectPath);
+                await WorkspaceSmoke.NewChatAsync(vm);
                 await Until(() => vm.CanConfigure && vm.InstallationModelText.Contains("gpt-6.1-sol"));
                 Require(vm.InstallationModelText == "GPT-6.1 Sol · gpt-6.1-sol" && vm.InstallationModelDetail.Contains("Muito alto · xhigh")
                     && vm.InstallationModelDetail.Contains("Configuração do usuário"), "Padrão da instalação Codex não foi exibido: " + vm.InstallationModelDetail);
@@ -121,7 +122,7 @@ internal static class ModelSelectionSmoke
                 await vm.StopAsync(); window.Close();
                 await Until(() => !window.IsVisible);
                 var restored = MakeViewModel(); reopened = new WorkspaceWindow(restored); reopened.Show();
-                await Until(() => restored.Ready && restored.Conversations.Count == 2 && restored.SelectedConversation is not null);
+                await Until(() => restored.Ready && restored.Conversations.Count == 3 && restored.SelectedConversation is not null);
                 restored.SelectedConversation = restored.Conversations.Single(c => c.Record.Id == second.Record.Id);
                 await Until(() => restored.InstallationModelText == "Opus · SIMULAÇÃO · opus");
                 Require(restored.Model == "opus" && restored.Reasoning.Id == "high", "Reabertura perdeu a escolha Claude.");

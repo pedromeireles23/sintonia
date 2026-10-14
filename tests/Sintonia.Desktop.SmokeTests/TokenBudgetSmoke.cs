@@ -28,7 +28,7 @@ internal static class TokenBudgetSmoke
         {
             try
             {
-                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await Until(() => vm.CanConfigure); var project = vm.Project!;
+                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm); var project = vm.Project!;
                 Require(vm.TokenLimit == "" && !vm.SaveSessionLimitCommand.CanExecute(null), "Limite padrão ou estado da ação inválido.");
                 vm.TokenLimit = "inválido";
                 try { await vm.SaveSessionLimitAsync(); throw new InvalidOperationException("Limite inválido salvo."); } catch (ArgumentException) { }
@@ -51,7 +51,7 @@ internal static class TokenBudgetSmoke
                 try { await vm.SaveSessionLimitAsync(); throw new InvalidOperationException("Revisão obsoleta salva."); } catch (InvalidOperationException error) when (error.Message.Contains("mudou")) { }
                 Require(vm.TokenLimit == "110" && vm.TokenBudgetDescription.Contains("limite 120"), "Falha de revisão perdeu rascunho ou mostra limite antigo.");
                 vm.TokenLimit = "100"; await vm.SaveSessionLimitAsync();
-                await vm.AddProjectAsync(otherPath); await Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(otherPath); await WorkspaceSmoke.NewChatAsync(vm);
                 Require(vm.TokenLimit == "" && vm.TokenBudgetDescription.Contains("0 tokens informados"), "Navegação herdou consumo/configuração.");
                 vm.Project = project; await Until(() => vm.CanEditSessionLimit && vm.TokenLimit == "100");
                 Require(vm.TokenReservation == "30" && vm.TokenBudgetDescription.Contains("70 tokens informados"), "Navegação perdeu consumo.");

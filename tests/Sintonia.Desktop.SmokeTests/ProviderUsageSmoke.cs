@@ -30,7 +30,7 @@ internal static class ProviderUsageSmoke
         {
             try
             {
-                await Until(() => vm.Ready); await vm.AddProjectAsync(firstDirectory); await Until(() => vm.CanConfigure);
+                await Until(() => vm.Ready); await vm.AddProjectAsync(firstDirectory); await WorkspaceSmoke.NewChatAsync(vm);
                 var project = vm.Project!;
                 Button(main, "ProviderUsage").RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
                 var window = app.Windows.OfType<ProviderUsageWindow>().Single(); var usage = window.ViewModel;
@@ -63,7 +63,7 @@ internal static class ProviderUsageSmoke
                 codex.Result = () => Snapshot(true); codex.Hold(); var pending = usage.RefreshAsync(); await codex.Started!.Task;
                 Require(usage.Busy && !usage.CanConfigure && !usage.RefreshCommand.CanExecute(null), "Consulta permitiu início concorrente.");
                 usage.Provider = ProviderKind.Claude; Require(usage.Provider == ProviderKind.Codex, "Provedor mudou durante consulta.");
-                await vm.AddProjectAsync(otherDirectory); await Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(otherDirectory); await WorkspaceSmoke.NewChatAsync(vm);
                 Require(usage.Project.Id == project.Id && codex.LastDirectory == project.Directory, "Painel perdeu a pasta de origem ao navegar.");
                 usage.CancelCommand.Execute(null);
                 Require(codex.LastToken.IsCancellationRequested && usage.Busy && usage.Snapshot is null, "Cancelar liberou controles antes do encerramento.");

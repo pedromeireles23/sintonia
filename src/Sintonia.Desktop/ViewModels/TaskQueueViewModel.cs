@@ -35,6 +35,8 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     private string _note = "", _notice = "Confirme um plano na revisão e encaminhe para esta fila.";
     private string _chiefRequest = "Confira os resultados, explique o que falta e atualize as tarefas ainda não iniciadas para concluir o objetivo.";
     private Task _planOperation = Task.CompletedTask;
+    private Task _externalRefresh = Task.CompletedTask;
+    private HashSet<string> _observedRunning = [];
     private CancellationTokenSource? _planStop;
     private bool _stopping;
     public TaskQueueViewModel(IWorkspaceStore store, WorkspaceViewModel workspace, WorkspaceProject project)
@@ -44,7 +46,7 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         EnqueueCommand = new(EnqueueAsync, ShowError, () => CanChoose && SelectedProposal is not null);
         StartCommand = new(StartAsync, ShowError, () => CanStart);
         StartAvailableCommand = new(StartAvailableAsync, ShowError, () => CanStartAvailable);
-        CancelCommand = new(Cancel, () => Busy && (_preparationStop is not null || _dispatchStop is not null || _planStop is not null || Session?.Running == true));
+        CancelCommand = new(Cancel, () => Session?.Running == true || Busy && (_preparationStop is not null || _dispatchStop is not null || _planStop is not null));
         PrepareWorktreeCommand = new(PrepareWorktreeAsync, ShowError, () => CanPrepareWorktree);
         ArchiveWorktreeCommand = new(ArchiveWorktreeAsync, ShowError, () => CanArchiveWorktree);
         ApproveCommand = new(() => ReviewAsync(true), ShowError, () => CanReview);
@@ -197,7 +199,8 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         foreach (var proposal in proposals.Where(p => p.State == ProposalReviewState.Approved && !applied.Contains(p.Id))) ApprovedProposals.Add(proposal);
         _proposal = ApprovedProposals.FirstOrDefault(); Notify(nameof(SelectedProposal));
         _batch = batches.FirstOrDefault(b => b.Id == batchId) ?? batches.FirstOrDefault(); Notify(nameof(SelectedBatch));
-        Tasks.Clear(); if (_batch is not null) foreach (var task in _batch.Tasks) Tasks.Add(new(task));
+        Tasks.Clear(); if (_batch is not null) foreach (var task in _batch.Tasks) Tasks.Add(new(task) { Running = Workspace.IsTaskRunning(task) });
+        _observedRunning = Tasks.Where(t => t.Running).Select(t => t.Record.ConversationId).ToHashSet();
         _task = Tasks.FirstOrDefault(t => t.Record.Id == taskId) ?? Tasks.FirstOrDefault(); Notify(nameof(SelectedTask));
         Refresh();
     }
@@ -279,13 +282,23 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
         _planStop?.Cancel();
         if (_dispatchStop is not null) { _dispatchStop.Cancel(); return; }
         _preparationStop?.Cancel();
-        if (Busy && SelectedTask is { } task) Workspace.CancelTask(task.Record);
+        if (SelectedTask is { } task && Workspace.IsTaskRunning(task.Record)) Workspace.CancelTask(task.Record);
     }
     private void WorkspaceChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is not (nameof(WorkspaceViewModel.ActiveCount) or nameof(WorkspaceViewModel.SavedSessionLimit))) return;
+        var running = Tasks.Where(t => Workspace.IsTaskRunning(t.Record)).Select(t => t.Record.ConversationId).ToHashSet();
+        var completedExternally = _observedRunning.Any(id => !running.Contains(id));
+        _observedRunning = running;
         foreach (var task in Tasks) task.Running = Workspace.IsTaskRunning(task.Record);
         Refresh();
+        if (completedExternally && CanChoose && !_loading && _externalRefresh.IsCompleted)
+            _externalRefresh = RefreshExternalExecutionAsync();
+    }
+    private async Task RefreshExternalExecutionAsync()
+    {
+        try { await InitializeAsync(); }
+        catch (Exception exception) { ShowError(exception); }
     }
     public async Task ReviewAsync(bool approve)
     {
@@ -356,13 +369,15 @@ public sealed class TaskQueueViewModel : ObservableObject, IDisposable
     {
         _stopping = true; Refresh();
         Cancel();
-        try { await Task.WhenAll(_preparationTask, _executionTask, _planOperation); }
+        try { await Task.WhenAll(_preparationTask, _executionTask, _planOperation, _externalRefresh); }
         catch (Exception exception) { ShowError(exception); }
     }
     public void Dispose()
     {
+        _stopping = true;
         _selectionRevision++;
-        Cancel(); Workspace.PropertyChanged -= WorkspaceChanged;
+        if (Busy) Cancel();
+        Workspace.PropertyChanged -= WorkspaceChanged;
         if (_session is not null) _session.PropertyChanged -= SessionChanged;
     }
     private void Refresh()

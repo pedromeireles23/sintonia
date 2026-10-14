@@ -35,7 +35,7 @@ internal static class SessionConcurrencySmoke
                 await File.WriteAllTextAsync(Path.Combine(projectPath, "original.txt"), "Original preservado\n");
                 await TaskDiffSmoke.GitAsync(projectPath, 0, "add", ".");
                 await TaskDiffSmoke.GitAsync(projectPath, 0, "commit", "-m", "base");
-                await vm.AddProjectAsync(projectPath); await TaskDiffSmoke.Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm);
                 var project = vm.Project!;
                 Require(vm.SessionLimit == 3 && vm.SavedSessionLimit == 3, "Limite padrão não é 3.");
                 vm.Function = vm.Functions.Single(f => f.Name == PlanProposalFormat.ChiefFunctionName);
@@ -94,12 +94,12 @@ internal static class SessionConcurrencySmoke
                 vm.NewConversationCommand.Execute(null); vm.Prompt = "oitava sessão";
                 Require(!vm.CanSend, "Oitava sessão habilitada.");
                 var otherPath = Path.Combine(root, "Outro projeto"); Directory.CreateDirectory(otherPath);
-                await vm.AddProjectAsync(otherPath); await TaskDiffSmoke.Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(otherPath); await WorkspaceSmoke.NewChatAsync(vm);
                 Require(vm.SavedSessionLimit == 3 && queue.Project.Id == project.Id && vm.ActiveCount == 7, "Navegação misturou projeto/limite/grupo.");
                 Require(queue.SessionUsage.StartsWith("7/7 no projeto") && vm.SessionUsage.StartsWith("0/3 no projeto"),
                     "O contador da fila mudou para o projeto selecionado na central.");
                 vm.Prompt = "sem vagas globais"; Require(!vm.CanSend, "Teto global foi ignorado.");
-                vm.Project = project; await TaskDiffSmoke.Until(() => vm.Conversations.Count == 9 && vm.CanEditSessionLimit);
+                vm.Project = project; await TaskDiffSmoke.Until(() => vm.Conversations.Count == 10 && vm.CanEditSessionLimit);
                 vm.SessionLimit = 3; await vm.SaveSessionLimitAsync();
                 Require(vm.ActiveCount == 7 && queue.Busy, "Reduzir limite cancelou sessões ativas.");
                 window.Width = window.MinWidth; window.Height = window.MinHeight;
@@ -162,7 +162,7 @@ internal static class SessionConcurrencySmoke
         {
             Requests.Add(request); var id = request.NativeSessionId ?? Guid.NewGuid().ToString();
             progress.Report(new(ConversationEventKind.Session, "SIMULAÇÃO: sessão", id, "modelo-teste"));
-            if (request.Prompt == "PLANEJAR-TESTE")
+            if (request.Prompt.StartsWith("PLANEJAR-TESTE", StringComparison.Ordinal))
                 return new(id, "modelo-teste", "SIMULAÇÃO: chefe.\n```sintonia-plan\n" + PlanProposalFormat.Serialize(Plan()) + "\n```", ConversationOutcome.Completed, []);
             using var registration = token.Register(() => Interlocked.Increment(ref _cancellations));
             await Release.Task; token.ThrowIfCancellationRequested();

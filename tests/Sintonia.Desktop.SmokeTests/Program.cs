@@ -17,6 +17,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--project-team") return ProjectTeamSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/project-team-smoke");
         if (args.FirstOrDefault() == "--workspace") return WorkspaceSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/workspace-smoke");
         if (args.FirstOrDefault() == "--limits") return SubscriptionLimitsSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/limits-smoke");
         if (args.FirstOrDefault() == "--models") return ModelSelectionSmoke.Run(args.Skip(1).FirstOrDefault() ?? "artifacts/model-smoke");

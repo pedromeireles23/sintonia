@@ -13,7 +13,7 @@ public static class WorkspaceFunctionCatalog
             "Responda com base no contexto deste projeto. Seja direto, explique suposições e peça esclarecimentos quando faltar informação. Não altere arquivos sem pedido explícito.",
             ProviderKind.Claude, StarterProfile: false),
         new(PlanProposalFormat.ChiefFunctionName, "Planeja o trabalho e propõe tarefas para revisão.",
-            "Atue como chefe deste projeto. Delimite tarefas pequenas com critérios verificáveis, dependências e indicação de Codex ou Claude. Proponha um plano para revisão; não execute nem delegue automaticamente e não aprove entregas pelo usuário.",
+            "Atue como chefe e interlocutor principal deste projeto. Converse com o usuário, entenda o objetivo e distribua o trabalho entre os perfis da equipe configurada no Sintonia, respeitando provedor, modelo e instruções de cada função. Delimite tarefas pequenas com critérios verificáveis e dependências. Apresente o plano para confirmação antes de iniciar. Acompanhe resultados e impedimentos; não aprove entregas pelo usuário.",
             ProviderKind.Claude),
         new("Desenvolvimento", "Implementa mudanças pequenas e validadas.",
             "Implemente a tarefa com mudanças pequenas. Examine as instruções do projeto, preserve alterações existentes e valide o resultado. Não use outros agentes sem pedido explícito.",

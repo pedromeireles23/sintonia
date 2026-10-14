@@ -42,7 +42,7 @@ internal static class TaskDiffSmoke
                 await File.WriteAllTextAsync(Path.Combine(directory, "antigo.txt"), "Instruções de atendimento\n");
                 await File.WriteAllTextAsync(Path.Combine(directory, "excluir.txt"), "Conteúdo obsoleto\n");
                 await GitAsync(source, 0, "add", "-f", "."); await GitAsync(source, 0, "commit", "-m", "base");
-                await vm.AddProjectAsync(directory); await Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(directory); await WorkspaceSmoke.NewChatAsync(vm);
                 var project = vm.Project!; await SeedAsync(store, project);
                 queue = await vm.LoadTaskQueueAsync(); queue.ConfirmWorktree = _ => true;
                 queueWindow = new(queue) { Owner = main }; queueWindow.Show(); await queue.EnqueueAsync();
@@ -92,7 +92,7 @@ internal static class TaskDiffSmoke
                     "Conteúdo ou atualização ficou inacessível no tamanho mínimo.");
                 queue.SelectedTask = queue.Tasks[1]; await Until(() => queue.Session?.Record.Id == queue.SelectedTask.Record.ConversationId);
                 Require(!queue.CanReviewDiffs, "Dependente sem pasta própria liberou consulta.");
-                var other = Path.Combine(root, "Outro projeto"); Directory.CreateDirectory(other); await vm.AddProjectAsync(other); await Until(() => vm.CanConfigure);
+                var other = Path.Combine(root, "Outro projeto"); Directory.CreateDirectory(other); await vm.AddProjectAsync(other); await WorkspaceSmoke.NewChatAsync(vm);
                 await diff.RefreshAsync(); Require(diff.Project.Id == project.Id && diff.TaskRecord.Id == task.Id && diff.Files.Count == 7,
                     "Navegação redirecionou a janela de diffs.");
                 await SelectAsync(window, "portal/portal.txt");

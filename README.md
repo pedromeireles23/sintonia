@@ -14,7 +14,8 @@ A interface usa grafite, painéis discretos e verde suave para ações e seleç�
 
 - **Múltiplos projetos:** cadastre pastas e alterne entre conversas, tarefas e sessões com contexto separado.
 - **Chat com Codex e Claude:** escolha provedor, modelo e reasoning, veja o padrão da instalação e a versão em uso, acompanhe respostas e eventos, cancele execuções e retome conversas. [Modelos e reasoning](docs/MODEL_SETTINGS.md).
-- **Perfis de função:** reutilize instruções e padrões de provedor/modelo para desenvolvimento, revisão, documentação, análise e outras tarefas.
+- **Equipe por projeto:** configure funções, instruções e padrões de provedor/modelo específicos. O chat principal assume a chefia e recebe o estado das entregas; você confirma o plano antes de iniciar a equipe.
+- **Remoção de projetos:** use a lixeira para retirar o projeto da central, preservando arquivos e histórico. Readicionar a pasta recupera o cadastro.
 - **Chefia e planos revisáveis:** transforme um objetivo em uma proposta de tarefas, edite responsáveis, escopos, dependências e critérios e confirme o plano antes de encaminhá-lo à fila.
 - **Fila persistente:** inicie tarefas, revise resultados, solicite ajustes na mesma sessão e aprove entregas para liberar dependências.
 - **Trabalho paralelo com Git:** prepare worktrees distintas, confira diffs e conflitos, registre commits revisados e combine entregas em uma pasta separada.
@@ -27,8 +28,8 @@ Código, documentos, análises e outros arquivos seguem o fluxo geral de tarefas
 ## Como funciona
 
 1. **Cadastre um projeto** em **Adicionar projeto** e escolha a pasta de trabalho.
-2. **Converse ou planeje:** selecione Codex/Claude, o modelo e o reasoning. Para distribuir trabalho, use a função **Chefe do projeto** e descreva o objetivo.
-3. **Revise o plano** em **Revisar planos**, ajuste as tarefas e confirme. Em **Fila de tarefas**, use **Encaminhar à fila**. Essas confirmações não iniciam modelos.
+2. **Configure sua equipe** em **Equipe e funções**: escolha a IA, o modelo e as instruções dos perfis. Salve um perfil de chefia e use **Usar como chefe do projeto**. O chat principal abre esse chefe ao selecionar o projeto; descreva seu objetivo.
+3. **Revise o plano** em **Revisar planos** e ajuste as tarefas. **Confirmar e iniciar equipe** encaminha e inicia uma rodada das tarefas disponíveis. **Só confirmar plano** salva sem executar; o encaminhamento/início também pode ser feito depois pela fila.
 4. **Prepare e execute:** para escrita paralela, prepare uma worktree por tarefa em **Pasta de trabalho**. Use **Iniciar tentativa** ou **Iniciar tarefas disponíveis** e responda às solicitações de permissão.
 5. **Revise as entregas:** confira respostas, arquivos e critérios; aprove ou solicite ajustes. Para entregas em worktree, salve as mudanças em um commit e use **Registrar commit revisado** após conferir os diffs.
 6. **Integre o resultado:** prepare a combinação, execute os critérios de validação e confirme **Publicar no projeto**. Dependentes exigem a entrega aprovada e a revisão publicada presente em sua pasta de trabalho.

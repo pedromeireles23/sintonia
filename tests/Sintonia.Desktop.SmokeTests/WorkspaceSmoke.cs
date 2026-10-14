@@ -40,7 +40,7 @@ internal static class WorkspaceSmoke
                 await Until(() => vm.Ready);
                 Capture(window, Path.Combine(output, "01-empty.png"));
                 await vm.AddProjectAsync(projectA);
-                await Until(() => vm.CanConfigure);
+                await WorkspaceSmoke.NewChatAsync(vm);
                 vm.Prompt = "Leia e confira o projeto (teste com provedor simulado).";
                 vm.SendCommand.Execute(null);
                 await Until(() => vm.HasPermission);
@@ -94,10 +94,10 @@ internal static class WorkspaceSmoke
                 await Until(() => vm.ActiveCount == 0);
                 var original = vm.Project!;
                 await vm.AddProjectAsync(projectB);
-                await Until(() => vm.CanConfigure && vm.Conversations.Count == 0);
+                await WorkspaceSmoke.NewChatAsync(vm);
                 vm.Provider = ProviderKind.Claude; vm.Prompt = "Outra pasta."; vm.SendCommand.Execute(null);
                 await Until(() => vm.ActiveCount == 0);
-                Require(vm.Conversations.Count == 1 && claude.Requests[^1].WorkingDirectory == projectB, "Projeto não foi isolado.");
+                Require(vm.Conversations.Count == 2 && claude.Requests[^1].WorkingDirectory == projectB, "Projeto não foi isolado.");
                 if (verifyTokenUsage)
                 {
                     vm.Prompt = "sem-tokens: SIMULAÇÃO de dados ausentes"; vm.SendCommand.Execute(null); await Until(() => vm.ActiveCount == 0);
@@ -105,7 +105,7 @@ internal static class WorkspaceSmoke
                     Require(missing.TokenUsage is null && missing.TokenUsageText.Contains("indisponível"), "Ausência virou zero ou herdou consumo anterior.");
                 }
                 vm.Project = original;
-                await Until(() => vm.Conversations.Count == 3 && vm.SelectedConversation is not null);
+                await Until(() => vm.Conversations.Count == 4 && vm.SelectedConversation is not null);
                 vm.SelectedConversation = first;
                 Require(first.Messages.Count == 6, "Histórico duplicado ou perdido ao navegar.");
                 if (verifyTokenUsage) Require(first.Messages.Where(m => m.ShowUsage).All(m => m.TokenUsage is { TotalTokens: 30, IsPartial: true }), "Navegação somou ou perdeu medições dos runs Codex.");
@@ -114,7 +114,7 @@ internal static class WorkspaceSmoke
                 await vm.StopAsync(); window.Close();
                 await Until(() => !window.IsVisible);
                 var restored = MakeViewModel(); reopened = new WorkspaceWindow(restored); reopened.Show();
-                await Until(() => restored.Ready && restored.Conversations.Count == 3);
+                await Until(() => restored.Ready && restored.Conversations.Count == 4);
                 restored.SelectedConversation = restored.Conversations.Single(c => c.Record.Id == first.Record.Id);
                 await Until(() => restored.SelectedConversation?.Loaded == true);
                 Require(restored.SelectedConversation!.Record.NativeSessionId == nativeId && restored.Messages?.Count == 6, "Histórico não sobreviveu à reabertura.");
@@ -138,6 +138,11 @@ internal static class WorkspaceSmoke
         return exitCode;
     }
 
+    internal static async Task NewChatAsync(WorkspaceViewModel vm)
+    {
+        await Until(() => vm.IsProjectChief && vm.CanEditFunction);
+        vm.NewConversationCommand.Execute(null); vm.Provider = ProviderKind.Codex;
+    }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static async Task Until(Func<bool> condition)
     {

@@ -9,19 +9,28 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
     private readonly IWorkspaceStore _store;
     private readonly Func<Task> _refreshCentral;
     private readonly Func<WorkspaceFunctionProfile, bool> _confirmDelete;
+    private readonly Func<WorkspaceFunctionProfile, Task>? _useChief;
     private WorkspaceFunctionProfile? _selected;
     private string _name = "", _function = "Desenvolvimento", _model = "", _instructions = "", _notice = "Carregando perfis…";
     private ProviderKind _provider;
     private bool _dirty, _busy, _loadingDraft;
-    public FunctionProfileLibraryViewModel(IWorkspaceStore store, Func<Task> refreshCentral, Func<WorkspaceFunctionProfile, bool> confirmDelete)
+    public FunctionProfileLibraryViewModel(IWorkspaceStore store, Func<Task> refreshCentral, Func<WorkspaceFunctionProfile, bool> confirmDelete,
+        WorkspaceProject? project = null, Func<WorkspaceFunctionProfile, Task>? useChief = null)
     {
         _store = store; _refreshCentral = refreshCentral; _confirmDelete = confirmDelete;
+        Project = project; _useChief = useChief;
         SaveCommand = new(SaveAsync, ShowError, () => CanEdit);
         DeleteCommand = new(DeleteAsync, ShowError, () => CanEdit && _selected is not null && !IsDirty);
         ReloadCommand = new(InitializeAsync, ShowError, () => CanChoose);
         NewCommand = new(() => Load(null), () => CanChoose);
         RevertCommand = new(() => Load(_selected), () => CanEdit && IsDirty);
+        UseAsChiefCommand = new(UseAsChiefAsync, ShowError, () => CanUseAsChief);
     }
+    public WorkspaceProject? Project { get; }
+    public string ScopeTitle => Project is null ? "Biblioteca de modelos" : "Equipe · " + Project.Name;
+    public string ScopeDescription => Project is null ? "Modelos para novas equipes de projeto."
+        : "Funções, provedores, modelos e instruções exclusivos deste projeto. Escolha um perfil de chefia para o chat principal.";
+    public bool CanUseAsChief => CanEdit && !IsDirty && _selected?.FunctionName == PlanProposalFormat.ChiefFunctionName && _useChief is not null;
     public ObservableCollection<WorkspaceFunctionProfile> Profiles { get; } = [];
     public IReadOnlyList<ProviderKind> Providers { get; } = Enum.GetValues<ProviderKind>();
     public IReadOnlyList<string> FunctionNames { get; } = WorkspaceFunctionCatalog.Functions.Select(f => f.Name).ToArray();
@@ -64,6 +73,7 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
     public AsyncCommand ReloadCommand { get; }
     public DelegateCommand NewCommand { get; }
     public DelegateCommand RevertCommand { get; }
+    public AsyncCommand UseAsChiefCommand { get; }
 
     public async Task InitializeAsync()
     {
@@ -71,7 +81,7 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
         Busy = true;
         try
         {
-            var id = _selected?.Id; var profiles = await _store.GetFunctionProfilesAsync();
+            var id = _selected?.Id; var profiles = await _store.GetFunctionProfilesAsync(Project?.Id);
             Profiles.Clear(); foreach (var profile in profiles) Profiles.Add(profile);
             Load(profiles.FirstOrDefault(p => p.Id == id) ?? profiles.FirstOrDefault());
         }
@@ -87,18 +97,19 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
             Name = profile?.Name ?? ""; FunctionName = profile?.FunctionName ?? template.Name;
             Provider = profile?.Provider ?? template.SuggestedProvider; Model = profile?.Model ?? ""; Instructions = profile?.Instructions ?? template.Instructions;
             IsDirty = false;
-            Notice = "Perfis são compartilhados entre projetos nesta instalação. Aplicar preenche uma nova conversa; permissões são escolhidas separadamente.";
+            Notice = Project is null ? "Modelos da biblioteca local. As equipes existentes conservam suas próprias cópias."
+                : "Alterações valem somente para este projeto. Para mudar o chat principal, salve um perfil de chefia e use Usar como chefe do projeto.";
         }
         finally { _loadingDraft = false; Refresh(); }
     }
     public async Task SaveAsync()
     {
         if (Busy) return;
-        var draft = WorkspaceFunctionProfiles.Normalize(new(_selected?.Id ?? Guid.NewGuid().ToString(), Name, FunctionName, Provider, Model, Instructions, _selected?.Revision ?? 0));
+        var draft = WorkspaceFunctionProfiles.Normalize(new(_selected?.Id ?? Guid.NewGuid().ToString(), Name, FunctionName, Provider, Model, Instructions, _selected?.Revision ?? 0, Project?.Id));
         Busy = true;
         try
         {
-            var saved = _selected is null ? await _store.CreateFunctionProfileAsync(draft.Name, draft.FunctionName, draft.Provider, draft.Model, draft.Instructions)
+            var saved = _selected is null ? await _store.CreateFunctionProfileAsync(draft.Name, draft.FunctionName, draft.Provider, draft.Model, draft.Instructions, Project?.Id)
                 : await _store.SaveFunctionProfileAsync(draft);
             var previous = _selected; var index = previous is null ? -1 : Profiles.IndexOf(previous);
             if (index >= 0) Profiles[index] = saved; else Profiles.Add(saved);
@@ -113,10 +124,17 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
         Busy = true;
         try
         {
-            await _store.DeleteFunctionProfileAsync(profile.Id, profile.Revision); Profiles.Remove(profile); Load(Profiles.FirstOrDefault());
+            await _store.DeleteFunctionProfileAsync(profile.Id, profile.Revision, Project?.Id); Profiles.Remove(profile); Load(Profiles.FirstOrDefault());
             Notice = "Perfil excluído. Conversas e tarefas existentes preservam seus parâmetros.";
             await _refreshCentral();
         }
+        finally { Busy = false; }
+    }
+    public async Task UseAsChiefAsync()
+    {
+        if (!CanUseAsChief || _selected is not { } profile) return;
+        Busy = true;
+        try { await _useChief!(profile); Notice = "Chefia deste projeto atualizada. O chat principal está pronto na central."; }
         finally { Busy = false; }
     }
     private void Change<T>(ref T field, T value, [CallerMemberName] string? name = null)
@@ -127,6 +145,7 @@ public sealed class FunctionProfileLibraryViewModel : ObservableObject
     private void Refresh()
     {
         Notify(nameof(CanEdit)); Notify(nameof(CanChoose)); Notify(nameof(State));
+        Notify(nameof(CanUseAsChief)); UseAsChiefCommand?.Refresh();
         SaveCommand?.Refresh(); DeleteCommand?.Refresh(); ReloadCommand?.Refresh(); NewCommand?.Refresh(); RevertCommand?.Refresh();
     }
 }

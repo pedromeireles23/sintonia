@@ -42,7 +42,7 @@ internal static class TaskWorktreeSmoke
                 await GitAsync(source, "add", "-f", "."); await GitAsync(source, "commit", "-m", "base");
                 await File.WriteAllTextAsync(Path.Combine(projectPath, "portal.txt"), "trabalho local preservado");
                 await File.WriteAllTextAsync(Path.Combine(projectPath, "config.local"), "configuração ignorada");
-                await vm.AddProjectAsync(projectPath); await Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm);
                 var project = vm.Project!; await SeedAsync(store, project);
                 queue = await vm.LoadTaskQueueAsync(); TaskWorktree? preview = null;
                 queue.ConfirmWorktree = plan => { preview = plan; return false; };

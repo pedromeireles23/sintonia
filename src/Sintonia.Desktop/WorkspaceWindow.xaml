@@ -67,7 +67,7 @@
                     <TextBlock Text="Codex e Claude Code instalados nesta máquina." Foreground="{StaticResource Muted}" FontSize="12" Margin="0,4,0,18" />
                     <Button Content="Revisar planos" Style="{StaticResource NavigationButton}" Click="OpenProposals" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ReviewPlans" />
                     <Button Content="Fila de tarefas" Style="{StaticResource NavigationButton}" Click="OpenTasks" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="TaskQueue" />
-                    <Button Content="Perfis de função" Style="{StaticResource NavigationButton}" Click="OpenFunctionProfiles" IsEnabled="{Binding CanManageFunctionProfiles}" Margin="0,0,0,8" AutomationProperties.AutomationId="ManageFunctionProfiles" />
+                    <Button Content="Equipe e funções" Style="{StaticResource NavigationButton}" Click="OpenFunctionProfiles" IsEnabled="{Binding CanManageFunctionProfiles}" Margin="0,0,0,8" AutomationProperties.AutomationId="ManageFunctionProfiles" />
                     <Button Content="Diagnóstico Git" Style="{StaticResource NavigationButton}" Click="OpenGitDiagnostics" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="GitDiagnostics" />
                     <Button Content="Uso dos provedores" Style="{StaticResource NavigationButton}" Click="OpenProviderUsage" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ProviderUsage" />
                     <Button Content="Critérios de validação" Style="{StaticResource NavigationButton}" Click="OpenValidationConfiguration" IsEnabled="{Binding CanReviewProposals}" Margin="0,0,0,8" AutomationProperties.AutomationId="ProjectValidation" />
@@ -83,7 +83,10 @@
                     <TextBlock Text="{Binding ProjectName}" FontSize="27" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding ProjectPath}" Style="{StaticResource Caption}" Margin="0,5,0,0" MaxHeight="38" />
                 </StackPanel>
-                <Button Grid.Column="1" Content="+ Nova conversa" Command="{Binding NewConversationCommand}" VerticalAlignment="Top" Margin="12,4,0,0" AutomationProperties.AutomationId="NewConversation" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="12,4,0,0">
+                    <Button Content="Chat do chefe" Command="{Binding OpenChiefCommand}" AutomationProperties.AutomationId="OpenProjectChief" />
+                    <Button Content="+ Nova conversa" Command="{Binding NewConversationCommand}" Margin="0,6,0,0" AutomationProperties.AutomationId="NewConversation" />
+                </StackPanel>
             </Grid>
             <Border Grid.Row="1" Style="{StaticResource Card}" Padding="14,12" Margin="0,0,0,12" AutomationProperties.AutomationId="ModelPanel">
                 <Grid>
@@ -166,10 +169,11 @@
                         <TextBlock Text="{Binding TokenBudgetDescription}" Style="{StaticResource Caption}" Margin="0,0,0,10" AutomationProperties.AutomationId="ProjectTokenBudget"/>
                         <Button Content="Atualizar consumo do projeto" Command="{Binding RefreshTokenBudgetCommand}" HorizontalAlignment="Left" Margin="0,0,0,12" AutomationProperties.AutomationId="RefreshTokenBudget"/>
                         <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <ComboBox ItemsSource="{Binding FunctionProfiles}" SelectedItem="{Binding SelectedFunctionProfile}" DisplayMemberPath="Name" IsEnabled="{Binding CanManageFunctionProfiles}" Padding="7" Margin="0,0,10,0" ToolTip="Escolha um perfil da biblioteca local." AutomationProperties.AutomationId="SavedFunctionProfiles" />
+                            <ComboBox ItemsSource="{Binding FunctionProfiles}" SelectedItem="{Binding SelectedFunctionProfile}" DisplayMemberPath="Name" IsEnabled="{Binding CanManageFunctionProfiles}" Padding="7" Margin="0,0,10,0" ToolTip="Escolha um perfil da equipe deste projeto." AutomationProperties.AutomationId="SavedFunctionProfiles" />
                             <Button Grid.Column="1" Content="Nova com perfil" Command="{Binding ApplyFunctionProfileCommand}" ToolTip="Aplicar o perfil a uma nova conversa em leitura, preservando a conversa atual." AutomationProperties.AutomationId="ApplyFunctionProfile" />
                         </Grid>
-                        <StackPanel IsEnabled="{Binding CanEditFunction}">
+                        <TextBlock Text="O chat principal é o chefe. Configure sua IA e instruções em Equipe e funções; ele propõe o plano para sua confirmação." Style="{StaticResource Caption}" Margin="0,0,0,10" Visibility="{Binding IsProjectChief, Converter={StaticResource BoolVisibility}}" />
+                        <StackPanel IsEnabled="{Binding CanEditConversationRole}">
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                 <ComboBox ItemsSource="{Binding Functions}" SelectedItem="{Binding Function}" ItemTemplateSelector="{StaticResource FunctionTemplates}" Padding="7" Margin="0,0,10,0" AutomationProperties.AutomationId="Function" />
                                 <ComboBox Grid.Column="1" ItemsSource="{Binding AccessOptions}" SelectedItem="{Binding Access}" DisplayMemberPath="Name" Padding="7" IsEnabled="{Binding CanEditAccess}" />

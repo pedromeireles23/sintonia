@@ -55,9 +55,11 @@ public interface IWorkspaceStore
     Task<TaskWorktreeCleanup> ReserveTaskWorktreeCleanupAsync(string projectId, TaskWorktreeCleanupPreview preview);
     Task FinishTaskWorktreeCleanupAsync(TaskWorktreeCleanup cleanup);
     Task<IReadOnlyList<TaskWorktreeCleanup>> GetTaskWorktreeCleanupsAsync(string projectId);
-    Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync();
-    Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions);
+    Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync(string? projectId = null);
+    Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions, string? projectId = null);
     Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile);
-    Task DeleteFunctionProfileAsync(string id, int revision);
+    Task DeleteFunctionProfileAsync(string id, int revision, string? projectId = null);
     Task<int> EnsureStarterFunctionProfilesAsync(IReadOnlyList<WorkspaceFunctionProfile> profiles);
+    Task<WorkspaceConversation> GetProjectChiefAsync(string projectId);
+    Task<WorkspaceConversation> SetProjectChiefAsync(string projectId, string profileId, int profileRevision);
 }

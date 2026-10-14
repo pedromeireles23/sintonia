@@ -5,7 +5,8 @@ namespace Sintonia.Infrastructure.Persistence;
 
 public sealed partial class SqliteWorkspaceStore
 {
-    public Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync() => RunAsync<IReadOnlyList<WorkspaceFunctionProfile>>(connection =>
+    public Task<IReadOnlyList<WorkspaceFunctionProfile>> GetFunctionProfilesAsync(string? projectId = null) => projectId is not null
+        ? GetProjectFunctionProfilesAsync(projectId) : RunAsync<IReadOnlyList<WorkspaceFunctionProfile>>(connection =>
     {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT id,name,function_name,provider,model,instructions,revision FROM function_profiles ORDER BY name_key,id";
@@ -15,9 +16,10 @@ public sealed partial class SqliteWorkspaceStore
         return profiles;
     });
 
-    public Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions)
+    public Task<WorkspaceFunctionProfile> CreateFunctionProfileAsync(string name, string functionName, ProviderKind provider, string? model, string instructions, string? projectId = null)
     {
-        var profile = WorkspaceFunctionProfiles.Normalize(new(Guid.NewGuid().ToString(), name, functionName, provider, model, instructions, 0));
+        var profile = WorkspaceFunctionProfiles.Normalize(new(Guid.NewGuid().ToString(), name, functionName, provider, model, instructions, 0, projectId));
+        if (projectId is not null) return SaveProjectFunctionProfileAsync(profile, create: true);
         return RunAsync(connection =>
         {
             try
@@ -36,6 +38,7 @@ public sealed partial class SqliteWorkspaceStore
     public Task<WorkspaceFunctionProfile> SaveFunctionProfileAsync(WorkspaceFunctionProfile profile)
     {
         profile = WorkspaceFunctionProfiles.Normalize(profile);
+        if (profile.ProjectId is not null) return SaveProjectFunctionProfileAsync(profile, create: false);
         return RunAsync(connection =>
         {
             try
@@ -71,10 +74,15 @@ public sealed partial class SqliteWorkspaceStore
         });
     }
 
-    public Task DeleteFunctionProfileAsync(string id, int revision) => RunAsync(connection =>
+    public Task DeleteFunctionProfileAsync(string id, int revision, string? projectId = null) => RunAsync(connection =>
     {
-        if (Execute(connection, null, "DELETE FROM function_profiles WHERE id=$id AND revision=$revision", ("$id", id), ("$revision", revision)) != 1)
+        using var transaction = connection.BeginTransaction();
+        if (projectId is not null) EnsureProjectActive(connection, transaction, projectId);
+        var sql = projectId is null ? "DELETE FROM function_profiles WHERE id=$id AND revision=$revision"
+            : "DELETE FROM project_function_profiles WHERE id=$id AND revision=$revision AND project_id=$project";
+        if (Execute(connection, transaction, sql, ("$id", id), ("$revision", revision), ("$project", projectId)) != 1)
             throw new InvalidOperationException("O perfil mudou em outra janela ou foi excluído. Atualize a lista antes de excluir.");
+        transaction.Commit();
         return true;
     });
 

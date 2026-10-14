@@ -40,7 +40,7 @@ internal static class ConversationQuestionsSmoke
         {
             try
             {
-                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await Until(() => vm.CanConfigure);
+                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm);
                 void Send() { vm.Provider = ProviderKind.Claude; vm.Prompt = "SIMULAÇÃO de perguntas; nenhum modelo."; vm.SendCommand.Execute(null); }
                 Send(); await Until(() => vm.HasQuestions);
                 var first = vm.SelectedConversation!; var panel = vm.Questions!;
@@ -83,6 +83,7 @@ internal static class ConversationQuestionsSmoke
 
                 provider.Scenario = "claude-question-withdraw"; Send(); await Until(() => vm.ActiveCount == 0);
                 Require(!vm.HasQuestions && first.State == "Concluída", "Retirada do provedor deixou pergunta pendente.");
+                vm.Access = vm.AccessOptions.Single(a => a.Value == ConversationAccess.ReadOnly);
                 provider.Scenario = "claude-question-write"; Send(); await Until(() => vm.HasQuestions);
                 Answer(vm.Questions!); await Until(() => vm.ActiveCount == 0);
                 Require(first.State == "Bloqueada" && !vm.HasPermission && !File.Exists(Path.Combine(projectPath, "NÃO-CRIAR.txt")), "Resposta autorizou escrita em leitura.");

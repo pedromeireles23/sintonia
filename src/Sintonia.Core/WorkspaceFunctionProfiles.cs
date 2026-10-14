@@ -3,7 +3,7 @@ using System.Text;
 namespace Sintonia.Core;
 
 public sealed record WorkspaceFunctionProfile(string Id, string Name, string FunctionName, ProviderKind Provider,
-    string? Model, string Instructions, int Revision);
+    string? Model, string Instructions, int Revision, string? ProjectId = null);
 
 public static class WorkspaceFunctionProfiles
 {

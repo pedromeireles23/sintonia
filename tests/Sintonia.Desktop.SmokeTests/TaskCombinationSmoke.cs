@@ -43,7 +43,7 @@ internal static class TaskCombinationSmoke
                 await File.WriteAllTextAsync(Path.Combine(directory, "portal.txt"), "Formulário inicial\n");
                 await File.WriteAllTextAsync(Path.Combine(original, ".gitignore"), "*.local\n");
                 await GitAsync(original, 0, "add", "."); await GitAsync(original, 0, "commit", "-m", "base de teste");
-                await vm.AddProjectAsync(directory); await Until(() => vm.CanConfigure); var project = vm.Project!; await SeedAsync(store, project);
+                await vm.AddProjectAsync(directory); await WorkspaceSmoke.NewChatAsync(vm); var project = vm.Project!; await SeedAsync(store, project);
                 var proposal = (await store.GetProposalsAsync(project.Id)).Single(); var batch = await store.EnqueueProposalAsync(project.Id, proposal.Id, proposal.Revision);
                 var worktrees = new TaskWorktreeService(store, manager);
                 await worktrees.PrepareAsync(project.Id, await worktrees.PreviewAsync(project.Id, batch.Tasks[0].Id, CancellationToken.None), CancellationToken.None);
@@ -97,7 +97,7 @@ internal static class TaskCombinationSmoke
                 await diff.PrepareCombinationAsync(); Require(diff.Preparation?.State == TaskIntegrationPreparationState.Conflicted && diff.PreparationStatus.Contains("portal/portal.txt"), "Conflito real não mostrado.");
                 Capture(window, Path.Combine(output, "03-conflict-minimum.png"));
                 var conflict = diff.Preparation; var other = Path.Combine(root, "Outro projeto"); Directory.CreateDirectory(other);
-                await vm.AddProjectAsync(other); await Until(() => vm.CanConfigure); await diff.RefreshAsync();
+                await vm.AddProjectAsync(other); await WorkspaceSmoke.NewChatAsync(vm); await diff.RefreshAsync();
                 Require(diff.Project.Id == project.Id && diff.Preparation?.Reservation.Id == conflict!.Reservation.Id, "Navegação perdeu a combinação de origem.");
                 window.Close(); await Until(() => !window.IsVisible); window = new TaskDiffWindow(vm.CreateTaskDiffReview(project, task)) { Owner = main }; window.Show(); diff = window.ViewModel;
                 await Until(() => !diff.Busy && diff.Review is not null); Require(diff.Preparation?.State == TaskIntegrationPreparationState.Conflicted, "Reabertura perdeu conflito.");
@@ -189,7 +189,7 @@ internal static class TaskCombinationSmoke
         validation.CancelCommand.Execute(null); Require(validation.Busy, "Cancelamento liberou UI antes do processo."); runner.Release.SetResult(); await late;
         Require(validation.History.Last().Record.State == ValidationState.Cancelled, "Resposta tardia virou sucesso.");
         var other = Path.Combine(Path.GetDirectoryName(project.Directory)!, "Outro projeto validação"); Directory.CreateDirectory(other);
-        await vm.AddProjectAsync(other); await Until(() => vm.CanConfigure);
+        await vm.AddProjectAsync(other); await WorkspaceSmoke.NewChatAsync(vm);
         Require(validation.Project.Id == project.Id && config.Project.Id == project.Id, "Navegação mudou projeto dos painéis.");
         validationWindow.Close(); await Until(() => !validationWindow.IsVisible);
         validationWindow = new TaskValidationWindow(diffWindow.ViewModel.CreateValidationReview()) { Owner = main }; validationWindow.Show(); validation = validationWindow.ViewModel;

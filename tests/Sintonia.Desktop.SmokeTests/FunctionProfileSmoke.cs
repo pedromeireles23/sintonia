@@ -30,7 +30,7 @@ internal static class FunctionProfileSmoke
         {
             try
             {
-                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await Until(() => vm.CanConfigure);
+                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm);
                 var project = vm.Project!; var allowDelete = false; var confirmations = 0;
                 var library = await vm.LoadFunctionProfileLibraryAsync(_ => { confirmations++; return allowDelete; });
                 window = new(library) { Owner = main }; window.Show();
@@ -50,13 +50,14 @@ internal static class FunctionProfileSmoke
                 vm.SelectedFunctionProfile = vm.FunctionProfiles.Single(p => p.Id == original.Id);
                 vm.Access = vm.AccessOptions[1]; vm.Prompt = "Analisar este projeto."; await vm.ApplyFunctionProfileAsync();
                 Require(vm.Provider == ProviderKind.Claude && vm.Model == original.Model && vm.Function.Name == original.FunctionName
-                    && vm.Instructions == original.Instructions && vm.Access.Value == ConversationAccess.ReadOnly && vm.Prompt == "Analisar este projeto.", "Padrões/rascunho incorretos ao aplicar.");
+                    && vm.Instructions == original.Instructions && vm.Prompt == "Analisar este projeto.", "Padrões/rascunho incorretos ao aplicar.");
                 vm.SendCommand.Execute(null); await Until(() => vm.ActiveCount == 0);
                 var session = vm.SelectedConversation!; var snapshot = session.Record;
                 Require(claude.Requests[0].Instructions == original.Instructions && claude.Requests[0].Model == original.Model,
                     "Modelo/instruções não chegaram ao provedor.");
                 var batch = await SeedTaskAsync(store, project, original);
-                var stale = new FunctionProfileLibraryViewModel(store, vm.RefreshFunctionProfilesAsync, _ => true); await stale.InitializeAsync();
+                var stale = new FunctionProfileLibraryViewModel(store, vm.RefreshFunctionProfilesAsync, _ => true, project); await stale.InitializeAsync();
+                stale.SelectedProfile = stale.Profiles.Single(p => p.Id == original.Id);
                 library.Name = "Documentação de referência"; library.FunctionName = "Documentação"; library.Provider = ProviderKind.Codex;
                 library.Model = "outro-modelo"; library.Instructions = "Organizar referências verificáveis."; await library.SaveAsync();
                 Require(session.Record == snapshot && vm.Provider == snapshot.Provider && vm.Instructions == snapshot.Instructions,
@@ -76,10 +77,14 @@ internal static class FunctionProfileSmoke
                 Require(vm.SelectedConversation is null && vm.Provider == ProviderKind.Codex && vm.Model == "outro-modelo"
                     && vm.Prompt == "Outro rascunho", "Perfil editado não preencheu nova conversa.");
                 var otherPath = Path.Combine(output, "Segundo projeto"); Directory.CreateDirectory(otherPath);
-                await vm.AddProjectAsync(otherPath); await Until(() => vm.CanConfigure); await vm.ApplyFunctionProfileAsync();
+                await vm.AddProjectAsync(otherPath); await WorkspaceSmoke.NewChatAsync(vm);
+                Require(vm.FunctionProfiles.All(p => p.Id != original.Id), "Perfil do primeiro projeto vazou para o segundo.");
+                var local = await store.CreateFunctionProfileAsync("Documentação de referência", "Documentação", ProviderKind.Codex, null,
+                    "Instruções exclusivas do segundo projeto.", vm.Project!.Id);
+                await vm.RefreshFunctionProfilesAsync(); vm.SelectedFunctionProfile = vm.FunctionProfiles.Single(p => p.Id == local.Id); await vm.ApplyFunctionProfileAsync();
                 vm.Prompt = "Documentar segundo projeto."; vm.SendCommand.Execute(null); await Until(() => vm.ActiveCount == 0);
-                Require(codex.Requests[^1].WorkingDirectory == otherPath && codex.Requests[^1].Instructions == library.Instructions,
-                    "Perfil não foi reutilizado no outro projeto.");
+                Require(codex.Requests[^1].WorkingDirectory == otherPath && codex.Requests[^1].Instructions == local.Instructions,
+                    "Perfil específico do segundo projeto não foi aplicado.");
                 vm.Project = project; await Until(() => vm.Conversations.Any(c => c.Record.Id == session.Record.Id));
                 vm.SelectedConversation = session; vm.Prompt = "Retomar análise.";
                 await Until(() => vm.CanSend);
@@ -110,6 +115,7 @@ internal static class FunctionProfileSmoke
                 var restored = new WorkspaceViewModel(reopenedStore, new(reopenedStore, [codex, claude]), app.Dispatcher, () => projectPath,
                     (kind, _, _) => Task.FromResult(new ProviderCapabilities(kind, [], [], [])));
                 await restored.InitializeAsync();
+                await Until(() => restored.IsProjectChief && restored.CanEditFunction);
                 Require(restored.FunctionProfiles.Count == starters + 1 && restored.FunctionProfiles.Any(p => p.Name == "Coordenação geral"), "Perfil não sobreviveu à reabertura.");
                 restored.Project = restored.Projects.Single(p => p.Id == project.Id);
                 await Until(() => restored.Conversations.Any(c => c.Record.Id == snapshot.Id));

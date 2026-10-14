@@ -30,7 +30,7 @@ internal static class ProposalSmoke
         {
             try
             {
-                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await Until(() => vm.CanConfigure);
+                await Until(() => vm.Ready); await vm.AddProjectAsync(projectPath); await WorkspaceSmoke.NewChatAsync(vm);
                 var project = vm.Project!;
                 vm.Function = vm.Functions.Single(f => f.Name == PlanProposalFormat.ChiefFunctionName);
                 vm.Access = vm.AccessOptions[1];
@@ -73,9 +73,10 @@ internal static class ProposalSmoke
                 reviewWindow.Width = reviewWindow.MinWidth; reviewWindow.Height = reviewWindow.MinHeight; reviewWindow.UpdateLayout();
                 Capture(reviewWindow, Path.Combine(output, "02-proposal-minimum.png"));
                 reviewWindow.Close(); reviewWindow = null;
-                await vm.AddProjectAsync(secondPath); await Until(() => vm.CanConfigure);
+                await vm.AddProjectAsync(secondPath); await WorkspaceSmoke.NewChatAsync(vm);
                 Require((await vm.LoadProposalReviewAsync()).Proposals.Count == 0, "Planos misturados entre projetos.");
-                vm.Project = project; await Until(() => vm.SelectedConversation?.Record.Id == chief.Record.Id);
+                vm.Project = project; await Until(() => vm.Conversations.Any(c => c.Record.Id == chief.Record.Id) && vm.CanEditSessionLimit);
+                vm.SelectedConversation = chief;
                 vm.Prompt = "invalid"; vm.SendCommand.Execute(null); await Until(() => vm.ActiveCount == 0);
                 Require(chief.State == "Concluída" && vm.Notice.Contains("não pôde ser importada"), "Plano inválido alterou o resultado do chat.");
                 var restored = await vm.LoadProposalReviewAsync();
@@ -124,7 +125,7 @@ internal static class ProposalSmoke
                     "Criar menu inicial.", ["src/"], [], ["Botão inicia o jogo."]),
                  new("task-2", "Revisar menu", "Revisão", ProviderKind.Claude, null, ConversationAccess.ReadOnly,
                     "Revisar acessibilidade.", ["src/"], ["task-1"], ["Navegação por teclado."])]);
-            var text = request.Prompt == "invalid" ? "SIMULAÇÃO: resposta sem proposta válida." : "SIMULAÇÃO: plano para revisão.\n```sintonia-plan\n" + PlanProposalFormat.Serialize(plan) + "\n```";
+            var text = request.Prompt.StartsWith("invalid", StringComparison.Ordinal) ? "SIMULAÇÃO: proposta inválida.\n```sintonia-plan\n{}\n```" : "SIMULAÇÃO: plano para revisão.\n```sintonia-plan\n" + PlanProposalFormat.Serialize(plan) + "\n```";
             return Task.FromResult(new ConversationResult(id, "modelo-teste", text, ConversationOutcome.Completed, []));
         }
     }

@@ -43,6 +43,8 @@ Visual atualizado em 13/10/2026: tema escuro em grafite e verde aplicado à cent
 Modelos e reasoning em 13/10/2026: a central mostra o padrão da instalação, a versão em uso e o nível de reasoning e permite trocar modelo/reasoning entre turnos. A validação usou provedores de teste e uma consulta real de metadados Claude. [Guia e limites](docs/MODEL_SETTINGS.md).
 
 - [x] Cadastrar várias pastas de projeto, alternar entre elas e preservar seus contextos separados.
+- [x] Remover projetos da lista por lixeira, preservando arquivos e permitindo recuperar o histórico ao readicionar a pasta.
+- [x] Configurar equipe por projeto e abrir seu chefe como chat principal; confirmar o plano antes de delegar/iniciar uma rodada de tarefas.
 - [x] Criar chat central por projeto com seleção de provedor/modelo conforme as capacidades verificadas.
 - [x] Mostrar padrão da instalação, versão em uso e reasoning; permitir trocar modelo/reasoning entre turnos.
 - [x] Atribuir funções com provedor/modelo padrão e instruções adicionais.

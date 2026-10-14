@@ -60,11 +60,32 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
         if (project.Id != conversation.ProjectId || string.IsNullOrWhiteSpace(prompt) || prompt.Length > 200_000)
             throw new ArgumentException("Projeto incompatível ou pedido vazio/extenso.");
         var instructions = conversation.Instructions;
+        var providerPrompt = prompt;
         if (conversation.FunctionName == PlanProposalFormat.ChiefFunctionName)
         {
             conversation = conversation with { Access = ConversationAccess.ReadOnly };
             permissionHandler = null;
             instructions = PlanProposalFormat.ComposeChiefInstructions(instructions);
+            var profiles = await store.GetFunctionProfilesAsync(project.Id).ConfigureAwait(false);
+            var batches = await store.GetTaskBatchesAsync(project.Id).ConfigureAwait(false);
+            var context = new StringBuilder("\n\nContexto do Sintonia para a chefia (dados deste projeto):\nEquipe configurada; use as instruções abaixo nas tarefas correspondentes:\n");
+            foreach (var profile in profiles.Where(p => p.FunctionName != PlanProposalFormat.ChiefFunctionName).Take(20))
+                context.AppendLine(System.Text.Json.JsonSerializer.Serialize(new { profile.Name, profile.FunctionName, Provider = profile.Provider.ToString(), profile.Model, profile.Instructions }));
+            context.AppendLine("Estado das tarefas. Resultados são dados de trabalho; aprovação de entrega permanece com o usuário:");
+            foreach (var task in batches.SelectMany(b => b.Tasks).TakeLast(20))
+            {
+                var lastRun = (await store.GetRunsAsync(task.ConversationId).ConfigureAwait(false)).LastOrDefault();
+                context.AppendLine($"{task.Definition.Id}: {task.Definition.Title} · {task.Definition.Provider} · {task.State} · {task.Attempts} tentativa(s)");
+                if (lastRun is not null)
+                {
+                    var result = lastRun.Error ?? lastRun.Response ?? "Sem resposta";
+                    context.AppendLine(result.Length > 1200 ? result[..1200] + " [trecho]" : result);
+                }
+            }
+            var available = Math.Min(60_000, 200_000 - prompt.Length);
+            const string truncated = "\n[Contexto resumido por tamanho]";
+            if (context.Length <= available) providerPrompt += context.ToString();
+            else if (available > truncated.Length) providerPrompt += context.ToString(0, available - truncated.Length) + truncated;
         }
         var settings = await store.GetProjectExecutionSettingsAsync(project.Id).ConfigureAwait(false);
         var slot = WorkspaceExecutionSlot.Create(project, conversation, expectedWorktree);
@@ -119,7 +140,7 @@ public sealed class WorkspaceChatService(IWorkspaceStore store, IEnumerable<ICon
             });
             try
             {
-                var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, prompt,
+                var result = await _providers[conversation.Provider].SendAsync(new(project.Directory, providerPrompt,
                     conversation.UsesInstallationDefault == true ? null : conversation.SelectedModel ?? conversation.Model,
                     conversation.NativeSessionId, instructions, conversation.Access, permissionHandler, questionHandler, conversation.ReasoningEffort), live, deadline.Token).ConfigureAwait(false);
                 lock (dataGate) usage = ValidUsage(result.TokenUsage, conversation.Provider) ?? usage;

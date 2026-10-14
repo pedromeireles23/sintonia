@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 19) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 20) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -93,7 +93,13 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
                 reasoning_effort TEXT, effective_reasoning_effort TEXT, uses_installation_default INTEGER CHECK(uses_installation_default IN (0,1)));
             CREATE TABLE IF NOT EXISTS workspace_markers(key TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS removed_projects(project_id TEXT PRIMARY KEY REFERENCES projects(id));
-            PRAGMA user_version=19;
+            CREATE TABLE IF NOT EXISTS project_profile_libraries(project_id TEXT PRIMARY KEY REFERENCES projects(id));
+            CREATE TABLE IF NOT EXISTS project_function_profiles(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
+                name TEXT NOT NULL, name_key TEXT NOT NULL, function_name TEXT NOT NULL, provider INTEGER NOT NULL CHECK(provider IN (0,1)),
+                model TEXT, instructions TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>=0), UNIQUE(project_id,name_key));
+            CREATE TABLE IF NOT EXISTS project_chiefs(project_id TEXT PRIMARY KEY REFERENCES projects(id),
+                conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id));
+            PRAGMA user_version=20;
             """);
         check.Transaction = transaction;
         check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('conversation_model_settings') WHERE name='selected_model'";
@@ -159,6 +165,14 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     private static void SaveConversation(SqliteConnection connection, SqliteTransaction transaction, WorkspaceConversation conversation)
     {
         EnsureProjectActive(connection, transaction, conversation.ProjectId);
+        using (var chief = connection.CreateCommand())
+        {
+            chief.Transaction = transaction;
+            chief.CommandText = "SELECT EXISTS(SELECT 1 FROM project_chiefs WHERE conversation_id=$id)";
+            chief.Parameters.AddWithValue("$id", conversation.Id);
+            if (Convert.ToBoolean(chief.ExecuteScalar()) && (conversation.FunctionName != PlanProposalFormat.ChiefFunctionName || conversation.Access != ConversationAccess.ReadOnly))
+                throw new InvalidOperationException("O chat principal mantém a função Chefe do projeto em leitura. Use uma nova conversa para outra função.");
+        }
         ModelSettings.ValidateEffort(conversation.ReasoningEffort);
         ModelSettings.ValidateEffort(conversation.EffectiveReasoningEffort);
         using (var guard = connection.CreateCommand())
