@@ -30,7 +30,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     {
         using var check = connection.CreateCommand();
         check.CommandText = "PRAGMA user_version";
-        if (Convert.ToInt32(check.ExecuteScalar()) > 18) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
+        if (Convert.ToInt32(check.ExecuteScalar()) > 19) throw new InvalidOperationException("Este histórico foi criado por uma versão mais nova do Sintonia.");
         check.CommandText = "PRAGMA journal_mode=WAL";
         check.ExecuteScalar();
         using var transaction = connection.BeginTransaction();
@@ -92,7 +92,8 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             CREATE TABLE IF NOT EXISTS conversation_model_settings(conversation_id TEXT PRIMARY KEY REFERENCES conversations(id),
                 reasoning_effort TEXT, effective_reasoning_effort TEXT, uses_installation_default INTEGER CHECK(uses_installation_default IN (0,1)));
             CREATE TABLE IF NOT EXISTS workspace_markers(key TEXT PRIMARY KEY);
-            PRAGMA user_version=18;
+            CREATE TABLE IF NOT EXISTS removed_projects(project_id TEXT PRIMARY KEY REFERENCES projects(id));
+            PRAGMA user_version=19;
             """);
         check.Transaction = transaction;
         check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('conversation_model_settings') WHERE name='selected_model'";
@@ -105,7 +106,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
     public Task<IReadOnlyList<WorkspaceProject>> GetProjectsAsync() => RunAsync<IReadOnlyList<WorkspaceProject>>(connection =>
     {
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id,name,directory FROM projects ORDER BY name COLLATE NOCASE,id";
+        command.CommandText = "SELECT id,name,directory FROM projects WHERE id NOT IN (SELECT project_id FROM removed_projects) ORDER BY name COLLATE NOCASE,id";
         using var reader = command.ExecuteReader();
         var list = new List<WorkspaceProject>();
         while (reader.Read()) list.Add(new(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
@@ -123,6 +124,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
             var project = new WorkspaceProject(Guid.NewGuid().ToString(), new DirectoryInfo(path).Name, path);
             Execute(connection, transaction, "INSERT OR IGNORE INTO projects(id,name,directory,directory_key) VALUES($id,$name,$directory,$key)",
                 ("$id", project.Id), ("$name", project.Name), ("$directory", path), ("$key", key));
+            Execute(connection, transaction, "DELETE FROM removed_projects WHERE project_id=(SELECT id FROM projects WHERE directory_key=$key)", ("$key", key));
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = "SELECT id,name,directory FROM projects WHERE directory_key=$key";
@@ -156,6 +158,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
 
     private static void SaveConversation(SqliteConnection connection, SqliteTransaction transaction, WorkspaceConversation conversation)
     {
+        EnsureProjectActive(connection, transaction, conversation.ProjectId);
         ModelSettings.ValidateEffort(conversation.ReasoningEffort);
         ModelSettings.ValidateEffort(conversation.EffectiveReasoningEffort);
         using (var guard = connection.CreateCommand())
@@ -232,6 +235,7 @@ public sealed partial class SqliteWorkspaceStore(string databasePath) : IWorkspa
         using var transaction = connection.BeginTransaction();
         EnsureConversationNotReserved(connection, transaction, run.ConversationId, expectedWorktree);
         var slot = ReserveExecutionScope(connection, transaction, run, expectedWorktree, expectedSlot);
+        EnsureProjectActive(connection, transaction, slot.ProjectId);
         if (expectedSettings is not null && ReadExecutionSettings(connection, transaction, slot.ProjectId) != expectedSettings)
             throw new InvalidOperationException("Os limites mudaram antes da reserva. Atualize e confira antes de executar.");
         var budget = ReadProjectTokenBudget(connection, transaction, slot.ProjectId);

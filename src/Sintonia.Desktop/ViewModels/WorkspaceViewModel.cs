@@ -96,6 +96,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private bool _ready;
     private bool _stopping;
     private bool _loadingProject;
+    private bool _removingProject;
     private long _projectRevision;
     private ReasoningOption _reasoning = new(null, DefaultModel);
     // Metadata-only catalogs, cached per provider and folder because Codex can read project configuration.
@@ -307,12 +308,12 @@ public sealed class WorkspaceViewModel : ObservableObject
     public bool CanEditSessionLimit => Ready && Project is not null && !_loadingProject && !_savingSessionLimit && !_stopping;
     private int LimitFor(string projectId) => _executionSettings.TryGetValue(projectId, out var settings)
         ? settings.MaxConcurrentSessions : ProjectExecutionSettings.Minimum;
-    public bool CanConfigure => SelectedConversation is null && !_stopping && !_loadingProject;
+    public bool CanConfigure => SelectedConversation is null && !_stopping && !_loadingProject && !_removingProject;
     public bool CanReviewProposals => Ready && Project is not null && !_stopping;
     public bool CanManageFunctionProfiles => Ready && !_stopping;
     public bool CanApplyFunctionProfile => CanManageFunctionProfiles && Project is not null && !_loadingProject && SelectedFunctionProfile is not null;
     public bool CanEditFunction => SelectedConversation?.Running != true && SelectedConversation?.Record.IsTask != true && !_stopping && !_loadingProject;
-    public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && SelectedConversation?.Running != true
+    public bool CanSend => Ready && Project is not null && !_stopping && !_loadingProject && !_removingProject && SelectedConversation?.Running != true
         && HasTokenCapacity(Project.Id)
         && SelectedConversation?.Record.IsTask != true
         && (SelectedConversation is null || SelectedConversation.Loaded)
@@ -361,6 +362,25 @@ public sealed class WorkspaceViewModel : ObservableObject
         Notice = "Projeto adicionado. Escolha a IA, o modelo e envie seu primeiro pedido.";
     }
     private async Task AddPickedProjectAsync() { if (_pickDirectory() is { } directory) await AddProjectAsync(directory); }
+
+    public bool CanRemoveProject => Ready && Project is not null && !_loadingProject && !_removingProject && !_stopping
+        && !_jobs.Values.Any(j => j.Slot.ProjectId == Project.Id) && _gitJobs.Count == 0;
+    public async Task RemoveProjectAsync(WorkspaceProject project)
+    {
+        if (!CanRemoveProject || Project?.Id != project.Id)
+            throw new InvalidOperationException("Aguarde as operações e selecione o projeto antes de removê-lo.");
+        _removingProject = true; RefreshCommands();
+        try
+        {
+            await _store.RemoveProjectAsync(project.Id);
+            foreach (var id in _sessions.Where(s => s.Value.Record.ProjectId == project.Id).Select(s => s.Key).ToArray()) _sessions.Remove(id);
+            _executionSettings.Remove(project.Id); _tokenBudgets.Remove(project.Id);
+            Projects.Remove(project);
+            if (Project?.Id == project.Id || Project is null) Project = Projects.FirstOrDefault();
+            Notice = "Projeto removido do Sintonia. Os arquivos foram preservados; adicionar a mesma pasta recupera seu histórico.";
+        }
+        finally { _removingProject = false; RefreshCommands(); }
+    }
 
     private async Task LoadProjectAsync(WorkspaceProject? project)
     {
@@ -857,8 +877,9 @@ public sealed class WorkspaceViewModel : ObservableObject
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, token);
         var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _gitJobs.Add(finished.Task);
+        RefreshCommands();
         try { return await operation(stop.Token); }
-        finally { finished.TrySetResult(); _gitJobs.Remove(finished.Task); }
+        finally { finished.TrySetResult(); _gitJobs.Remove(finished.Task); RefreshCommands(); }
     }
 
     private async Task<bool> AskPermissionAsync(ConversationPermission permission, CancellationToken token)
@@ -910,6 +931,7 @@ public sealed class WorkspaceViewModel : ObservableObject
     private void ShowError(Exception exception) => Notice = exception is OperationCanceledException ? "Operação cancelada ou prazo excedido." : exception.Message;
     private void RefreshCommands()
     {
+        Notify(nameof(CanRemoveProject));
         Notify(nameof(ActiveCount)); Notify(nameof(CanConfigure)); Notify(nameof(CanEditFunction)); Notify(nameof(CanEditAccess)); Notify(nameof(CanSend)); Notify(nameof(CanReviewProposals));
         Notify(nameof(CanChooseModel)); Notify(nameof(CanChooseReasoning));
         Notify(nameof(CanManageFunctionProfiles)); Notify(nameof(CanApplyFunctionProfile));

@@ -45,6 +45,14 @@ public partial class WorkspaceWindow : Window
         return await new ClaudeConversationProvider().InspectAsync(directory, token);
     }
     private void OpenDemo(object sender, RoutedEventArgs e) => new MainWindow().Show();
+    private async void RemoveProject(object sender, RoutedEventArgs e)
+    {
+        if (!ViewModel.CanRemoveProject || ViewModel.Project is not { } project) return;
+        if (MessageBox.Show(this, $"Remover {project.Name} do Sintonia?\n\nA pasta e os arquivos não serão apagados. O histórico fica guardado e reaparece se você adicionar a mesma pasta novamente.",
+            "Remover projeto", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        try { await ViewModel.RemoveProjectAsync(project); }
+        catch (Exception exception) { MessageBox.Show(this, exception.Message, "Remover projeto", MessageBoxButton.OK, MessageBoxImage.Information); }
+    }
     private void OpenGitDiagnostics(object sender, RoutedEventArgs e)
     {
         if (ViewModel.Project is { } project)

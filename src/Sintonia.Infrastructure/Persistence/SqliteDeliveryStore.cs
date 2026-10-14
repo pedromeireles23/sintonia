@@ -38,6 +38,7 @@ public sealed partial class SqliteWorkspaceStore
         TaskDelivery delivery, TaskIntegrationTarget target, string id, bool archiving = false)
     {
         target.ValidateFor(delivery);
+        EnsureProjectActive(connection, transaction, projectId);
         var task = ApprovedDeliveryTask(connection, transaction, projectId, delivery);
         if (!archiving && task.Cleanup?.BlocksCheckout == true) throw new InvalidOperationException("A worktree tem um arquivamento registrado. Confira a fila antes de integrar.");
         if (task.Delivery != delivery) throw new InvalidOperationException("Registre esta entrega antes de reservar a integração.");

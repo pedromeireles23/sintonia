@@ -23,6 +23,7 @@ public sealed partial class SqliteWorkspaceStore
     public Task<TaskWorktree> ReserveTaskWorktreeAsync(string projectId, TaskWorktree worktree) => RunAsync(connection =>
     {
         using var transaction = connection.BeginTransaction();
+        EnsureProjectActive(connection, transaction, projectId);
         var batch = ReadBatches(connection, transaction, projectId).Single(b => b.Tasks.Any(t => t.Id == worktree.TaskId));
         var task = batch.Tasks.Single(t => t.Id == worktree.TaskId);
         if (!WorkspaceTaskPolicy.CanPrepareWorktree(task, batch.Tasks))

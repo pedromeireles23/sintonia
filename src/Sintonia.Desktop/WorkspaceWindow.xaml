@@ -48,7 +48,12 @@
                 <StackPanel>
                     <TextBlock Text="sintonia" Foreground="{StaticResource Ink}" FontSize="32" FontWeight="SemiBold" />
                     <TextBlock Text="Sua central de projetos" Foreground="{StaticResource Muted}" Margin="0,6,0,28" />
-                    <TextBlock Text="PROJETOS" Foreground="{StaticResource Muted}" FontSize="11" FontWeight="SemiBold" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Click="RemoveProject" IsEnabled="{Binding CanRemoveProject}" Padding="6" ToolTip="Remover o projeto selecionado do Sintonia" AutomationProperties.Name="Remover projeto do Sintonia" AutomationProperties.AutomationId="RemoveProject">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74D;" FontSize="15" />
+                        </Button>
+                        <TextBlock Text="PROJETOS" Foreground="{StaticResource Muted}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
                 </StackPanel>
                 <Button Grid.Row="1" Content="+ Adicionar projeto" Style="{StaticResource SidebarActionButton}" Command="{Binding AddProjectCommand}" Margin="0,12,0,18" AutomationProperties.AutomationId="AddProject" />
                 <ListBox Grid.Row="2" ItemsSource="{Binding Projects}" SelectedItem="{Binding Project}"

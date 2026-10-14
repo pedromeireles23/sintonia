@@ -2,6 +2,13 @@
 
 Registro resumido de incrementos e pontos de retomada. Consulte `git log` para hashes e cronologia exata dos commits.
 
+## 13/10/2026 — Remover projeto da central
+
+- Lixeira com nome acessível e confirmação no cabeçalho de projetos. Remove somente o cadastro da lista; arquivos, worktrees e histórico ficam preservados. Adicionar a mesma pasta restaura a identidade/histórico. Schema 19 compatível com bancos anteriores.
+- Remoção e reservas são transacionais: recusam remoção com runs/preparações/integrações ativas e impedem iniciar execução/Git pelo cadastro removido, inclusive por outra instância do store ou painel antigo. A central limpa caches e seleciona outro projeto.
+- Validação: build Debug sem avisos/erros. Dois testes novos de remoção/reabertura/restauração/arquivos/execução ativa e 15 regressões WorkspaceTests aprovados. A regressão ReservationsSerializeOriginalWritingUntilStopped falhou por uma expectativa de conflito que alterações locais preexistentes em WorkspaceExecutionPolicy removeram; não foram incorporadas nem alteradas neste commit. Sem modelos.
+- Próximo incremento do pedido: perfis específicos por projeto e chat principal como chefe, com confirmação antes da delegação/início, conforme escolha do usuário.
+
 ## 08/10/2026 — Preparação do repositório
 
 - Repositório inicialmente vazio clonado na pasta existente do usuário.

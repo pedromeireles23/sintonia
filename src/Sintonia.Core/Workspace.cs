@@ -14,6 +14,7 @@ public interface IWorkspaceStore
     Task InitializeAsync();
     Task<IReadOnlyList<WorkspaceProject>> GetProjectsAsync();
     Task<WorkspaceProject> AddProjectAsync(string directory);
+    Task RemoveProjectAsync(string projectId);
     Task<IReadOnlyList<WorkspaceConversation>> GetConversationsAsync(string projectId);
     Task SaveConversationAsync(WorkspaceConversation conversation);
     Task<IReadOnlyList<ChatRun>> GetRunsAsync(string conversationId);
